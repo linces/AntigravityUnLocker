@@ -5,6 +5,7 @@ import { ProviderRouter } from './router/providerRouter.js';
 import { ChatCompletionRequest } from './adapters/base.js';
 import { translateConnectRequestToOpenAI, decodeConnectEnvelope } from './translation/connectToOpenAI.js';
 import { encodeConnectEnvelope, formatConnectStreamChunk } from './translation/openAiToConnect.js';
+import { getDashboardHtml } from './dashboard/dashboardHtml.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,6 +27,35 @@ app.get('/health', (req, res) => {
     version: '0.1.0',
     timestamp: new Date().toISOString()
   });
+});
+
+// Interactive Web Dashboard
+app.get(['/', '/dashboard'], (req, res) => {
+  res.setHeader('Content-Type', 'text/html');
+  res.send(getDashboardHtml());
+});
+
+// Admin API status & telemetry
+app.get('/api/status', (req, res) => {
+  res.json({
+    status: 'online',
+    defaultProvider: router.getActiveProviderId(),
+    metrics: {
+      uptimeSeconds: process.uptime(),
+      memoryUsageMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024)
+    }
+  });
+});
+
+// Admin API switch provider
+app.post('/api/provider/switch', (req, res) => {
+  const { providerId } = req.body;
+  try {
+    router.setActiveProvider(providerId);
+    res.json({ success: true, activeProvider: providerId });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
 });
 
 // ConnectRPC / OpenAI Bridge Endpoint
@@ -69,22 +99,10 @@ app.post(['/v1/chat/completions', '/google.cloud.conversa.v1.AgentService/*'], a
   }
 });
 
-// Admin status dashboard endpoint
-app.get('/api/status', (req, res) => {
-  res.json({
-    status: 'online',
-    defaultProvider: router.getProvider().id,
-    metrics: {
-      uptimeSeconds: process.uptime(),
-      memoryUsageMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024)
-    }
-  });
-});
-
 app.listen(PORT, () => {
   console.log(`=======================================================`);
   console.log(`  Antigravity Universal AI Provider Bridge (ag-provider) `);
-  console.log(`  ConnectRPC & OpenAI Translation Pipeline Online`);
+  console.log(`  Control Panel: http://127.0.0.1:${PORT}/dashboard`);
   console.log(`  Running on http://127.0.0.1:${PORT}`);
   console.log(`=======================================================`);
 });

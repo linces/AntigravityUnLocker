@@ -21,10 +21,12 @@ export interface ProvidersConfig {
 export class ProviderRouter {
   private providers: Map<string, ILLMProvider> = new Map();
   private defaultConfig: ProvidersConfig;
+  private activeProviderId: string;
 
   constructor(configPath: string) {
     const raw = fs.readFileSync(configPath, 'utf-8');
     this.defaultConfig = JSON.parse(raw);
+    this.activeProviderId = this.defaultConfig.default;
     this.initializeProviders();
   }
 
@@ -43,8 +45,20 @@ export class ProviderRouter {
     }
   }
 
+  public setActiveProvider(id: string): void {
+    if (!this.providers.has(id)) {
+      throw new Error(`Provider '${id}' is not configured.`);
+    }
+    this.activeProviderId = id;
+    console.log(`[ag-provider] Active provider switched to '${id}'`);
+  }
+
+  public getActiveProviderId(): string {
+    return this.activeProviderId;
+  }
+
   public getProvider(id?: string): ILLMProvider {
-    const targetId = id || this.defaultConfig.default;
+    const targetId = id || this.activeProviderId;
     const provider = this.providers.get(targetId);
     if (!provider) {
       throw new Error(`Provider '${targetId}' not registered in ag-provider config.`);
@@ -53,8 +67,9 @@ export class ProviderRouter {
   }
 
   public async chatWithFallback(request: ChatCompletionRequest): Promise<ChatCompletionResponse> {
-    const primaryId = this.defaultConfig.default;
-    const targets = [primaryId, ...(this.defaultConfig.fallback || [])];
+    const primaryId = this.activeProviderId;
+    const fallbacks = (this.defaultConfig.fallback || []).filter(f => f !== primaryId);
+    const targets = [primaryId, ...fallbacks];
 
     let lastError: any;
     for (const providerId of targets) {
