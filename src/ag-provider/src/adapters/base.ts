@@ -1,8 +1,9 @@
 import { OpenAITool, OpenAIToolCall } from '../translation/toolsTranslation.js';
+import { OpenAIContentPart } from '../translation/visionTranslation.js';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
-  content: string;
+  content: string | OpenAIContentPart[];
   name?: string;
   tool_calls?: OpenAIToolCall[];
   tool_call_id?: string;

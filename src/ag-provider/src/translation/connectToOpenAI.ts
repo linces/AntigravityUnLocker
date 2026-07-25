@@ -1,5 +1,6 @@
 import { ChatCompletionRequest, ChatMessage } from '../adapters/base.js';
 import { translateConnectToolsToOpenAI } from './toolsTranslation.js';
+import { translateConnectPartsToOpenAIContent } from './visionTranslation.js';
 
 export interface ConnectFrame {
   flags: number;
@@ -41,7 +42,7 @@ export function translateConnectRequestToOpenAI(rawBody: any): ChatCompletionReq
       model: rawBody.model || 'default-model',
       messages: rawBody.messages.map((msg: any) => ({
         role: msg.role === 'model' ? 'assistant' : msg.role || 'user',
-        content: typeof msg.content === 'string' ? msg.content : extractTextFromParts(msg.parts || []),
+        content: msg.parts ? translateConnectPartsToOpenAIContent(msg.parts) : msg.content || '',
         name: msg.name,
       })),
       tools: tools && tools.length > 0 ? tools : undefined,
@@ -61,15 +62,4 @@ export function translateConnectRequestToOpenAI(rawBody: any): ChatCompletionReq
     ],
     stream: false,
   };
-}
-
-function extractTextFromParts(parts: any[]): string {
-  return parts
-    .map(p => {
-      if (typeof p === 'string') return p;
-      if (p?.text) return p.text;
-      return '';
-    })
-    .filter(Boolean)
-    .join('\n');
 }

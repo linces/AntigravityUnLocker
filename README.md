@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Status-Production--Ready-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Protocol-ConnectRPC%2FProtobuf-purple?style=for-the-badge&logo=grpc" alt="Protocol" />
   <img src="https://img.shields.io/badge/API-OpenAI%20v1%20Compatible-orange?style=for-the-badge&logo=openai" alt="API" />
-  <img src="https://img.shields.io/badge/Version-1.3.0-blue?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-1.4.0-blue?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
 </p>
 
@@ -19,6 +19,7 @@
 
 - **⚡ Zero Binary Modification**: Operates 100% out-of-band via standard configuration extensions (`antigravity.agentHostAddress`).
 - **🔥 Flagship Model Support**: Built-in support for **Kimi K3** (1M Context reasoning) & **Qwen 3.8** (2.4 Trillion parameter MoE).
+- **👁️ Multimodal / Vision Processing**: Translates ConnectRPC Protobuf `inlineData` Base64 images and diagrams into standard OpenAI `image_url` multimodal payloads.
 - **🛠️ Function Calling & Tool Calling Translation**: Bidirectional translation between ConnectRPC Protobuf `functionDeclarations` and OpenAI `tools` / `tool_calls` schemas.
 - **🔌 ConnectRPC / Protobuf Binary Pipeline**: Native 5-byte header envelope decoding/encoding (`application/connect+proto`) to standard OpenAI `v1/chat/completions` API formats.
 - **🔄 Resilient Fallback & Load Balancing**: Automatic failover to secondary providers on rate limits, network timeouts, or HTTP 5xx errors.
@@ -38,7 +39,7 @@ flowchart TD
 
     subgraph Bridge["ag-provider Service (Local Proxy)"]
         RPC["ConnectRPC Ingress & Envelope Decoder<br/>http://127.0.0.1:50051"]
-        TRANSLATOR["Protobuf / ConnectRPC <--> OpenAI Translator<br/>(Messages & Tool Calls)"]
+        TRANSLATOR["Protobuf / ConnectRPC <--> OpenAI Translator<br/>(Text, Vision Base64 & Tool Calls)"]
         ROUTER["Provider Router & Fallback Loop"]
         ADAPTER["OpenAI / Ollama Adapter"]
         DASHBOARD["Interactive Web Dashboard UI<br/>/dashboard"]
@@ -56,10 +57,10 @@ flowchart TD
     end
 
     IDE -->|HTTP/2 ConnectRPC Stream| RPC
-    ADAPTER -->|REST / SSE + Tool Calls| KIMI
-    ADAPTER -->|REST / SSE + Tool Calls| QWEN38
-    ADAPTER -->|REST / SSE + Tool Calls| OLLAMA
-    ADAPTER -->|REST / SSE + Tool Calls| CLOUD
+    ADAPTER -->|REST / SSE + Vision + Tools| KIMI
+    ADAPTER -->|REST / SSE + Vision + Tools| QWEN38
+    ADAPTER -->|REST / SSE + Vision + Tools| OLLAMA
+    ADAPTER -->|REST / SSE + Vision + Tools| CLOUD
 ```
 
 ---
@@ -68,8 +69,8 @@ flowchart TD
 
 | Provider / Engine | Type | Default Endpoint | Supported Features |
 | :--- | :--- | :--- | :--- |
-| **Kimi K3 (Moonshot AI)** | Cloud API | `https://api.moonshot.ai/v1` | **1M Token Context**, Always-on reasoning |
-| **Qwen 3.8 (DashScope)** | Cloud / MoE | `https://dashscope.aliyuncs.com/compatible-mode/v1` | **2.4 Trillion Parameters**, Flagship MoE Preview |
+| **Kimi K3 (Moonshot AI)** | Cloud API | `https://api.moonshot.ai/v1` | **1M Token Context**, Always-on reasoning, Vision |
+| **Qwen 3.8 (DashScope)** | Cloud / MoE | `https://dashscope.aliyuncs.com/compatible-mode/v1` | **2.4 Trillion Parameters**, Flagship MoE, Vision |
 | **Ollama** | Local | `http://localhost:11434/v1` | Streaming, Local Code Models, Zero Cost |
 | **LM Studio** | Local | `http://localhost:1234/v1` | GGUF Models, Offline Execution |
 | **OpenRouter** | Cloud | `https://openrouter.ai/api/v1` | Multi-provider routing, Prompt Cache |
@@ -103,7 +104,7 @@ flowchart TD
             ├── index.ts        # Main HTTP/2 Server & API routes
             ├── adapters/       # ILLMProvider implementations (OpenAI, Ollama)
             ├── router/         # Provider router & fallback manager
-            ├── translation/    # ConnectRPC decoders, encoders & toolsTranslation
+            ├── translation/    # ConnectRPC decoders, encoders, vision & tools
             └── dashboard/      # Web control panel UI (dashboardHtml.ts)
 ```
 
@@ -184,8 +185,8 @@ Open your Antigravity IDE settings (`settings.json`) and add the custom host con
 
 ## 🏷️ Tags
 
-`dev` `ai` `reverse-engineering` `connectrpc` `openai-adapter` `ag-provider` `antigravity-ide` `ollama` `openrouter` `qwen` `deepseek` `kimi-k3` `tool-calling` `function-calling`
+`dev` `ai` `reverse-engineering` `connectrpc` `openai-adapter` `ag-provider` `antigravity-ide` `ollama` `openrouter` `qwen` `deepseek` `kimi-k3` `tool-calling` `vision` `multimodal`
 
 ---
 
-**Versão:** 1.3.0 | **Última Revisão:** 2026-07-25 11:57:00 -03:00
+**Versão:** 1.4.0 | **Última Revisão:** 2026-07-25 12:06:00 -03:00
