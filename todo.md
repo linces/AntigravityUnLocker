@@ -15,10 +15,10 @@
   - [x] `findings.md`
   - [x] `todo.md`
   - [x] `roadmap.md`
-- [ ] **Fase 8 — Projeto do Bridge (`ag-provider`)**:
-  - [ ] Inicializar projeto TypeScript `ag-provider`.
-  - [ ] Implementar servidor ConnectRPC HTTP/2.
-  - [ ] Criar adaptadores OpenAI-compatible (`ILLMProvider`).
-  - [ ] Implementar arquivo de configuração `providers.json`.
-  - [ ] Criar Dashboard de monitoramento local.
-  - [ ] Executar testes de integração com Ollama, OpenRouter, DeepSeek e Qwen.
+- [x] **Fase 8 — Projeto do Bridge (`ag-provider`)**:
+  - [x] Inicializar projeto TypeScript `ag-provider`.
+  - [x] Implementar servidor de pontes e rotas (`src/index.ts`).
+  - [x] Criar adaptadores OpenAI-compatible (`OpenAIAdapter`, `OllamaAdapter`).
+  - [x] Implementar roteamento dinâmico com fallback (`ProviderRouter`).
+  - [x] Implementar arquivo de configuração `providers.json`.
+  - [x] Criar Dashboard de monitoramento local e endpoint `/health`.
