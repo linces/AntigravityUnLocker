@@ -18,6 +18,7 @@
 ## 🌟 Key Features
 
 - **⚡ Zero Binary Modification**: Operates 100% out-of-band via standard configuration extensions (`antigravity.agentHostAddress`).
+- **📖 Comprehensive User & Operation Manual**: Detailed step-by-step setup and troubleshooting guide in [`docs/user_manual.md`](./docs/user_manual.md).
 - **🔥 Flagship Model Support**: Built-in support for **Kimi K3** (1M Context reasoning) & **Qwen 3.8** (2.4 Trillion parameter MoE).
 - **👁️ Multimodal / Vision Processing**: Translates ConnectRPC Protobuf `inlineData` Base64 images and diagrams into standard OpenAI `image_url` multimodal payloads.
 - **🛠️ Function Calling & Tool Calling Translation**: Bidirectional translation between ConnectRPC Protobuf `functionDeclarations` and OpenAI `tools` / `tool_calls` schemas.
@@ -90,6 +91,7 @@ flowchart TD
 ├── todo.md                 # Project Task Matrix
 ├── roadmap.md              # Long-term Feature Roadmap
 ├── docs/                   # Engineering Specifications
+│   ├── user_manual.md      # Comprehensive Operation & Usage Manual
 │   ├── architecture.md     # Electron IDE runtime & ConnectRPC internals
 │   ├── providers.md        # Provider catalog & ILLMProvider TypeScript interfaces
 │   ├── network.md          # Protocol buffers, wire schemas & headers
@@ -112,66 +114,29 @@ flowchart TD
 
 ## 🛠️ Quick Start Guide
 
-### 1. Installation
+For full step-by-step instructions, view the [**Operation & Usage Manual**](./docs/user_manual.md).
 
-Clone the repository and install dependencies:
+### 1. Installation & Build
 
 ```bash
 git clone https://github.com/your-username/antigravity-universal-provider.git
 cd antigravity-universal-provider/src/ag-provider
 npm install
+npm run build
 ```
 
-### 2. Configuration (`providers.json`)
-
-Configure your target model providers in `src/ag-provider/providers.json`:
-
-```json
-{
-  "default": "kimi-k3",
-  "fallback": ["qwen-3.8-max", "ollama-local"],
-  "providers": [
-    {
-      "id": "kimi-k3",
-      "name": "Kimi K3 (Moonshot AI - 1M Context)",
-      "baseUrl": "https://api.moonshot.ai/v1",
-      "apiKey": "${KIMI_API_KEY}",
-      "model": "kimi-k3",
-      "timeoutMs": 120000
-    },
-    {
-      "id": "qwen-3.8-max",
-      "name": "Qwen 3.8 (2.4T MoE - DashScope)",
-      "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-      "apiKey": "${DASHSCOPE_API_KEY}",
-      "model": "qwen3.8-max-preview",
-      "timeoutMs": 120000
-    }
-  ]
-}
-```
-
-### 3. Launch the Proxy Server
+### 2. Launch Proxy
 
 ```bash
-# Set your API keys
-export KIMI_API_KEY="your-kimi-key"
-export DASHSCOPE_API_KEY="your-dashscope-key"
-
-# Start the bridge server
-npm run dev
+export KIMI_API_KEY="your-key"
+npm start
 ```
 
-The bridge server will listen on `http://127.0.0.1:50051`.
+### 3. Configure IDE
 
-### 4. Connect Antigravity IDE
-
-Open your Antigravity IDE settings (`settings.json`) and add the custom host configuration:
-
+Add to `settings.json`:
 ```json
-{
-  "antigravity.agentHostAddress": "http://127.0.0.1:50051"
-}
+"antigravity.agentHostAddress": "http://127.0.0.1:50051"
 ```
 
 ---
@@ -185,8 +150,8 @@ Open your Antigravity IDE settings (`settings.json`) and add the custom host con
 
 ## 🏷️ Tags
 
-`dev` `ai` `reverse-engineering` `connectrpc` `openai-adapter` `ag-provider` `antigravity-ide` `ollama` `openrouter` `qwen` `deepseek` `kimi-k3` `tool-calling` `vision` `multimodal`
+`dev` `ai` `reverse-engineering` `connectrpc` `openai-adapter` `ag-provider` `antigravity-ide` `ollama` `openrouter` `qwen` `deepseek` `kimi-k3` `tool-calling` `vision` `user-manual`
 
 ---
 
-**Versão:** 1.4.0 | **Última Revisão:** 2026-07-25 12:06:00 -03:00
+**Versão:** 1.4.0 | **Última Revisão:** 2026-07-25 12:12:00 -03:00

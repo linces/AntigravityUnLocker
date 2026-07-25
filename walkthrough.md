@@ -3,7 +3,7 @@ domain: dev
 category: project_management
 type: walkthrough
 created: 2026-07-25
-last_updated: 2026-07-25T12:06:00-03:00
+last_updated: 2026-07-25T12:12:00-03:00
 version: 1.4.0
 ---
 
@@ -11,7 +11,8 @@ version: 1.4.0
 
 ## Completed Work
 
-### 1. Reverse Engineering Specifications
+### 1. Reverse Engineering Specifications & User Guides
+- [user_manual.md](docs/user_manual.md): Comprehensive Operation & Usage Manual covering build, environment keys, IDE setup, dashboard usage, and diagnostics.
 - [architecture.md](docs/architecture.md): Full breakdown of Antigravity IDE framework (Electron 39.2.3, VS Code 1.107.0 fork, Node.js 22.20.0), process tree, and internal ConnectRPC protocol loop.
 - [providers.md](docs/providers.md): Ecosystem mapping for Ollama, OpenRouter, LM Studio, vLLM, DeepSeek, Qwen, SiliconFlow, Groq, Kimi K3, Qwen 3.8, GLM, OpenAI, and `ILLMProvider` interface specification.
 - [network.md](docs/network.md): Headers, authorization tokens, Protobuf schema structure, ConnectRPC framing, and traffic instrumentation plan.
@@ -20,7 +21,7 @@ version: 1.4.0
 - [todo.md](todo.md) & [roadmap.md](roadmap.md): Task checklist and release roadmap.
 
 ### 2. Proxy Bridge, Vision & Tool Calling Pipeline (`src/ag-provider/`)
-- [package.json](src/ag-provider/package.json): Node.js environment configuration.
+- [package.json](src/ag-provider/package.json): Node.js environment configuration with ESM support.
 - [tsconfig.json](src/ag-provider/tsconfig.json): TypeScript setup.
 - [providers.json](src/ag-provider/providers.json): Configuration template for target LLM backends (Kimi K3, Qwen 3.8 2.4T, Ollama, OpenRouter) and fallback rules.
 - [base.ts](src/ag-provider/src/adapters/base.ts): `ILLMProvider` core interface & types with Multimodal & Tool Call support.
@@ -40,4 +41,4 @@ version: 1.4.0
 
 ---
 
-**Versão:** 1.4.0 | **Última Revisão:** 2026-07-25 12:06:00 -03:00
+**Versão:** 1.4.0 | **Última Revisão:** 2026-07-25 12:12:00 -03:00
