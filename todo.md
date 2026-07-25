@@ -3,8 +3,8 @@ domain: dev
 category: project_management
 type: task_matrix
 created: 2026-07-25
-last_updated: 2026-07-25T01:09:00-03:00
-version: 1.2.0
+last_updated: 2026-07-25T11:46:00-03:00
+version: 1.3.0
 ---
 
 # Project TODO - Antigravity Universal AI Provider
@@ -30,10 +30,11 @@ version: 1.2.0
   - [x] Criar adaptadores OpenAI-compatible (`OpenAIAdapter`, `OllamaAdapter`).
   - [x] Adicionar suporte aos novos modelos flagship: Kimi K3 (1M Context) e Qwen 3.8 (2.4T MoE).
   - [x] Implementar pipeline decodificador/codificador de envelopes binários ConnectRPC / Protobuf (`src/translation/`).
+  - [x] Implementar Mapeamento de Chamadas de Ferramentas / Tool Calls (`toolsTranslation.ts`).
   - [x] Implementar roteamento dinâmico com fallback (`ProviderRouter`).
   - [x] Implementar arquivo de configuração `providers.json`.
   - [x] Criar Dashboard Web de monitoramento local (`/dashboard`) e endpoint `/health`.
 
 ---
 
-**Versão:** 1.2.0 | **Última Revisão:** 2026-07-25 01:09:00 -03:00
+**Versão:** 1.3.0 | **Última Revisão:** 2026-07-25 11:46:00 -03:00

@@ -3,8 +3,8 @@ domain: dev
 category: project_structure
 type: documentation
 created: 2026-07-25
-last_updated: 2026-07-25T01:09:00-03:00
-version: 1.2.0
+last_updated: 2026-07-25T11:46:00-03:00
+version: 1.3.0
 ---
 
 # Antigravity Universal AI Provider (`ag-provider`)
@@ -13,7 +13,7 @@ version: 1.2.0
   <img src="https://img.shields.io/badge/Status-Production--Ready-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Protocol-ConnectRPC%2FProtobuf-purple?style=for-the-badge&logo=grpc" alt="Protocol" />
   <img src="https://img.shields.io/badge/API-OpenAI%20v1%20Compatible-orange?style=for-the-badge&logo=openai" alt="API" />
-  <img src="https://img.shields.io/badge/Version-1.2.0-blue?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-1.3.0-blue?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
 </p>
 
@@ -28,6 +28,7 @@ version: 1.2.0
 
 - **⚡ Zero Binary Modification**: Operates 100% out-of-band via standard configuration extensions (`antigravity.agentHostAddress`).
 - **🔥 Flagship Model Support**: Built-in support for **Kimi K3** (1M Context reasoning) & **Qwen 3.8** (2.4 Trillion parameter MoE).
+- **🛠️ Function Calling & Tool Calling Translation**: Bidirectional translation between ConnectRPC Protobuf `functionDeclarations` and OpenAI `tools` / `tool_calls` schemas.
 - **🔌 ConnectRPC / Protobuf Binary Pipeline**: Native 5-byte header envelope decoding/encoding (`application/connect+proto`) to standard OpenAI `v1/chat/completions` API formats.
 - **🔄 Resilient Fallback & Load Balancing**: Automatic failover to secondary providers on rate limits, network timeouts, or HTTP 5xx errors.
 - **🏠 Offline & Local-First Support**: First-class integration with Ollama, LM Studio, llama.cpp, and vLLM.
@@ -46,10 +47,12 @@ flowchart TD
 
     subgraph Bridge["ag-provider Service (Local Proxy)"]
         RPC["ConnectRPC Ingress & Envelope Decoder<br/>http://127.0.0.1:50051"]
+        TRANSLATOR["Protobuf / ConnectRPC <--> OpenAI Translator<br/>(Messages & Tool Calls)"]
         ROUTER["Provider Router & Fallback Loop"]
         ADAPTER["OpenAI / Ollama Adapter"]
         DASHBOARD["Interactive Web Dashboard UI<br/>/dashboard"]
-        RPC --> ROUTER
+        RPC --> TRANSLATOR
+        TRANSLATOR --> ROUTER
         ROUTER --> ADAPTER
         DASHBOARD --> ROUTER
     end
@@ -62,10 +65,10 @@ flowchart TD
     end
 
     IDE -->|HTTP/2 ConnectRPC Stream| RPC
-    ADAPTER -->|REST / SSE| KIMI
-    ADAPTER -->|REST / SSE| QWEN38
-    ADAPTER -->|REST / SSE| OLLAMA
-    ADAPTER -->|REST / SSE| CLOUD
+    ADAPTER -->|REST / SSE + Tool Calls| KIMI
+    ADAPTER -->|REST / SSE + Tool Calls| QWEN38
+    ADAPTER -->|REST / SSE + Tool Calls| OLLAMA
+    ADAPTER -->|REST / SSE + Tool Calls| CLOUD
 ```
 
 ---
@@ -109,7 +112,7 @@ flowchart TD
             ├── index.ts        # Main HTTP/2 Server & API routes
             ├── adapters/       # ILLMProvider implementations (OpenAI, Ollama)
             ├── router/         # Provider router & fallback manager
-            ├── translation/    # ConnectRPC envelope binary decoders & encoders
+            ├── translation/    # ConnectRPC decoders, encoders & toolsTranslation
             └── dashboard/      # Web control panel UI (dashboardHtml.ts)
 ```
 
@@ -190,8 +193,8 @@ Open your Antigravity IDE settings (`settings.json`) and add the custom host con
 
 ## 🏷️ Tags
 
-`dev` `ai` `reverse-engineering` `connectrpc` `openai-adapter` `ag-provider` `antigravity-ide` `ollama` `openrouter` `qwen` `deepseek` `kimi-k3`
+`dev` `ai` `reverse-engineering` `connectrpc` `openai-adapter` `ag-provider` `antigravity-ide` `ollama` `openrouter` `qwen` `deepseek` `kimi-k3` `tool-calling` `function-calling`
 
 ---
 
-**Versão:** 1.2.0 | **Última Revisão:** 2026-07-25 01:09:00 -03:00
+**Versão:** 1.3.0 | **Última Revisão:** 2026-07-25 11:46:00 -03:00

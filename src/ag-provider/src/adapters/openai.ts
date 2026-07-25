@@ -36,13 +36,20 @@ export class OpenAIAdapter implements ILLMProvider {
 
   public async chat(request: ChatCompletionRequest): Promise<ChatCompletionResponse> {
     const url = `${this.baseUrl}/chat/completions`;
-    const payload = {
+    const payload: Record<string, any> = {
       model: request.model || this.model,
       messages: request.messages,
       temperature: request.temperature ?? 0.7,
       max_tokens: request.max_tokens,
       stream: false,
     };
+
+    if (request.tools && request.tools.length > 0) {
+      payload.tools = request.tools;
+      if (request.tool_choice) {
+        payload.tool_choice = request.tool_choice;
+      }
+    }
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
@@ -71,13 +78,20 @@ export class OpenAIAdapter implements ILLMProvider {
 
   public async *stream(request: ChatCompletionRequest): AsyncIterable<string> {
     const url = `${this.baseUrl}/chat/completions`;
-    const payload = {
+    const payload: Record<string, any> = {
       model: request.model || this.model,
       messages: request.messages,
       temperature: request.temperature ?? 0.7,
       max_tokens: request.max_tokens,
       stream: true,
     };
+
+    if (request.tools && request.tools.length > 0) {
+      payload.tools = request.tools;
+      if (request.tool_choice) {
+        payload.tool_choice = request.tool_choice;
+      }
+    }
 
     const response = await fetch(url, {
       method: 'POST',

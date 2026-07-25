@@ -1,12 +1,18 @@
+import { OpenAITool, OpenAIToolCall } from '../translation/toolsTranslation.js';
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
   name?: string;
+  tool_calls?: OpenAIToolCall[];
+  tool_call_id?: string;
 }
 
 export interface ChatCompletionRequest {
   model: string;
   messages: ChatMessage[];
+  tools?: OpenAITool[];
+  tool_choice?: string | object;
   stream?: boolean;
   temperature?: number;
   max_tokens?: number;

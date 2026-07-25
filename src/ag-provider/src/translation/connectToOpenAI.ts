@@ -1,4 +1,5 @@
 import { ChatCompletionRequest, ChatMessage } from '../adapters/base.js';
+import { translateConnectToolsToOpenAI } from './toolsTranslation.js';
 
 export interface ConnectFrame {
   flags: number;
@@ -34,6 +35,8 @@ export function decodeConnectEnvelope(buffer: Buffer): ConnectFrame[] {
  */
 export function translateConnectRequestToOpenAI(rawBody: any): ChatCompletionRequest {
   if (typeof rawBody === 'object' && rawBody !== null && Array.isArray(rawBody.messages)) {
+    const tools = rawBody.tools ? translateConnectToolsToOpenAI(rawBody.tools) : undefined;
+
     return {
       model: rawBody.model || 'default-model',
       messages: rawBody.messages.map((msg: any) => ({
@@ -41,6 +44,7 @@ export function translateConnectRequestToOpenAI(rawBody: any): ChatCompletionReq
         content: typeof msg.content === 'string' ? msg.content : extractTextFromParts(msg.parts || []),
         name: msg.name,
       })),
+      tools: tools && tools.length > 0 ? tools : undefined,
       temperature: rawBody.temperature ?? 0.7,
       stream: rawBody.stream ?? false,
     };
