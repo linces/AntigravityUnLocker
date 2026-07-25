@@ -1,3 +1,13 @@
+---
+domain: dev
+category: project_management
+type: task_matrix
+created: 2026-07-25
+last_updated: 2026-07-25T01:05:00-03:00
+version: 1.2.0
+project_registry: projects_registry.yaml
+---
+
 # Project TODO - Antigravity Universal AI Provider
 
 - [x] **Fase 1 — Identificação da tecnologia**: Mapeado (Electron 39.2.3, VS Code 1.107.0 fork, Node.js 22.20.0).
@@ -19,6 +29,17 @@
   - [x] Inicializar projeto TypeScript `ag-provider`.
   - [x] Implementar servidor de pontes e rotas (`src/index.ts`).
   - [x] Criar adaptadores OpenAI-compatible (`OpenAIAdapter`, `OllamaAdapter`).
+  - [x] Adicionar suporte aos novos modelos flagship: Kimi K3 (1M Context) e Qwen 3.8 (2.4T MoE).
+  - [x] Implementar pipeline decodificador/codificador de envelopes binários ConnectRPC / Protobuf (`src/translation/`).
   - [x] Implementar roteamento dinâmico com fallback (`ProviderRouter`).
   - [x] Implementar arquivo de configuração `providers.json`.
-  - [x] Criar Dashboard de monitoramento local e endpoint `/health`.
+  - [x] Criar Dashboard Web de monitoramento local (`/dashboard`) e endpoint `/health`.
+
+---
+
+**Arquivo:** todo.md  
+**Localização:** `E:/00Dev/AntigravityUnlock/`  
+**Importância:** CRÍTICA  
+**Versão:** 1.2.0  
+**Última Revisão:** 25/07/2026 01:05:00 -03:00  
+**Ver também:** `projects_registry.yaml` — SSOT de projetos

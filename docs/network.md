@@ -1,3 +1,13 @@
+---
+domain: dev
+category: network_protocol
+type: documentation
+created: 2026-07-25
+last_updated: 2026-07-25T01:05:00-03:00
+version: 1.2.0
+project_registry: projects_registry.yaml
+---
+
 # Protocol & Communication Engineering - Antigravity Universal AI Provider
 
 ## Overview
@@ -78,3 +88,12 @@ To inspect raw wire packets during development:
 - Set environment variable `NODE_TLS_REJECT_UNAUTHORIZED=0`.
 - Proxy via local instrumentation tool (e.g. `mitmproxy` / Wireshark) listening on `127.0.0.1:8888`.
 - Configure `agentHostAddress` setting in Antigravity settings to route local traffic directly through the proxy.
+
+---
+
+**Arquivo:** network.md  
+**Localização:** `E:/00Dev/AntigravityUnlock/docs/`  
+**Importância:** CRÍTICA  
+**Versão:** 1.2.0  
+**Última Revisão:** 25/07/2026 01:05:00 -03:00  
+**Ver também:** `projects_registry.yaml` — SSOT de projetos

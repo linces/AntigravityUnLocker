@@ -1,3 +1,13 @@
+---
+domain: dev
+category: findings_summary
+type: documentation
+created: 2026-07-25
+last_updated: 2026-07-25T01:05:00-03:00
+version: 1.2.0
+project_registry: projects_registry.yaml
+---
+
 # Findings Report - Reverse Engineering Antigravity IDE
 
 ## Key Discoveries & Technical Insights
@@ -21,3 +31,12 @@
 ### 4. Integration Strategy (`ag-provider`)
 - By leveraging the standard host override mechanism, an external proxy process (`ag-provider`) listening on `127.0.0.1` can intercept ConnectRPC calls.
 - `ag-provider` translates incoming binary ConnectRPC messages into standard OpenAI `v1/chat/completions` API format, enabling seamless usage of local runners (Ollama, LM Studio, llama.cpp) and alternative cloud endpoints (OpenRouter, DeepSeek, Qwen, vLLM, SiliconFlow).
+
+---
+
+**Arquivo:** findings.md  
+**Localização:** `E:/00Dev/AntigravityUnlock/docs/`  
+**Importância:** CRÍTICA  
+**Versão:** 1.2.0  
+**Última Revisão:** 25/07/2026 01:05:00 -03:00  
+**Ver também:** `projects_registry.yaml` — SSOT de projetos
