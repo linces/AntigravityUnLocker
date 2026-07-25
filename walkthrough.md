@@ -10,7 +10,7 @@
 - [findings.md](docs/findings.md): Comprehensive summary of all discovery phases.
 - [todo.md](todo.md) & [roadmap.md](roadmap.md): Task checklist and release roadmap.
 
-### 2. Proxy Bridge Implementation (`src/ag-provider/`)
+### 2. Proxy Bridge & Translation Pipeline (`src/ag-provider/`)
 - [package.json](src/ag-provider/package.json): Node.js environment configuration.
 - [tsconfig.json](src/ag-provider/tsconfig.json): TypeScript setup.
 - [providers.json](src/ag-provider/providers.json): Configuration template for target LLM backends and fallback rules.
@@ -18,7 +18,9 @@
 - [openai.ts](src/ag-provider/src/adapters/openai.ts): OpenAI-compatible adapter for cloud API providers.
 - [ollama.ts](src/ag-provider/src/adapters/ollama.ts): Ollama / local LLM runner adapter.
 - [providerRouter.ts](src/ag-provider/src/router/providerRouter.ts): Dynamic router & automatic fallback engine.
-- [index.ts](src/ag-provider/src/index.ts): Proxy server entrypoint with health & metrics endpoints.
+- [connectToOpenAI.ts](src/ag-provider/src/translation/connectToOpenAI.ts): ConnectRPC 5-byte header envelope decoder and payload request parser.
+- [openAiToConnect.ts](src/ag-provider/src/translation/openAiToConnect.ts): ConnectRPC envelope encoder and SSE stream chunk formatter.
+- [index.ts](src/ag-provider/src/index.ts): HTTP/2 ConnectRPC server entrypoint with support for binary `application/connect+proto` and REST payloads.
 
 ### 3. Safety & Compliance
 - Zero binary modifications or patches to the host IDE.
