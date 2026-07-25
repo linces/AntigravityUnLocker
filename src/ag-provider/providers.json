@@ -1,7 +1,23 @@
 {
-  "default": "qwen-siliconflow",
-  "fallback": ["ollama-local"],
+  "default": "kimi-k3",
+  "fallback": ["qwen-3.8-max", "qwen-siliconflow", "ollama-local"],
   "providers": [
+    {
+      "id": "kimi-k3",
+      "name": "Kimi K3 (Moonshot AI - 1M Context)",
+      "baseUrl": "https://api.moonshot.ai/v1",
+      "apiKey": "${KIMI_API_KEY}",
+      "model": "kimi-k3",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "qwen-3.8-max",
+      "name": "Qwen 3.8 (2.4T MoE - DashScope)",
+      "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "apiKey": "${DASHSCOPE_API_KEY}",
+      "model": "qwen3.8-max-preview",
+      "timeoutMs": 120000
+    },
     {
       "id": "qwen-siliconflow",
       "name": "Qwen 2.5 Coder 32B (SiliconFlow)",

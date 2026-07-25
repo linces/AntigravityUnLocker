@@ -10,6 +10,8 @@ This document specifies the target AI provider ecosystem, capability requirement
 
 | Provider | Access Model | Base URL / Protocol | Key Features |
 | :--- | :--- | :--- | :--- |
+| **Kimi K3 (Moonshot AI)** | Cloud API | `https://api.moonshot.ai/v1` | **1,048,576 Context Tokens**, Always-on reasoning |
+| **Qwen 3.8 (DashScope)** | Cloud / MoE | `https://dashscope.aliyuncs.com/compatible-mode/v1` | **2.4 Trillion Parameters**, Flagship MoE Preview |
 | **OpenRouter** | Cloud Router API | `https://openrouter.ai/api/v1` | Multi-model routing, prompt caching, fallback |
 | **Ollama** | Local Runner | `http://localhost:11434/v1` | Local inference, zero latency cost, offline |
 | **LM Studio** | Local Server | `http://localhost:1234/v1` | Local GUI server, GGUF models |
@@ -20,8 +22,8 @@ This document specifies the target AI provider ecosystem, capability requirement
 | **Together AI** | Cloud API | `https://api.together.xyz/v1` | Open models API |
 | **Fireworks AI**| Cloud API | `https://api.fireworks.ai/inference/v1` | High speed function calling & vision |
 | **DeepSeek** | Cloud API | `https://api.deepseek.com/v1` | DeepSeek-V3 / DeepSeek-R1 reasoning |
-| **Qwen (DashScope)**| Cloud API | `https://dashscope.aliyuncs.com/compatible-mode/v1` | Qwen 2.5 Coder models |
-| **Kimi (Moonshot)**| Cloud API | `https://api.moonshot.cn/v1` | Long context length |
+| **Qwen (DashScope)**| Cloud API | `https://dashscope.aliyuncs.com/compatible-mode/v1` | Qwen 2.5 Coder & Qwen 3.8 models |
+| **Kimi (Moonshot)**| Cloud API | `https://api.moonshot.ai/v1` | 1M Context length |
 | **GLM (Zhipu)** | Cloud API | `https://open.bigmodel.cn/api/paas/v4` | GLM-4 models |
 | **OpenAI** | Direct API | `https://api.openai.com/v1` | GPT-4o, o1, o3-mini models |
 
@@ -58,26 +60,23 @@ export interface ProviderCapabilities {
 
 ```json
 {
-  "default": "qwen-coder",
-  "fallback": ["deepseek-chat", "ollama-local"],
+  "default": "kimi-k3",
+  "fallback": ["qwen-3.8-max", "ollama-local"],
   "providers": [
     {
-      "id": "qwen-coder",
-      "name": "Qwen 2.5 Coder 32B",
-      "adapter": "openai-compatible",
-      "baseUrl": "https://api.siliconflow.cn/v1",
-      "apiKey": "${SILICONFLOW_API_KEY}",
-      "model": "Qwen/Qwen2.5-Coder-32B-Instruct",
-      "timeoutMs": 60000,
-      "maxRetries": 3
+      "id": "kimi-k3",
+      "name": "Kimi K3 (Moonshot AI - 1M Context)",
+      "baseUrl": "https://api.moonshot.ai/v1",
+      "apiKey": "${KIMI_API_KEY}",
+      "model": "kimi-k3",
+      "timeoutMs": 120000
     },
     {
-      "id": "ollama-local",
-      "name": "Ollama Local Code",
-      "adapter": "ollama",
-      "baseUrl": "http://localhost:11434/v1",
-      "apiKey": "ollama",
-      "model": "qwen2.5-coder:14b",
+      "id": "qwen-3.8-max",
+      "name": "Qwen 3.8 (2.4T MoE - DashScope)",
+      "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "apiKey": "${DASHSCOPE_API_KEY}",
+      "model": "qwen3.8-max-preview",
       "timeoutMs": 120000
     }
   ]

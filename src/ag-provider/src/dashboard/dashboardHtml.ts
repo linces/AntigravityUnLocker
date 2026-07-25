@@ -5,7 +5,6 @@ export function getDashboardHtml(): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ag-provider | Universal AI Control Panel</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tailwindcss/ui@latest/dist/tailwind-ui.min.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { background-color: #0f172a; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
@@ -57,6 +56,8 @@ export function getDashboardHtml(): string {
         <div>
           <label class="block text-xs font-medium text-slate-400 mb-1">Active Backend</label>
           <select id="provider-select" class="w-full bg-slate-900 border border-slate-700 text-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-sky-500 outline-none">
+            <option value="kimi-k3">🔥 Kimi K3 (Moonshot AI - 1M Context Reasoning)</option>
+            <option value="qwen-3.8-max">🔥 Qwen 3.8 (2.4T MoE - DashScope Preview)</option>
             <option value="qwen-siliconflow">Qwen 2.5 Coder 32B (SiliconFlow)</option>
             <option value="ollama-local">Ollama Local (qwen2.5-coder:14b)</option>
             <option value="lmstudio-local">LM Studio Local</option>
