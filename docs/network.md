@@ -3,9 +3,8 @@ domain: dev
 category: network_protocol
 type: documentation
 created: 2026-07-25
-last_updated: 2026-07-25T01:05:00-03:00
+last_updated: 2026-07-25T01:09:00-03:00
 version: 1.2.0
-project_registry: projects_registry.yaml
 ---
 
 # Protocol & Communication Engineering - Antigravity Universal AI Provider
@@ -91,9 +90,4 @@ To inspect raw wire packets during development:
 
 ---
 
-**Arquivo:** network.md  
-**Localização:** `E:/00Dev/AntigravityUnlock/docs/`  
-**Importância:** CRÍTICA  
-**Versão:** 1.2.0  
-**Última Revisão:** 25/07/2026 01:05:00 -03:00  
-**Ver também:** `projects_registry.yaml` — SSOT de projetos
+**Versão:** 1.2.0 | **Última Revisão:** 2026-07-25 01:09:00 -03:00

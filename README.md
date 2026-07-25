@@ -3,9 +3,8 @@ domain: dev
 category: project_structure
 type: documentation
 created: 2026-07-25
-last_updated: 2026-07-25T01:05:00-03:00
+last_updated: 2026-07-25T01:09:00-03:00
 version: 1.2.0
-project_registry: projects_registry.yaml
 ---
 
 # Antigravity Universal AI Provider (`ag-provider`)
@@ -195,9 +194,4 @@ Open your Antigravity IDE settings (`settings.json`) and add the custom host con
 
 ---
 
-**Arquivo:** README.md  
-**Localização:** `E:/00Dev/AntigravityUnlock/`  
-**Importância:** CRÍTICA  
-**Versão:** 1.2.0  
-**Última Revisão:** 25/07/2026 01:05:00 -03:00  
-**Ver também:** `projects_registry.yaml` — SSOT de projetos
+**Versão:** 1.2.0 | **Última Revisão:** 2026-07-25 01:09:00 -03:00

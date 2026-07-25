@@ -1,11 +1,10 @@
 # Workspace Rules - Antigravity Universal AI Provider
 
-## 📜 Mandatory Transversal Domain Documentation Policy
+## 📜 Mandatory Documentation Policy
 
-Every single Markdown file (`.md`) created, modified, or updated in this repository MUST strictly enforce the following rules without exception:
+Every Markdown file (`.md`) created, modified, or updated in this repository MUST strictly enforce the following clean footer policy without exposing local paths or internal PII:
 
 ### 1. Frontmatter (YAML)
-All `.md` documents must start with valid YAML frontmatter:
 ```yaml
 ---
 domain: dev
@@ -14,22 +13,16 @@ type: documentation
 created: YYYY-MM-DD
 last_updated: YYYY-MM-DDTHH:mm:ssZ
 version: X.Y.Z
-project_registry: projects_registry.yaml
 ---
 ```
 
-### 2. Mandatory Metadata Footer
-All `.md` documents must end with the standardized transversal footer:
+### 2. Clean Metadata Footer (Version & Timestamp Only)
+All `.md` documents must end with the clean metadata footer:
 ```markdown
 ---
 
-**Arquivo:** <FILENAME.md>  
-**Localização:** `<ABSOLUTE_OR_WORKSPACE_PATH>`  
-**Importância:** CRÍTICA  
-**Versão:** <X.Y.Z>  
-**Última Revisão:** <DD/MM/YYYY HH:mm:ss>  
-**Ver também:** `projects_registry.yaml` — SSOT de projetos
+**Versão:** <X.Y.Z> | **Última Revisão:** <YYYY-MM-DD HH:mm:ss>
 ```
 
-### 3. Continuous Automatic README Sinking
+### 3. Continuous Automatic README Synchronization
 Whenever any feature, code adapter, route, backend model, or documentation file is modified or added, `README.md` MUST be updated immediately in the same turn/step.

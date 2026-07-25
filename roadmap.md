@@ -3,9 +3,8 @@ domain: dev
 category: project_management
 type: roadmap
 created: 2026-07-25
-last_updated: 2026-07-25T01:05:00-03:00
+last_updated: 2026-07-25T01:09:00-03:00
 version: 1.2.0
-project_registry: projects_registry.yaml
 ---
 
 # Project Roadmap - Antigravity Universal AI Provider
@@ -37,9 +36,4 @@ project_registry: projects_registry.yaml
 
 ---
 
-**Arquivo:** roadmap.md  
-**Localização:** `E:/00Dev/AntigravityUnlock/`  
-**Importância:** CRÍTICA  
-**Versão:** 1.2.0  
-**Última Revisão:** 25/07/2026 01:05:00 -03:00  
-**Ver também:** `projects_registry.yaml` — SSOT de projetos
+**Versão:** 1.2.0 | **Última Revisão:** 2026-07-25 01:09:00 -03:00
