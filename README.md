@@ -3,7 +3,8 @@ domain: dev
 category: project_structure
 type: documentation
 created: 2026-07-25
-last_updated: 2026-07-25
+last_updated: 2026-07-25T01:05:00-03:00
+version: 1.2.0
 project_registry: projects_registry.yaml
 ---
 
@@ -13,7 +14,8 @@ project_registry: projects_registry.yaml
   <img src="https://img.shields.io/badge/Status-Production--Ready-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Protocol-ConnectRPC%2FProtobuf-purple?style=for-the-badge&logo=grpc" alt="Protocol" />
   <img src="https://img.shields.io/badge/API-OpenAI%20v1%20Compatible-orange?style=for-the-badge&logo=openai" alt="API" />
-  <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License" />
+  <img src="https://img.shields.io/badge/Version-1.2.0-blue?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
 </p>
 
 <p align="center">
@@ -193,6 +195,9 @@ Open your Antigravity IDE settings (`settings.json`) and add the custom host con
 
 ---
 
-## 📄 License
-
-Distributed under the MIT License. See `LICENSE` for details.
+**Arquivo:** README.md  
+**Localização:** `E:/00Dev/AntigravityUnlock/`  
+**Importância:** CRÍTICA  
+**Versão:** 1.2.0  
+**Última Revisão:** 25/07/2026 01:05:00 -03:00  
+**Ver também:** `projects_registry.yaml` — SSOT de projetos
