@@ -1,0 +1,38 @@
+{
+  "default": "qwen-siliconflow",
+  "fallback": ["ollama-local"],
+  "providers": [
+    {
+      "id": "qwen-siliconflow",
+      "name": "Qwen 2.5 Coder 32B (SiliconFlow)",
+      "baseUrl": "https://api.siliconflow.cn/v1",
+      "apiKey": "${SILICONFLOW_API_KEY}",
+      "model": "Qwen/Qwen2.5-Coder-32B-Instruct",
+      "timeoutMs": 60000
+    },
+    {
+      "id": "ollama-local",
+      "name": "Ollama Local (qwen2.5-coder)",
+      "baseUrl": "http://localhost:11434/v1",
+      "apiKey": "ollama",
+      "model": "qwen2.5-coder:14b",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "lmstudio-local",
+      "name": "LM Studio Local",
+      "baseUrl": "http://localhost:1234/v1",
+      "apiKey": "lm-studio",
+      "model": "local-model",
+      "timeoutMs": 120000
+    },
+    {
+      "id": "openrouter",
+      "name": "OpenRouter Multi-Provider",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "apiKey": "${OPENROUTER_API_KEY}",
+      "model": "qwen/qwen-2.5-coder-32b-instruct",
+      "timeoutMs": 60000
+    }
+  ]
+}
