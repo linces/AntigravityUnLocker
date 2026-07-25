@@ -1,12 +1,3 @@
----
-domain: dev
-category: project_structure
-type: documentation
-created: 2026-07-25
-last_updated: 2026-07-25T11:46:00-03:00
-version: 1.3.0
----
-
 # Antigravity Universal AI Provider (`ag-provider`)
 
 <p align="center">
@@ -197,4 +188,4 @@ Open your Antigravity IDE settings (`settings.json`) and add the custom host con
 
 ---
 
-**Versão:** 1.3.0 | **Última Revisão:** 2026-07-25 11:46:00 -03:00
+**Versão:** 1.3.0 | **Última Revisão:** 2026-07-25 11:57:00 -03:00

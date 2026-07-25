@@ -10,19 +10,9 @@ This repository is **100% PUBLIC on GitHub**.
 
 ## 📜 Mandatory Documentation Policy
 
-Every Markdown file (`.md`) created, modified, or updated in this repository MUST strictly enforce the following clean footer policy:
-
-### 1. Frontmatter (YAML)
-```yaml
----
-domain: dev
-category: project_structure
-type: documentation
-created: YYYY-MM-DD
-last_updated: YYYY-MM-DDTHH:mm:ssZ
-version: X.Y.Z
----
-```
+### 1. NO YAML Frontmatter on README.md
+- **NEVER** add YAML frontmatter blocks (`--- ... ---`) to `README.md`.
+- `README.md` must start directly with the main title (`# Title`) and project badges for standard public GitHub rendering.
 
 ### 2. Clean Metadata Footer (Version & Timestamp Only)
 All `.md` documents must end with the clean metadata footer:
