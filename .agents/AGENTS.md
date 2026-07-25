@@ -1,8 +1,16 @@
 # Workspace Rules - Antigravity Universal AI Provider
 
+## 🔒 PUBLIC GITHUB REPOSITORY SAFETY & PRIVACY RULE
+
+This repository is **100% PUBLIC on GitHub**.
+- **NEVER** expose local file paths (e.g. `C:\Users\...`, `E:\00Dev\...`), personal usernames, local drive letters, or internal environment PII anywhere in markdown files, source code, comments, or generated outputs.
+- All file references must use clean, relative paths (e.g. `./docs/architecture.md`) or generic environment placeholders (e.g. `%LOCALAPPDATA%`, `~/.antigravity`).
+
+---
+
 ## 📜 Mandatory Documentation Policy
 
-Every Markdown file (`.md`) created, modified, or updated in this repository MUST strictly enforce the following clean footer policy without exposing local paths or internal PII:
+Every Markdown file (`.md`) created, modified, or updated in this repository MUST strictly enforce the following clean footer policy:
 
 ### 1. Frontmatter (YAML)
 ```yaml
