@@ -18,43 +18,43 @@ Architectural documentation and development of an intermediate compatibility pro
 
 > [!IMPORTANT]
 > - **Official Mechanisms First**: In accordance with project instructions, all existing native configurations (such as `agentHostAddress` and gRPC/ConnectRPC transport overrides) will be utilized prior to proposing any deeper binary modifications.
-> - **Non-destructive & Reversible**: No files in `C:\Users\lince\AppData\Local\Programs\Antigravity IDE` will be edited without prior backups.
+> - **Non-destructive & Reversible**: No host binary files are edited.
 
 ---
 
 ## Proposed Changes & Deliverables
 
-### Workspace Documentation (`E:\00Dev\AntigravityUnlock\`)
+### Project Documentation (`docs/`)
 
-#### [NEW] [architecture.md](file:///E:/00Dev/AntigravityUnlock/architecture.md)
+#### [NEW] [architecture.md](docs/architecture.md)
 Detailed breakdown of Antigravity IDE technology stack, Electron architecture, process breakdown, and internal ConnectRPC messaging loop.
 
-#### [NEW] [providers.md](file:///E:/00Dev/AntigravityUnlock/providers.md)
+#### [NEW] [providers.md](docs/providers.md)
 Catalog of target LLM backends (Ollama, LM Studio, OpenRouter, vLLM, SiliconFlow, Groq, DeepSeek, Qwen, Kimi, GLM) and capability mappings (`ILLMProvider`).
 
-#### [NEW] [network.md](file:///E:/00Dev/AntigravityUnlock/network.md)
+#### [NEW] [network.md](docs/network.md)
 Protobuf schema analysis, headers, authorization mechanism, SSE streaming structures, and payload specifications.
 
-#### [NEW] [bridge.md](file:///E:/00Dev/AntigravityUnlock/bridge.md)
+#### [NEW] [bridge.md](docs/bridge.md)
 Specification for the `ag-provider` proxy process, endpoint routing, translation logic between ConnectRPC and OpenAI-compatible API schemas.
 
-#### [NEW] [findings.md](file:///E:/00Dev/AntigravityUnlock/findings.md)
-Full reverse-engineering report summarizing discovery phases 1 to 6.
+#### [NEW] [findings.md](docs/findings.md)
+Full reverse-engineering report summarizing discovery phases.
 
-#### [NEW] [todo.md](file:///E:/00Dev/AntigravityUnlock/todo.md) & [roadmap.md](file:///E:/00Dev/AntigravityUnlock/roadmap.md)
+#### [NEW] [todo.md](todo.md) & [roadmap.md](roadmap.md)
 Task checklist and future development roadmap for multi-backend features (dynamic switching, prompt caching, load balancing).
 
 ---
 
-### Bridge Service (`E:\00Dev\AntigravityUnlock\src\ag-provider\`)
+### Bridge Service (`src/ag-provider/`)
 
-#### [NEW] [package.json](file:///E:/00Dev/AntigravityUnlock/src/ag-provider/package.json)
+#### [NEW] [package.json](src/ag-provider/package.json)
 Node.js/TypeScript workspace for `ag-provider` service with `@connectrpc/connect`, `@bufbuild/protobuf`, and OpenAI SDK dependencies.
 
-#### [NEW] [providers.json](file:///E:/00Dev/AntigravityUnlock/src/ag-provider/providers.json)
+#### [NEW] [providers.json](src/ag-provider/providers.json)
 Configuration file for standard OpenAI-compatible endpoints, active model selection, retries, and fallback rules.
 
-#### [NEW] [index.ts](file:///E:/00Dev/AntigravityUnlock/src/ag-provider/src/index.ts)
+#### [NEW] [index.ts](src/ag-provider/src/index.ts)
 Bridge entry point running local ConnectRPC HTTP/2 server that proxies to OpenAI API formats.
 
 ---

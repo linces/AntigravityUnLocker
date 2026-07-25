@@ -16,8 +16,8 @@ Antigravity IDE communicates over **HTTP/2** using **ConnectRPC** (gRPC-web / gR
 POST /google.cloud.conversa.v1.AgentService/StreamGenerateContent HTTP/2
 Host: cloudaicompanion.googleapis.com
 Content-Type: application/connect+proto (or application/grpc)
-User-Agent: Antigravity-IDE/2.1.1 (Electron 39.2.3; Windows NT 10.0.26100)
-Authorization: Bearer <GCP_OAUTH_TOKEN>
+User-Agent: Antigravity-IDE/2.1.1 (Electron 39.2.3; Windows NT 10.0)
+Authorization: Bearer <OAUTH_TOKEN>
 x-cloudaicompanion-trace-id: <TRACE_ID_UUID>
 x-goog-api-client: gl-node/22.20.0 connectrpc/2.0.0
 ```

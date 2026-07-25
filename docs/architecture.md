@@ -6,7 +6,7 @@ This document details the software architecture, runtime environment, directory 
 
 ---
 
-## 1. Technology Identification (Fase 1)
+## 1. Technology Identification
 
 | Aspect | Technology / Specification |
 | :--- | :--- |
@@ -15,13 +15,13 @@ This document details the software architecture, runtime environment, directory 
 | **Runtime** | Node.js `v22.20.0` |
 | **Language** | TypeScript / JavaScript (ESM modules), Protobuf |
 | **Packaging** | Inno Setup 6 installer (`unins000.exe`), ASAR & packed unpacked node modules |
-| **Installation Path** | `C:\Users\lince\AppData\Local\Programs\Antigravity IDE` |
-| **Data Directory** | `C:\Users\lince\AppData\Local\.antigravity-ide` |
-| **Global Config Directory** | `C:\Users\lince\.gemini\antigravity-ide` |
+| **Default Install Path** | `%LOCALAPPDATA%\Programs\Antigravity IDE` |
+| **User Data Directory** | `%LOCALAPPDATA%\.antigravity-ide` |
+| **Global Config Directory** | `%USERPROFILE%\.gemini\antigravity-ide` |
 
 ---
 
-## 2. Directory & Bundle Structure (Fase 2)
+## 2. Directory & Bundle Structure
 
 ```
 Antigravity IDE/
@@ -66,7 +66,7 @@ Antigravity IDE/
 
 ---
 
-## 4. Architectural Findings & Extensibility (Fase 6 & 7)
+## 4. Architectural Findings & Extensibility
 
 1. **Provider Resolution Loop**:
    - The Agent process (`out/jetskiAgent/main.js`) connects to AI inference services over HTTP/2 using ConnectRPC.

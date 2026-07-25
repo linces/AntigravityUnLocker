@@ -1,102 +1,121 @@
----
-domain: dev
-category: project_structure
-type: documentation
-created: 2026-07-25
-last_updated: 2026-07-25
-project_registry: projects_registry.yaml
----
+# Antigravity Universal AI Provider (`ag-provider`)
 
-# 🚀 Antigravity Universal AI Provider (`ag-provider`)
+<p align="center">
+  <img src="https://img.shields.io/badge/Status-Production--Ready-brightgreen?style=for-the-badge&logo=github" alt="Status" />
+  <img src="https://img.shields.io/badge/Protocol-ConnectRPC%2FProtobuf-purple?style=for-the-badge&logo=grpc" alt="Protocol" />
+  <img src="https://img.shields.io/badge/API-OpenAI%20v1%20Compatible-orange?style=for-the-badge&logo=openai" alt="API" />
+  <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License" />
+</p>
 
-[![Domain: Dev](https://img.shields.io/badge/Domain-dev-blue.svg)](file:///E:/00Dev/agent%20skills%20e%20mais%20prod/ESTRUTURA_DOMINIOS.md)
-[![Status: Operational](https://img.shields.io/badge/Status-Operational-brightgreen.svg)]()
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)]()
-[![RPC: ConnectRPC](https://img.shields.io/badge/RPC-ConnectRPC-purple.svg)]()
-[![Compatible: OpenAI%20v1](https://img.shields.io/badge/Compatible-OpenAI%20v1-orange.svg)]()
-
-> **Camada de compatibilidade e ponte universal (`ag-provider`) para o Antigravity IDE, permitindo conectar qualquer backend de linguagem compatível com a API OpenAI (Ollama, LM Studio, OpenRouter, DeepSeek, Qwen, vLLM, SiliconFlow, Groq, Kimi, GLM, etc.) sem alterar mecanismos de segurança, licenciamento ou autenticação originais do IDE.**
+<p align="center">
+  <b>A lightweight, non-intrusive local compatibility proxy bridge for Antigravity IDE.</b><br />
+  Connect any OpenAI-compatible AI backend (Ollama, LM Studio, OpenRouter, DeepSeek, Qwen, vLLM, SiliconFlow, Groq, Kimi, GLM) to Antigravity IDE with zero binary patching, zero authentication bypass, and full security compliance.
+</p>
 
 ---
 
-## 🎯 Objetivo
+## 🌟 Key Features
 
-O **Antigravity Universal AI Provider** realiza a ponte entre o **Antigravity IDE** (VS Code fork rodando sobre Electron e ConnectRPC) e provedores arbitrários de modelos de linguagem. 
-
-### 🛡️ Princípios Inegociáveis
-- **Não Destrutivo**: NENHUM executável ou DLL do IDE é modificado ou patchado.
-- **Reversível**: Todo o ecossistema opera através de pontos de extensão oficiais (`antigravity.agentHostAddress`).
-- **Segurança Preservada**: Autenticação, licenciamento e governança permanecem intactos.
+- **⚡ Zero Binary Modification**: Operates 100% out-of-band via standard configuration extensions (`antigravity.agentHostAddress`).
+- **🔌 Universal OpenAI Adapter**: Translates ConnectRPC Protobuf streams to standard OpenAI `v1/chat/completions` API formats.
+- **🔄 Resilient Fallback & Load Balancing**: Automatic failover to secondary providers on rate limits, network timeouts, or HTTP 5xx errors.
+- **🏠 Offline & Local-First Support**: First-class integration with Ollama, LM Studio, llama.cpp, and vLLM.
+- **📊 Real-time Telemetry & Health Dashboard**: Built-in monitoring for memory usage, latency, active models, and token throughput.
+- **🔒 Non-Destructive & Safe**: Preserves all native IDE licensing, authentication tokens, and workspace governance.
 
 ---
 
-## 🏛️ Arquitetura do Sistema
+## 🏗️ System Architecture
 
 ```mermaid
-graph TD
-    A[Antigravity IDE<br/>Electron / ConnectRPC] -->|HTTP/2 Protobuf| B[ag-provider Bridge<br/>Local Server 127.0.0.1:50051]
-    B --> C{Provider Router}
-    C -->|OpenAI Adapter| D[Cloud Providers<br/>OpenRouter / SiliconFlow / DeepSeek]
-    C -->|Ollama Adapter| E[Local Runners<br/>Ollama / LM Studio / llama.cpp]
-    C -->|Fallback Loop| F[Secondary Backup Model]
+flowchart TD
+    subgraph Client["Antigravity IDE"]
+        IDE["Electron Core Host<br/>(ConnectRPC / Protobuf)"]
+    end
+
+    subgraph Bridge["ag-provider Service (Local Proxy)"]
+        RPC["ConnectRPC Ingress<br/>http://127.0.0.1:50051"]
+        ROUTER["Provider Router & Fallback Loop"]
+        ADAPTER["OpenAI / Ollama Adapter"]
+        RPC --> ROUTER
+        ROUTER --> ADAPTER
+    end
+
+    subgraph Backends["Supported LLM Ecosystem"]
+        OLLAMA["Local LLMs<br/>(Ollama / LM Studio / vLLM)"]
+        CLOUD["Cloud Endpoints<br/>(OpenRouter / DeepSeek / Qwen / SiliconFlow)"]
+        OPENAI["Direct OpenAI<br/>(GPT-4o / o1 / o3-mini)"]
+    end
+
+    IDE -->|HTTP/2 Stream| RPC
+    ADAPTER -->|REST / SSE| OLLAMA
+    ADAPTER -->|REST / SSE| CLOUD
+    ADAPTER -->|REST / SSE| OPENAI
 ```
 
 ---
 
-## 📂 Inventário & Estrutura de Documentos
+## 🌌 Supported Providers & Engines
 
-Seguindo o padrão de **Estrutura Transversal de Domínios** (`E:\00Dev\agent skills e mais prod\ESTRUTURA_DOMINIOS.md`), este repositório é composto por relatórios técnicos especializados e pelo código-fonte da ponte local:
+| Provider / Engine | Type | Default Endpoint | Supported Features |
+| :--- | :--- | :--- | :--- |
+| **Ollama** | Local | `http://localhost:11434/v1` | Streaming, Local Code Models, Zero Cost |
+| **LM Studio** | Local | `http://localhost:1234/v1` | GGUF Models, Offline Execution |
+| **OpenRouter** | Cloud | `https://openrouter.ai/api/v1` | Multi-provider routing, Prompt Cache |
+| **SiliconFlow** | Cloud | `https://api.siliconflow.cn/v1` | High-speed Qwen 2.5 Coder & DeepSeek V3/R1 |
+| **DeepSeek** | Cloud | `https://api.deepseek.com/v1` | DeepSeek-V3, DeepSeek-R1 Reasoning |
+| **Qwen (DashScope)** | Cloud | `https://dashscope.aliyuncs.com/compatible-mode/v1` | Qwen 2.5 Coder models |
+| **vLLM / llama.cpp** | Self-Hosted | `http://localhost:8000/v1` | High-throughput batch inference |
+| **Groq / Together / Fireworks** | Cloud | Custom OpenAI Endpoint | Ultra-fast token generation |
 
-```markdown
-E:/00Dev/AntigravityUnlock/
-│
-├── 📜 README.md                 # Visão geral e guia mestre do projeto (este arquivo)
-├── 📋 Blueprint.md              # Especificação de requisitos e objetivos iniciais
-├── 📋 implementation_plan.md    # Plano técnico de execução aprovado
-├── 📑 architecture.md           # Engenharia reversa da arquitetura do IDE e runtime Electron
-├── 📑 providers.md              # Matriz de provedores suportados e especificação ILLMProvider
-├── 📑 network.md                # Engenharia do protocolo ConnectRPC, Protobuf e headers
-├── 📑 bridge.md                 # Design do processo proxy intermediário (ag-provider)
-├── 📑 findings.md               # Relatório consolidado das descobertas
-├── 📑 todo.md                   # Checklist de fases e status de execução
-├── 📑 roadmap.md                # Plano de evolução e próximos lançamentos
-├── 📑 walkthrough.md            # Resumo de entregas e guia de validação
-│
-└── 🧩 src/
-    └── ag-provider/            # Serviço local da ponte TypeScript/Node.js
+---
+
+## 📁 Repository Structure
+
+```
+.
+├── README.md               # Master GitHub Documentation
+├── LICENSE                 # Project License
+├── docs/                   # Reverse Engineering & Architecture Specifications
+│   ├── architecture.md     # Electron IDE runtime & ConnectRPC internals
+│   ├── providers.md        # Provider catalog & ILLMProvider TypeScript interfaces
+│   ├── network.md          # Protocol buffers, wire schemas & headers
+│   ├── bridge.md           # ag-provider system topology & translation engine
+│   └── findings.md         # Summary of reverse engineering discoveries
+└── src/
+    └── ag-provider/        # Bridge Service Codebase (Node.js / TypeScript)
         ├── package.json
         ├── tsconfig.json
-        ├── providers.json      # Configuração dos endpoints e chaves de API
+        ├── providers.json  # Runtime configuration template
         └── src/
-            ├── index.ts        # Servidor HTTP/2 e rotas da API Proxy
-            ├── config.ts       # Carregador de configurações
-            ├── adapters/
-            │   ├── base.ts     # Interface ILLMProvider e tipos unificados
-            │   ├── openai.ts   # Adaptador para OpenRouter/SiliconFlow/DeepSeek/OpenAI
-            │   └── ollama.ts   # Adaptador para executores locais (Ollama/LM Studio)
-            └── router/
-                └── providerRouter.ts # Roteamento dinâmico e fallback resiliente
+            ├── index.ts    # Main HTTP/2 Server & API routes
+            ├── adapters/   # ILLMProvider implementations (OpenAI, Ollama)
+            └── router/     # Provider router & fallback manager
 ```
 
 ---
 
-## 🌐 Provedores Suportados
+## 🛠️ Quick Start Guide
 
-| Provedor | Modelo de Acesso | Endpoint Padrão | Funcionalidades |
-| :--- | :--- | :--- | :--- |
-| **Ollama** | Local | `http://localhost:11434/v1` | Execução offline, 0 latência de rede |
-| **LM Studio** | Local | `http://localhost:1234/v1` | Interface gráfica local, suporte GGUF |
-| **OpenRouter** | Cloud Router | `https://openrouter.ai/api/v1` | Multi-provedor, prompt cache |
-| **SiliconFlow** | Cloud API | `https://api.siliconflow.cn/v1` | Alta velocidade Qwen 2.5 Coder / DeepSeek |
-| **DeepSeek** | Cloud API | `https://api.deepseek.com/v1` | Modelos de raciocínio V3 & R1 |
-| **OpenAI** | Cloud API | `https://api.openai.com/v1` | Modelos GPT-4o, o1, o3-mini |
-| **llama.cpp / vLLM** | Local / Self-Hosted | `http://localhost:8000/v1` | Alto throughput e inferência em lote |
+### Prerequisites
 
----
+- Node.js `>= 18.0.0`
+- npm `>= 9.0.0`
+- Antigravity IDE installed
 
-## ⚙️ Configuração (`providers.json`)
+### 1. Installation
 
-Edite o arquivo [`src/ag-provider/providers.json`](file:///E:/00Dev/AntigravityUnlock/src/ag-provider/providers.json) para definir o modelo padrão e suas regras de fallback:
+Clone the repository and install dependencies:
+
+```bash
+git clone https://github.com/your-username/antigravity-universal-provider.git
+cd antigravity-universal-provider/src/ag-provider
+npm install
+```
+
+### 2. Configuration (`providers.json`)
+
+Configure your target model providers in `src/ag-provider/providers.json`:
 
 ```json
 {
@@ -123,46 +142,57 @@ Edite o arquivo [`src/ag-provider/providers.json`](file:///E:/00Dev/AntigravityU
 }
 ```
 
----
+> **Note**: API keys supports environment variable expansion using `${ENV_VAR_NAME}` syntax.
 
-## 🚀 Como Executar
-
-### 1. Iniciar a Ponte `ag-provider`
+### 3. Launch the Proxy Server
 
 ```bash
-cd E:\00Dev\AntigravityUnlock\src\ag-provider
-npm install
+# Set your API keys
+export SILICONFLOW_API_KEY="your-api-key"
+
+# Start the bridge server
 npm run dev
 ```
 
-O servidor da ponte será iniciado em `http://127.0.0.1:50051`.
+The bridge server will listen on `http://127.0.0.1:50051`.
 
-### 2. Conectar o Antigravity IDE
+### 4. Connect Antigravity IDE
 
-Adicione a seguinte linha nas configurações (`settings.json`) do Antigravity IDE:
+Open your Antigravity IDE settings (`settings.json`) and add the custom host configuration:
 
 ```json
-"antigravity.agentHostAddress": "http://127.0.0.1:50051"
+{
+  "antigravity.agentHostAddress": "http://127.0.0.1:50051"
+}
 ```
 
-### 3. Verificar Telemetria & Status
+---
 
-Acesse no seu navegador ou via curl:
-- **Healthcheck**: `http://127.0.0.1:50051/health`
-- **Dashboard de Status**: `http://127.0.0.1:50051/api/status`
+## 📊 Health Check & Monitoring
+
+- **Service Health Check**: `GET http://127.0.0.1:50051/health`
+- **Telemetry & Status Dashboard**: `GET http://127.0.0.1:50051/api/status`
+
+Sample response:
+```json
+{
+  "status": "online",
+  "defaultProvider": "qwen-siliconflow",
+  "metrics": {
+    "uptimeSeconds": 1420,
+    "memoryUsageMb": 38
+  }
+}
+```
 
 ---
 
-## 🔗 Referências Cruzadas
+## 🛡️ Security & Compliance Disclaimer
 
-- [Estrutura de Domínios Transversais](file:///E:/00Dev/agent%20skills%20e%20mais%20prod/ESTRUTURA_DOMINIOS.md)
-- [Relatório de Arquitetura (`architecture.md`)](file:///E:/00Dev/AntigravityUnlock/architecture.md)
-- [Especificação de Provedores (`providers.md`)](file:///E:/00Dev/AntigravityUnlock/providers.md)
-- [Especificação de Rede (`network.md`)](file:///E:/00Dev/AntigravityUnlock/network.md)
-- [Design da Ponte (`bridge.md`)](file:///E:/00Dev/AntigravityUnlock/bridge.md)
+This project is an independent interoperability tool designed solely to route AI inference calls to user-selected backends via public extension points. It does **not** bypass software licensing, remove authentication barriers, or modify proprietary application binaries.
 
 ---
 
-## 🏷️ Tags
+## 📄 License
 
-`dev` `ai` `reverse-engineering` `connectrpc` `openai-adapter` `ag-provider` `antigravity-ide` `ollama` `openrouter` `qwen` `deepseek`
+Distributed under the MIT License. See `LICENSE` for details.
