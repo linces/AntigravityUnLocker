@@ -1,3 +1,12 @@
+---
+domain: dev
+category: project_structure
+type: documentation
+created: 2026-07-25
+last_updated: 2026-07-25
+project_registry: projects_registry.yaml
+---
+
 # Antigravity Universal AI Provider (`ag-provider`)
 
 <p align="center">
@@ -17,11 +26,11 @@
 ## 🌟 Key Features
 
 - **⚡ Zero Binary Modification**: Operates 100% out-of-band via standard configuration extensions (`antigravity.agentHostAddress`).
-- **🔥 Cutting-Edge Model Support**: Direct integration for **Kimi K3** (1M Context reasoning) & **Qwen 3.8** (2.4 Trillion parameter MoE).
-- **🔌 Universal OpenAI Adapter**: Translates ConnectRPC Protobuf streams to standard OpenAI `v1/chat/completions` API formats.
+- **🔥 Flagship Model Support**: Built-in support for **Kimi K3** (1M Context reasoning) & **Qwen 3.8** (2.4 Trillion parameter MoE).
+- **🔌 ConnectRPC / Protobuf Binary Pipeline**: Native 5-byte header envelope decoding/encoding (`application/connect+proto`) to standard OpenAI `v1/chat/completions` API formats.
 - **🔄 Resilient Fallback & Load Balancing**: Automatic failover to secondary providers on rate limits, network timeouts, or HTTP 5xx errors.
 - **🏠 Offline & Local-First Support**: First-class integration with Ollama, LM Studio, llama.cpp, and vLLM.
-- **📊 Real-time Telemetry & Health Dashboard**: Built-in web control panel for active model switching, memory usage, latency, and health tests.
+- **📊 Interactive Web Dashboard UI**: Real-time control panel at `http://127.0.0.1:50051/dashboard` for live model switching, latency, memory usage, and health checks.
 - **🔒 Non-Destructive & Safe**: Preserves all native IDE licensing, authentication tokens, and workspace governance.
 
 ---
@@ -35,11 +44,13 @@ flowchart TD
     end
 
     subgraph Bridge["ag-provider Service (Local Proxy)"]
-        RPC["ConnectRPC Ingress<br/>http://127.0.0.1:50051"]
+        RPC["ConnectRPC Ingress & Envelope Decoder<br/>http://127.0.0.1:50051"]
         ROUTER["Provider Router & Fallback Loop"]
         ADAPTER["OpenAI / Ollama Adapter"]
+        DASHBOARD["Interactive Web Dashboard UI<br/>/dashboard"]
         RPC --> ROUTER
         ROUTER --> ADAPTER
+        DASHBOARD --> ROUTER
     end
 
     subgraph Backends["Supported LLM Ecosystem"]
@@ -49,7 +60,7 @@ flowchart TD
         CLOUD["Cloud Endpoints<br/>(OpenRouter / DeepSeek / SiliconFlow)"]
     end
 
-    IDE -->|HTTP/2 Stream| RPC
+    IDE -->|HTTP/2 ConnectRPC Stream| RPC
     ADAPTER -->|REST / SSE| KIMI
     ADAPTER -->|REST / SSE| QWEN38
     ADAPTER -->|REST / SSE| OLLAMA
@@ -73,9 +84,49 @@ flowchart TD
 
 ---
 
+## 📂 Repository Layout
+
+```
+.
+├── README.md               # Master Project Documentation & Status
+├── implementation_plan.md  # Architectural Implementation Plan
+├── walkthrough.md          # Implementation Walkthrough & Deliverables Summary
+├── todo.md                 # Project Task Matrix
+├── roadmap.md              # Long-term Feature Roadmap
+├── docs/                   # Engineering Specifications
+│   ├── architecture.md     # Electron IDE runtime & ConnectRPC internals
+│   ├── providers.md        # Provider catalog & ILLMProvider TypeScript interfaces
+│   ├── network.md          # Protocol buffers, wire schemas & headers
+│   ├── bridge.md           # ag-provider system topology & translation engine
+│   └── findings.md         # Summary of reverse engineering discoveries
+└── src/
+    └── ag-provider/        # Bridge Service Codebase (Node.js / TypeScript)
+        ├── package.json
+        ├── tsconfig.json
+        ├── providers.json  # Runtime configuration template
+        └── src/
+            ├── index.ts        # Main HTTP/2 Server & API routes
+            ├── adapters/       # ILLMProvider implementations (OpenAI, Ollama)
+            ├── router/         # Provider router & fallback manager
+            ├── translation/    # ConnectRPC envelope binary decoders & encoders
+            └── dashboard/      # Web control panel UI (dashboardHtml.ts)
+```
+
+---
+
 ## 🛠️ Quick Start Guide
 
-### 1. Configuration (`providers.json`)
+### 1. Installation
+
+Clone the repository and install dependencies:
+
+```bash
+git clone https://github.com/your-username/antigravity-universal-provider.git
+cd antigravity-universal-provider/src/ag-provider
+npm install
+```
+
+### 2. Configuration (`providers.json`)
 
 Configure your target model providers in `src/ag-provider/providers.json`:
 
@@ -104,12 +155,41 @@ Configure your target model providers in `src/ag-provider/providers.json`:
 }
 ```
 
+### 3. Launch the Proxy Server
+
+```bash
+# Set your API keys
+export KIMI_API_KEY="your-kimi-key"
+export DASHSCOPE_API_KEY="your-dashscope-key"
+
+# Start the bridge server
+npm run dev
+```
+
+The bridge server will listen on `http://127.0.0.1:50051`.
+
+### 4. Connect Antigravity IDE
+
+Open your Antigravity IDE settings (`settings.json`) and add the custom host configuration:
+
+```json
+{
+  "antigravity.agentHostAddress": "http://127.0.0.1:50051"
+}
+```
+
 ---
 
 ## 📊 Health Check & Dashboard
 
 - **Service Health Check**: `GET http://127.0.0.1:50051/health`
 - **Interactive Control Panel**: `GET http://127.0.0.1:50051/dashboard`
+
+---
+
+## 🏷️ Tags
+
+`dev` `ai` `reverse-engineering` `connectrpc` `openai-adapter` `ag-provider` `antigravity-ide` `ollama` `openrouter` `qwen` `deepseek` `kimi-k3`
 
 ---
 
