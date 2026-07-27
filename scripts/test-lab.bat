@@ -56,8 +56,10 @@ echo ║  Pressione Ctrl+C para encerrar o proxy.                  ║
 echo ╚══════════════════════════════════════════════════════════════╝
 echo.
 
-REM ── Abrir IDE de teste (em background) ──
+REM ── Abrir IDE de teste (em background com env vars) ──
 echo [IDE] Abrindo Antigravity IDE com perfil de teste...
+set "AGENT_HOST_ADDRESS=http://127.0.0.1:50051"
+set "ANTIGRAVITY_AGENT_HOST_ADDRESS=http://127.0.0.1:50051"
 cmd /c start "" "%IDE_EXE%" --user-data-dir="%TEST_PROFILE_DIR%" --new-window
 
 REM ── Esperar 2 segundos pra IDE abrir ──
