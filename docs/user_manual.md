@@ -3,30 +3,35 @@ domain: dev
 category: user_guide
 type: documentation
 created: 2026-07-25
-last_updated: 2026-07-25T12:12:00-03:00
-version: 1.4.0
+last_updated: 2026-07-27T00:10:00-03:00
+version: 1.5.0
 ---
 
-# Operation & Usage Manual - Antigravity Universal AI Provider (`ag-provider`)
+# Manual de Operação & Uso Detalhado — Antigravity Universal AI Provider (`ag-provider`)
 
-## Table of Contents
+## Índice
 
-1. [Overview & Topology](#1-overview--topology)
-2. [Prerequisites](#2-prerequisites)
-3. [Installation & Build](#3-installation--build)
-4. [Configuration (`providers.json`)](#4-configuration-providersjson)
-5. [Environment Variables Setup](#5-environment-variables-setup)
-6. [Launching the Proxy Server](#6-launching-the-proxy-server)
-7. [IDE Configuration](#7-ide-configuration)
-8. [Using the Web Control Dashboard](#8-using-the-web-control-dashboard)
-9. [Supported Models & Capabilities](#9-supported-models--capabilities)
-10. [Troubleshooting & Diagnostics](#10-troubleshooting--diagnostics)
+1. [Entendendo a Arquitetura & O Login do Google](#1-entendendo-a-arquitetura--o-login-do-google)
+2. [Seletor do Antigravity IDE vs. Web Dashboard](#2-seletor-do-antigravity-ide-vs-web-dashboard)
+3. [Segurança Total e Gerenciamento de Chaves (`.env` & `.gitignore`)](#3-segurança-total-e-gerenciamento-de-chaves-env--gitignore)
+4. [Links Oficiais para Obtenção de Chaves de API](#4-links-oficiais-para-obtenção-de-chaves-de-api)
+5. [Passo a Passo 1: Instalação e Compilação do `ag-provider`](#5-passo-a-passo-1-instalação-e-compilação-do-ag-provider)
+6. [Passo a Passo 2: Executando o Servidor Proxy Ponte](#6-passo-a-passo-2-executando-o-servidor-proxy-ponte)
+7. [Passo a Passo 3: Abrindo e Configurando o Antigravity IDE](#7-passo-a-passo-3-abrindo-e-configurando-o-antigravity-ide)
+8. [Passo a Passo 4: Uso no Dia a Dia & Troca de Modelos em Tempo Real](#8-passo-a-passo-4-uso-no-dia-a-dia--troca-de-modelos-em-tempo-real)
+9. [Solução de Problemas & Diagnósticos (Troubleshooting)](#9-solução-de-problemas--diagnósticos-troubleshooting)
 
 ---
 
-## 1. Overview & Topology
+## 1. Entendendo a Arquitetura & O Login do Google
 
-`ag-provider` acts as a transparent, high-performance local proxy bridge between **Antigravity IDE** and any **OpenAI-compatible LLM inference server**.
+### Por que a IDE exige login com a conta do Google?
+
+O **Antigravity IDE** é baseado em uma distribuição customizada do VS Code. Para desbloquear e liberar o painel de chat e a gaveta do assistente na interface do usuário, a IDE exige a autenticação através de uma conta Google OAuth.
+
+### Como o `ag-provider` intercepta o tráfego?
+
+Quando você define a variável de ambiente `$env:CLOUD_CODE_ENDPOINT = "http://127.0.0.1:50051"` (ou adiciona `"antigravity.agentHostAddress": "http://127.0.0.1:50051"` no `settings.json`), o cliente de rede interno da IDE (ConnectRPC / Protobuf) **redireciona 100% do tráfego das LLMs para o seu servidor local `ag-provider`**.
 
 ```
 +-------------------+           ConnectRPC Stream          +-------------------+
@@ -34,138 +39,102 @@ version: 1.4.0
 |   (Electron Host) |   http://127.0.0.1:50051             |   (Local Proxy)   |
 +-------------------+                                      +-------------------+
                                                                      |
-                                                                     | OpenAI REST / SSE
+                                                       OpenAI REST   | / SSE Stream
                                                                      v
                                                            +-------------------+
-                                                           | Target AI Engine  |
-                                                           | (Kimi K3 / Qwen / |
-                                                           | Ollama / Cloud)   |
+                                                           | Target LLM API    |
+                                                           | (Kimi/Qwen/Groq/  |
+                                                           | OpenRouter/Local) |
                                                            +-------------------+
 ```
 
----
-
-## 2. Prerequisites
-
-Before starting, ensure your operating environment has:
-
-- **Node.js**: `v18.0.0` or higher (`v22+` recommended).
-- **npm**: `v9.0.0` or higher.
-- **Antigravity IDE**: Installed on system.
-- **API Key or Local LLM Runner**:
-  - API Keys for Cloud providers (**Kimi K3**, **SiliconFlow**, **DashScope**, **OpenRouter**, **DeepSeek**).
-  - Or local runners (**Ollama** listening on `http://localhost:11434` or **LM Studio** listening on `http://localhost:1234`).
+- **Sua conta Google NÃO é cobrada.**
+- **Nenhum dado de prompt é enviado aos servidores do Google AI.**
+- O tráfego passa integralmente e localmente pela porta `50051`.
 
 ---
 
-## 3. Installation & Build
+## 2. Seletor do Antigravity IDE vs. Web Dashboard
 
-1. Navigate to the bridge directory:
-   ```bash
-   cd src/ag-provider
-   ```
+É comum ter dúvidas sobre onde escolher qual IA responderá às suas perguntas. Entenda como cada parte funciona:
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Compile TypeScript codebase:
-   ```bash
-   npm run build
-   ```
+1. **Menu Suspenso na Interface da IDE (ex: *Gemini 3.6 Flash*)**:
+   - Funciona puramente como um rótulo visual na interface. Você pode deixar qualquer modelo selecionado lá.
+2. **Painel de Controle Web (`http://127.0.0.1:50051/dashboard`)**:
+   - É **aqui** que a magia acontece. O Dashboard web controla qual provedor ativo o `ag-provider` utilizará para responder às requisições vindo da IDE.
+   - Quando você seleciona **Groq** ou **Kimi K3** no Dashboard e clica em **Switch Active Provider**, a próxima requisição feita no chat da IDE responderá usando aquele modelo exato.
 
 ---
 
-## 4. Configuration (`providers.json`)
+## 3. Segurança Total e Gerenciamento de Chaves (`.env` & `.gitignore`)
 
-The provider catalog and routing rules are managed inside `src/ag-provider/providers.json`.
+Para garantir que suas chaves de API jamais vazem ou sejam commitadas em repositórios do GitHub:
 
-### Sample Configuration
+1. **Arquivo `.env` Local**:
+   - As chaves de API secretas ficam armazenadas exclusivamente no arquivo `src/ag-provider/.env`.
+2. **Proteção `.gitignore`**:
+   - O arquivo `.gitignore` na raiz e na pasta do `ag-provider` já contêm `.env` registrado.
+3. **Arquivo Público `providers.json`**:
+   - O arquivo [`providers.json`](../src/ag-provider/providers.json) utiliza marcadores genéricos (ex: `${KIMI_API_KEY}`, `${GROQ_API_KEY}`). O `ag-provider` substitui dinamicamente esses marcadores pelas variáveis de ambiente do `.env` ao iniciar.
 
-```json
-{
-  "default": "kimi-k3",
-  "fallback": ["qwen-3.8-max", "ollama-local"],
-  "providers": [
-    {
-      "id": "kimi-k3",
-      "name": "Kimi K3 (Moonshot AI - 1M Context)",
-      "baseUrl": "https://api.moonshot.ai/v1",
-      "apiKey": "${KIMI_API_KEY}",
-      "model": "kimi-k3",
-      "timeoutMs": 120000
-    },
-    {
-      "id": "qwen-3.8-max",
-      "name": "Qwen 3.8 (2.4T MoE - DashScope)",
-      "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-      "apiKey": "${DASHSCOPE_API_KEY}",
-      "model": "qwen3.8-max-preview",
-      "timeoutMs": 120000
-    },
-    {
-      "id": "qwen-siliconflow",
-      "name": "Qwen 2.5 Coder 32B (SiliconFlow)",
-      "baseUrl": "https://api.siliconflow.cn/v1",
-      "apiKey": "${SILICONFLOW_API_KEY}",
-      "model": "Qwen/Qwen2.5-Coder-32B-Instruct",
-      "timeoutMs": 60000
-    },
-    {
-      "id": "ollama-local",
-      "name": "Ollama Local (qwen2.5-coder)",
-      "baseUrl": "http://localhost:11434/v1",
-      "apiKey": "ollama",
-      "model": "qwen2.5-coder:14b",
-      "timeoutMs": 120000
-    }
-  ]
-}
+---
+
+## 4. Links Oficiais para Obtenção de Chaves de API
+
+Abaixo estão os links oficiais dos provedores suportados para você criar conta e gerar suas chaves gratuitamente ou com créditos de teste:
+
+| Provedor | Modelo em Destaque | Link Oficial de Cadastro / API Keys | Variável no `.env` |
+| :--- | :--- | :--- | :--- |
+| **Kimi K3 (Moonshot AI)** | `kimi-k3` (1M Context) | 🔗 [Moonshot Platform Console](https://platform.moonshot.cn/) | `KIMI_API_KEY` |
+| **Qwen 3.8 / Max (DashScope)** | `qwen3.8-max-preview` (2.4T MoE) | 🔗 [Alibaba DashScope Console](https://dashscope.aliyun.com/) | `DASHSCOPE_API_KEY` |
+| **Groq Fast Inference** | `llama-3.3-70b-versatile` | 🔗 [Groq Cloud Console](https://console.groq.com/keys) | `GROQ_API_KEY` |
+| **SiliconFlow** | `Qwen2.5-Coder-32B` / `DeepSeek` | 🔗 [SiliconFlow Platform](https://cloud.siliconflow.cn/) | `SILICONFLOW_API_KEY` |
+| **OpenRouter** | Multi-modelos (Claude, GPT-4, Llama) | 🔗 [OpenRouter Keys](https://openrouter.ai/keys) | `OPENROUTER_API_KEY` |
+| **DeepSeek** | `deepseek-chat` / `deepseek-reasoner` | 🔗 [DeepSeek Platform](https://platform.deepseek.com/) | `DEEPSEEK_API_KEY` |
+| **Ollama Local** | Modelos Locais (Offline) | 🔗 [Ollama Official Website](https://ollama.com/) | *Não exige chave* |
+| **LM Studio** | Execução GGUF Local | 🔗 [LM Studio Official Website](https://lmstudio.ai/) | *Não exige chave* |
+
+---
+
+## 5. Passo a Passo 1: Instalação e Compilação do `ag-provider`
+
+### 1. Criar o arquivo `.env`
+Navegue até a pasta do servidor e crie o arquivo `.env`:
+
+**Caminho:** `E:\00Dev\AntigravityUnlock\src\ag-provider\.env`
+
+```env
+KIMI_API_KEY=sk-sua-chave-kimi-aqui
+DASHSCOPE_API_KEY=sk-sua-chave-dashscope-aqui
+GROQ_API_KEY=gsk_sua-chave-groq-aqui
+SILICONFLOW_API_KEY=sk-sua-chave-siliconflow-aqui
+OPENROUTER_API_KEY=sk-or-v1-sua-chave-openrouter-aqui
+DEEPSEEK_API_KEY=sk-sua-chave-deepseek-aqui
 ```
 
----
+### 2. Instalar dependências e compilar
+No terminal PowerShell:
 
-## 5. Environment Variables Setup
-
-Set the API keys for the services configured in `providers.json` before launching:
-
-### On Windows PowerShell:
 ```powershell
-$env:KIMI_API_KEY="your-kimi-api-key"
-$env:DASHSCOPE_API_KEY="your-dashscope-api-key"
-$env:SILICONFLOW_API_KEY="your-siliconflow-api-key"
-$env:OPENROUTER_API_KEY="your-openrouter-api-key"
-```
-
-### On Linux / macOS / Bash:
-```bash
-export KIMI_API_KEY="your-kimi-api-key"
-export DASHSCOPE_API_KEY="your-dashscope-api-key"
-export SILICONFLOW_API_KEY="your-siliconflow-api-key"
-export OPENROUTER_API_KEY="your-openrouter-api-key"
+cd E:\00Dev\AntigravityUnlock\src\ag-provider
+npm install
+npm run build
 ```
 
 ---
 
-## 6. Launching the Proxy Server
+## 6. Passo a Passo 2: Executando o Servidor Proxy Ponte
 
-To start `ag-provider` in production mode:
+Para iniciar o servidor proxy local:
 
-```bash
-cd src/ag-provider
+```powershell
+cd E:\00Dev\AntigravityUnlock\src\ag-provider
 npm start
 ```
 
-Or in development mode with auto-reload:
+Você verá a seguinte confirmação no terminal:
 
-```bash
-npm run dev
-```
-
-Upon successful startup, the console displays:
-
-```
+```text
 =======================================================
   Antigravity Universal AI Provider Bridge (ag-provider) 
   Control Panel: http://127.0.0.1:50051/dashboard
@@ -173,55 +142,52 @@ Upon successful startup, the console displays:
 =======================================================
 ```
 
----
-
-## 7. IDE Configuration
-
-To route Antigravity IDE traffic through `ag-provider`:
-
-1. Open **Antigravity IDE**.
-2. Open Settings (`Ctrl+,` or `Cmd+,`).
-3. Search for or edit `settings.json` directly.
-4. Add the host address override:
-   ```json
-   "antigravity.agentHostAddress": "http://127.0.0.1:50051"
-   ```
-5. Reload IDE window or restart current conversation.
+- **Verificação de Saúde (Health Check)**: Acesse `http://127.0.0.1:50051/health` no navegador.
+- **Painel de Controle Web**: Acesse `http://127.0.0.1:50051/dashboard` no navegador.
 
 ---
 
-## 8. Using the Web Control Dashboard
+## 7. Passo a Passo 3: Abrindo e Configurando o Antigravity IDE
 
-Access `http://127.0.0.1:50051/dashboard` in any browser to open the dark-mode control panel:
+Abra uma **segunda janela de terminal PowerShell** (mantendo o servidor `ag-provider` rodando na primeira) e execute o script de inicialização:
 
-- **Active Provider**: View the currently active inference backend.
-- **Dynamic Provider Switching**: Change the active model on-the-fly without restarting the bridge.
-- **Connection Test**: Perform real-time health checks and latency measurements.
-- **Resource Monitoring**: Track Node.js heap memory consumption and service uptime.
+```powershell
+# 1. Redirecionar o tráfego do agente para a porta local 50051
+$env:CLOUD_CODE_ENDPOINT = "http://127.0.0.1:50051"
+$env:CODEIUM_CLOUD_CODE_ENDPOINT = "http://127.0.0.1:50051"
 
----
-
-## 9. Supported Models & Capabilities
-
-| Model / Provider | Context Window | Vision | Tool Calling | Primary Use Case |
-| :--- | :--- | :--- | :--- | :--- |
-| **Kimi K3 (Moonshot)** | **1,048,576 Tokens** | ✅ | ✅ | Large codebase reasoning & refactoring |
-| **Qwen 3.8 (DashScope)** | **128,000 Tokens** | ✅ | ✅ | Flagship 2.4T MoE code generation |
-| **Qwen 2.5 Coder 32B** | 32,768 Tokens | ✅ | ✅ | High speed code completions |
-| **Ollama Local** | Device Dependent | ✅ | ✅ | Offline, zero-latency local execution |
+# 2. Iniciar o Antigravity IDE
+Start-Process "$env:LOCALAPPDATA\Programs\Antigravity IDE\Antigravity IDE.exe" -ArgumentList "--user-data-dir=`"E:\00Dev\AntigravityUnlock\.test-ide-profile`"","--new-window"
+```
 
 ---
 
-## 10. Troubleshooting & Diagnostics
+## 8. Passo a Passo 4: Uso no Dia a Dia & Troca de Modelos em Tempo Real
 
-### Issue: Health Check returns 500 / Timeout
-- **Cause**: Target model API key is missing or endpoint is down.
-- **Fix**: Verify environment variables (`export KIMI_API_KEY=...`) or ensure Ollama is running.
-
-### Issue: IDE Chat hangs
-- **Cause**: Incorrect port or `agentHostAddress` setting mismatch.
-- **Fix**: Confirm `ag-provider` is running on `http://127.0.0.1:50051` by testing `GET http://127.0.0.1:50051/health` in your browser.
+1. **Fazer Login na IDE**: Na janela do Antigravity IDE que abriu, faça login com sua conta do Google para liberar o painel de chat.
+2. **Abrir o Painel Web**: No seu navegador (Chrome/Edge/Firefox), abra `http://127.0.0.1:50051/dashboard`.
+3. **Alternar Provedores**:
+   - No menu suspenso do Dashboard, selecione o modelo desejado (ex: **Groq Fast Inference**, **Kimi K3**, **Qwen 3.8** ou **Ollama Local**).
+   - Clique no botão **Switch Active Provider**.
+4. **Enviar Mensagens no Chat da IDE**:
+   - Digite qualquer instrução no chat da IDE. A resposta será processada instantaneamente pelo modelo que você ativou no Dashboard.
 
 ---
 
-**Versão:** 1.4.0 | **Última Revisão:** 2026-07-25 12:12:00 -03:00
+## 9. Solução de Problemas & Diagnósticos (Troubleshooting)
+
+### A porta 50051 não responde ou dá erro de conexão
+- **Causa**: O servidor `ag-provider` não foi iniciado ou foi encerrado.
+- **Solução**: Verifique se a primeira janela de terminal onde você rodou `npm start` continua aberta.
+
+### O modelo retorna erro 500 ou aviso de chave ausente
+- **Causa**: A chave de API do provedor específico não foi configurada no `.env`.
+- **Solução**: Abra `src/ag-provider/.env`, insira a chave válida e reinicie o proxy com `npm start`.
+
+### As respostas não parecem mudar ao trocar o modelo no seletor da IDE
+- **Causa**: O seletor interno da IDE é meramente visual.
+- **Solução**: Certifique-se de alternar o modelo através do **Web Control Dashboard** em `http://127.0.0.1:50051/dashboard`.
+
+---
+
+**Versão:** 1.5.0 | **Última Revisão:** 2026-07-27 00:10:00 -03:00
