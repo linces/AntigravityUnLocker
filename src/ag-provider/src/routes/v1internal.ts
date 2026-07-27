@@ -114,6 +114,9 @@ router.post('/v1internal\\:loadCodeAssist', (req: Request, res: Response) => {
     },
 
     // ── Tier & credits ──
+    // confirmUserForService checks: r?.allowedTiers?.find(u => u.id === "free-tier")
+    // If found AND no ineligible entry, the user is considered eligible and onboarded.
+    // currentTier being set also prevents the onboardUser flow entirely.
     paidTier: {
       description: 'Antigravity Universal Provider (Unlimited)',
       tier: 'PREMIUM',
@@ -131,6 +134,18 @@ router.post('/v1internal\\:loadCodeAssist', (req: Request, res: Response) => {
       tier: 'PREMIUM',
       isPaid: true,
     },
+    // currentTier — when set, confirmUserForService skips the onboard flow
+    currentTier: {
+      id: 'free-tier',
+      description: 'Antigravity Universal Provider',
+      isDefault: true,
+    },
+    // allowedTiers — confirmUserForService looks for id === "free-tier"
+    allowedTiers: [
+      { id: 'free-tier', description: 'AG Provider (Free)', isDefault: true },
+    ],
+    // ineligibleTiers — must be empty/absent to avoid SET_INELIGIBLE
+    ineligibleTiers: [],
 
     // ── Project & subscription ──
     cloudaicompanionProject: 'ag-provider-local',
@@ -223,7 +238,12 @@ router.post('/v1internal\\:setUserSettings', (req: Request, res: Response) => {
 // ─── POST /v1internal:onboardUser ───────────────────────────────────────────
 router.post('/v1internal\\:onboardUser', (req: Request, res: Response) => {
   console.log('[ag-provider] [v1internal] POST /v1internal:onboardUser — auth bypass: auto-onboarding');
+  // The IDE treats onboardUser as a Long Running Operation (LRO).
+  // It polls GET /v1internal/${response.name} until response.done === true.
+  // Without done:true, the IDE loops GET /v1internal/undefined forever.
   res.json({
+    done: true,
+    name: 'operations/ag-provider-onboard-complete',
     response: {
       cloudaicompanionProject: { id: 'ag-provider-local' },
       onboarded: true,
@@ -310,8 +330,19 @@ router.post('/v1internal\\:reportMetrics', (req: Request, res: Response) => {
 // and is waiting for auth to complete. We return "AUTHENTICATED" to break
 // the polling loop.
 router.get('/v1internal/undefined', (req: Request, res: Response) => {
-  throttledLog('session-undefined', '[ag-provider] [v1internal] GET /v1internal/undefined — auth bypass: returning authenticated session');
+  throttledLog('session-undefined', '[ag-provider] [v1internal] GET /v1internal/undefined — LRO completion + auth bypass');
+  // This endpoint is hit when onboardUser returned name=undefined (old bug)
+  // OR when the IDE polls a LRO. Return done:true to break any polling loop,
+  // plus auth state to satisfy session polling.
   res.json({
+    // LRO completion fields (breaks onboardUser polling loop)
+    done: true,
+    name: 'operations/ag-provider-onboard-complete',
+    response: {
+      cloudaicompanionProject: { id: 'ag-provider-local' },
+      onboarded: true,
+    },
+    // Session/auth fields
     status: 'COMPLETE',
     state: 'AUTHENTICATED',
     authState: 'AUTHENTICATED',
@@ -335,9 +366,19 @@ router.get('/v1internal/:sessionId', (req: Request, res: Response) => {
   const sessionId = req.params.sessionId;
   // Only log unknown session IDs (not the common ones we already handle)
   if (sessionId !== 'cascadeNuxes') {
-    throttledLog(`session-${sessionId}`, `[ag-provider] [v1internal] GET /v1internal/${sessionId} — auth bypass: authenticated`);
+    throttledLog(`session-${sessionId}`, `[ag-provider] [v1internal] GET /v1internal/${sessionId} — LRO/auth bypass`);
   }
+  // This handles both LRO polling (onboardUser) and session auth polling.
+  // done:true breaks any LRO polling loop; auth fields satisfy session checks.
   res.json({
+    // LRO completion
+    done: true,
+    name: `operations/${sessionId}`,
+    response: {
+      cloudaicompanionProject: { id: 'ag-provider-local' },
+      onboarded: true,
+    },
+    // Session/auth fields
     status: 'COMPLETE',
     state: 'AUTHENTICATED',
     authState: 'AUTHENTICATED',
