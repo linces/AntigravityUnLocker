@@ -60,6 +60,13 @@ version: 1.4.0
 - **Mounted**: Router integrated in `src/ag-provider/src/index.ts` before the ConnectRPC handler.
 - **Validated**: All routes tested via `Invoke-RestMethod` — all return HTTP 200 with correct JSON payloads.
 
+### 6. SQLite Auth State Synchronization (`scripts/sync-auth.py`)
+- **Root Cause Identified**: Electron main process checks `antigravityUnifiedStateSync.oauthToken` in `state.vscdb` (SQLite database in profile directory). When using an isolated `--user-data-dir` (`.test-ide-profile`), the database key was uninitialized, leaving the state machine stuck on `validatingLogin` / `Fetching authorization...` and spamming `GET /v1internal/undefined`.
+- **Fix Applied**:
+  - Created `scripts/sync-auth.py` to automatically copy `antigravityUnifiedStateSync.oauthToken` and `userStatus` from the main profile (`%APPDATA%\Antigravity IDE\User\globalStorage\state.vscdb`) into the test profile (`.test-ide-profile\User\globalStorage\state.vscdb`).
+  - Integrated `sync-auth.py` into both `START.bat` and `scripts/open-proxied-ide.bat`.
+- **Result**: The proxied IDE now opens with `"state":"signedIn"`, instantly skipping the OAuth prompt and connecting directly to `ag-provider`.
+
 ---
 
-**Versão:** 1.6.0 | **Última Revisão:** 2026-07-27 01:47:00
+**Versão:** 1.8.0 | **Última Revisão:** 2026-07-27 02:25:00

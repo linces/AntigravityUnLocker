@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Status-Production--Ready-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Protocol-ConnectRPC%2FProtobuf-purple?style=for-the-badge&logo=grpc" alt="Protocol" />
   <img src="https://img.shields.io/badge/API-OpenAI%20v1%20Compatible-orange?style=for-the-badge&logo=openai" alt="API" />
-  <img src="https://img.shields.io/badge/Version-1.7.0-blue?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-1.8.0-blue?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
 </p>
 
@@ -125,7 +125,8 @@ OPENROUTER_API_KEY=sk-or-v1-seu-token-openrouter
 | Script | Purpose |
 | :--- | :--- |
 | `scripts/start-bridge.bat` | Start proxy only |
-| `scripts/open-proxied-ide.bat` | Open IDE with proxy config |
+| `scripts/open-proxied-ide.bat` | Open IDE with proxy config & auth sync |
+| `scripts/sync-auth.py` | Sync SQLite OAuth token state into test profile |
 | `scripts/start-diag-proxy.bat` | Start diagnostic capture proxy |
 | `scripts/cleanup.bat` | Remove test profile & captures |
 
@@ -137,4 +138,4 @@ For detailed architecture analysis, ConnectRPC schemas, network diagrams, and tr
 
 ---
 
-**Versão:** 1.7.0 | **Última Revisão:** 2026-07-27 02:10:00
+**Versão:** 1.8.0 | **Última Revisão:** 2026-07-27 02:25:00
