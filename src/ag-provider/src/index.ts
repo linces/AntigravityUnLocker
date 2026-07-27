@@ -8,6 +8,7 @@ import { ChatCompletionRequest } from './adapters/base.js';
 import { translateConnectRequestToOpenAI, decodeConnectEnvelope } from './translation/connectToOpenAI.js';
 import { encodeConnectEnvelope, formatConnectStreamChunk } from './translation/openAiToConnect.js';
 import { getDashboardHtml } from './dashboard/dashboardHtml.js';
+import { telemetry } from './telemetry.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,7 +37,6 @@ const app = express();
 const PORT = process.env.AG_PROVIDER_PORT || 50051;
 const configPath = path.join(__dirname, '../providers.json');
 
-
 const router = new ProviderRouter(configPath);
 
 app.use(express.json());
@@ -60,17 +60,14 @@ app.get(['/', '/dashboard'], (req, res) => {
 
 // Admin API status & telemetry
 app.get('/api/status', (req, res) => {
+  const activeId = router.getActiveProviderId();
   res.json({
     status: 'online',
-    defaultProvider: router.getActiveProviderId(),
+    defaultProvider: activeId,
     providers: router.getAllProviders(),
-    metrics: {
-      uptimeSeconds: process.uptime(),
-      memoryUsageMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024)
-    }
+    metrics: telemetry.getMetrics(activeId)
   });
 });
-
 
 // Admin API switch provider
 app.post('/api/provider/switch', (req, res) => {
@@ -85,9 +82,11 @@ app.post('/api/provider/switch', (req, res) => {
 
 // ConnectRPC / OpenAI Bridge Endpoint
 app.post(['/v1/chat/completions', '/google.cloud.conversa.v1.AgentService/*'], async (req, res) => {
-  try {
-    let chatRequest: ChatCompletionRequest;
+  const startTime = performance.now();
+  const provider = router.getProvider();
+  let chatRequest: ChatCompletionRequest;
 
+  try {
     if (Buffer.isBuffer(req.body)) {
       const frames = decodeConnectEnvelope(req.body);
       console.log(`[ag-provider] Received ConnectRPC binary request (${frames.length} frames decoded)`);
@@ -96,20 +95,66 @@ app.post(['/v1/chat/completions', '/google.cloud.conversa.v1.AgentService/*'], a
       chatRequest = translateConnectRequestToOpenAI(req.body);
     }
     
+    const promptLen = JSON.stringify(chatRequest.messages || []).length;
+    const promptTokens = Math.max(1, Math.ceil(promptLen / 4));
+    let completionTokens = 0;
+
     if (chatRequest.stream) {
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
 
-      const provider = router.getProvider();
+      let streamedText = '';
       for await (const chunk of provider.stream(chatRequest)) {
         res.write(formatConnectStreamChunk(chunk));
+        if (typeof chunk === 'string') {
+          streamedText += chunk;
+        }
       }
       res.write('data: [DONE]\n\n');
       res.end();
+
+      completionTokens = Math.max(1, Math.ceil(streamedText.length / 4));
+      const endTime = performance.now();
+      const latencyMs = Math.round(endTime - startTime);
+
+      telemetry.recordRequest({
+        id: 'req_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+        timestamp: new Date().toISOString(),
+        providerId: provider.id,
+        providerName: provider.name,
+        model: chatRequest.model || provider.id,
+        isStream: true,
+        promptTokens,
+        completionTokens,
+        totalTokens: promptTokens + completionTokens,
+        latencyMs,
+        status: 'success'
+      });
     } else {
       const response = await router.chatWithFallback(chatRequest);
       
+      const compText = response.choices?.[0]?.message?.content || '';
+      completionTokens = response.usage?.completion_tokens || Math.max(1, Math.ceil(compText.length / 4));
+      const actualPromptTokens = response.usage?.prompt_tokens || promptTokens;
+
+      const endTime = performance.now();
+      const latencyMs = Math.round(endTime - startTime);
+
+      telemetry.recordRequest({
+        id: 'req_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+        timestamp: new Date().toISOString(),
+        providerId: provider.id,
+        providerName: provider.name,
+        model: response.model || chatRequest.model || provider.id,
+        isStream: false,
+        promptTokens: actualPromptTokens,
+        completionTokens,
+        totalTokens: actualPromptTokens + completionTokens,
+        latencyMs,
+        status: 'success'
+      });
+
       if (req.headers['content-type']?.includes('connect+proto')) {
         const envelope = encodeConnectEnvelope(response);
         res.setHeader('Content-Type', 'application/connect+proto');
@@ -119,6 +164,24 @@ app.post(['/v1/chat/completions', '/google.cloud.conversa.v1.AgentService/*'], a
       }
     }
   } catch (err: any) {
+    const endTime = performance.now();
+    const latencyMs = Math.round(endTime - startTime);
+
+    telemetry.recordRequest({
+      id: 'req_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      timestamp: new Date().toISOString(),
+      providerId: provider.id,
+      providerName: provider.name,
+      model: provider.id,
+      isStream: false,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      latencyMs,
+      status: 'error',
+      errorMessage: err.message
+    });
+
     console.error('[ag-provider] Translation/Proxy Error:', err.message);
     res.status(500).json({ error: { message: err.message } });
   }

@@ -14,8 +14,12 @@
 </p>
 
 > [!IMPORTANT]
-> **CRITICAL ARCHITECTURE FACT**:
-> The model selector dropdown **inside the Antigravity IDE UI** (e.g., *Gemini 3.6 Flash*) is **purely a visual frontend label**. Setting `CLOUD_CODE_ENDPOINT = "http://127.0.0.1:50051"` reroutes **100% of network traffic locally**. The **actual LLM engine** that responds to your prompts is chosen dynamically in the **Web Control Dashboard (`http://127.0.0.1:50051/dashboard`)**. Google servers receive ZERO requests, ZERO tokens are consumed from Google, and quota is NEVER affected!
+> **CRITICAL ARCHITECTURE FACTS (DUAL-MODE OPERATIONAL DESIGN)**:
+> 1. **Proxy Mode vs. Native Official Gemini Mode**:
+>    - **Universal Proxy Mode (`ag-provider`)**: Launch the IDE via PowerShell with `$env:CLOUD_CODE_ENDPOINT = "http://127.0.0.1:50051"`. 100% of LLM traffic is rerouted locally to `ag-provider` on port `50051`. Active backend is chosen in the **Web Control Dashboard (`http://127.0.0.1:50051/dashboard`)**. Google receives 0 bytes and quota is NEVER touched!
+>    - **Official Gemini Mode**: Launch the IDE normally from your Windows Desktop / Start Menu shortcut (without terminal env vars). The IDE communicates directly with official Google Cloud AI servers.
+> 2. **IDE Frontend Selector Label**:
+>    - In Proxy Mode, the model dropdown inside Antigravity IDE UI (e.g. *Gemini 3.6 Flash*) is **purely a visual frontend label**. The actual engine responding to your prompts is controlled dynamically in the Web Dashboard!
 
 ---
 

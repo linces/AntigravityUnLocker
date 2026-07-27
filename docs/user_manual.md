@@ -10,8 +10,12 @@ version: 1.5.0
 # Operation & Usage Manual - Antigravity Universal AI Provider (`ag-provider`)
 
 > [!IMPORTANT]
-> **FATO CRÍTICO DE ARQUITETURA (CRITICAL ARCHITECTURE FACT)**:
-> O seletor de modelos na interface do Antigravity IDE (ex: *Gemini 3.6 Flash*) é **meramente visual (rótulo frontend)**. Ao configurar `CLOUD_CODE_ENDPOINT = "http://127.0.0.1:50051"`, **100% das chamadas gRPC/ConnectRPC são enviadas localmente ao `ag-provider`**. O modelo real que processa seus prompts é escolhido exclusivamente no **Web Control Dashboard (`http://127.0.0.1:50051/dashboard`)**. Nenhum token é consumido da sua cota do Google!
+> **FATOS CRÍTICOS DE ARQUITETURA (MODO DUPLO DE OPERAÇÃO)**:
+> 1. **Modo Proxy Universal (`ag-provider`) vs. Modo Nativo Oficial Gemini**:
+>    - **Para usar o Proxy Universal (`ag-provider`)**: Inicie o Antigravity IDE via terminal PowerShell definindo `$env:CLOUD_CODE_ENDPOINT = "http://127.0.0.1:50051"`. 100% do tráfego do chat será redirecionado para a porta `50051`. O modelo ativo é escolhido dinamicamente no **Web Control Dashboard (`http://127.0.0.1:50051/dashboard`)**. O Google recebe 0 bytes e a cota do Google é 0% consumida!
+>    - **Para usar o Gemini Oficial**: Abra a IDE normalmente pelo seu atalho do Windows (Menu Iniciar / Área de Trabalho) sem passar a variável no terminal. A IDE conversará direto com a nuvem da Google.
+> 2. **Seletor de Modelos na Interface da IDE**:
+>    - No Modo Proxy, o menu suspenso dentro da IDE (ex: *Gemini 3.6 Flash*) é **meramente um rótulo visual estático**. A IA que responde de verdade é a que está ativada no Web Dashboard!
 
 ---
 
