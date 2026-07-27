@@ -42,6 +42,25 @@ def sync_auth():
     conn_src.close()
     conn_dst.close()
     print(f"[AuthSync] Successfully synchronized {synced_count} auth tokens to test profile.")
+    
+    # Ensure settings.json in test profile always forces local proxy endpoints
+    settings_path = os.path.join(project_root, '.test-ide-profile', 'User', 'settings.json')
+    os.makedirs(os.path.dirname(settings_path), exist_ok=True)
+    import json
+    settings = {}
+    if os.path.exists(settings_path):
+        try:
+            with open(settings_path, 'r', encoding='utf-8') as f:
+                settings = json.load(f)
+        except Exception:
+            settings = {}
+            
+    settings["jetski.cloudCodeUrl"] = "http://127.0.0.1:50051"
+    settings["antigravity.agentHostAddress"] = "http://127.0.0.1:50051"
+    
+    with open(settings_path, 'w', encoding='utf-8') as f:
+        json.dump(settings, f, indent=2)
+    print("[AuthSync] Ensured settings.json forces jetski.cloudCodeUrl and agentHostAddress to 127.0.0.1:50051.")
 
 if __name__ == '__main__':
     sync_auth()

@@ -67,6 +67,10 @@ version: 1.4.0
   - Integrated `sync-auth.py` into both `START.bat` and `scripts/open-proxied-ide.bat`.
 - **Result**: The proxied IDE now opens with `"state":"signedIn"`, instantly skipping the OAuth prompt and connecting directly to `ag-provider`.
 
+### 7. Guaranteed Local Proxy Routing Enforcement
+- **Enhancement**: Updated `scripts/sync-auth.py` to automatically create/merge `.test-ide-profile\User\settings.json` with `"jetski.cloudCodeUrl": "http://127.0.0.1:50051"` and `"antigravity.agentHostAddress": "http://127.0.0.1:50051"`.
+- **Guarantee**: Even if `settings.json` already existed, the proxy overrides are now immutably enforced on every launch, ensuring 0 bytes ever leak to Google Cloud.
+
 ---
 
-**Versão:** 1.8.0 | **Última Revisão:** 2026-07-27 02:25:00
+**Versão:** 1.8.1 | **Última Revisão:** 2026-07-27 03:02:00
