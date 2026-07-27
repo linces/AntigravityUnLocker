@@ -57,6 +57,15 @@ export class ProviderRouter {
     return this.activeProviderId;
   }
 
+  public getAllProviders(): { id: string; name: string; model: string }[] {
+    return this.defaultConfig.providers.map(p => ({
+      id: p.id,
+      name: p.name,
+      model: p.model
+    }));
+  }
+
+
   public getProvider(id?: string): ILLMProvider {
     const targetId = id || this.activeProviderId;
     const provider = this.providers.get(targetId);

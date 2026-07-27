@@ -56,12 +56,7 @@ export function getDashboardHtml(): string {
         <div>
           <label class="block text-xs font-medium text-slate-400 mb-1">Active Backend</label>
           <select id="provider-select" class="w-full bg-slate-900 border border-slate-700 text-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-sky-500 outline-none">
-            <option value="kimi-k3">🔥 Kimi K3 (Moonshot AI - 1M Context Reasoning)</option>
-            <option value="qwen-3.8-max">🔥 Qwen 3.8 (2.4T MoE - DashScope Preview)</option>
-            <option value="qwen-siliconflow">Qwen 2.5 Coder 32B (SiliconFlow)</option>
-            <option value="ollama-local">Ollama Local (qwen2.5-coder:14b)</option>
-            <option value="lmstudio-local">LM Studio Local</option>
-            <option value="openrouter">OpenRouter Multi-Provider</option>
+            <option value="">Loading providers...</option>
           </select>
         </div>
         <div class="flex items-center justify-between pt-4">
@@ -95,6 +90,8 @@ export function getDashboardHtml(): string {
   </div>
 
   <script>
+    let providersLoaded = false;
+
     async function fetchStatus() {
       try {
         const res = await fetch('/api/status');
@@ -102,6 +99,19 @@ export function getDashboardHtml(): string {
         document.getElementById('active-provider').innerText = data.defaultProvider || 'N/A';
         document.getElementById('memory-usage').innerText = data.metrics.memoryUsageMb + ' MB';
         document.getElementById('uptime').innerText = Math.round(data.metrics.uptimeSeconds) + 's';
+
+        if (data.providers && (!providersLoaded || document.getElementById('provider-select').children.length <= 1)) {
+          const select = document.getElementById('provider-select');
+          select.innerHTML = '';
+          data.providers.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.text = (p.id === data.defaultProvider ? '🔥 ' : '') + p.name;
+            if (p.id === data.defaultProvider) opt.selected = true;
+            select.appendChild(opt);
+          });
+          providersLoaded = true;
+        }
       } catch (err) {
         document.getElementById('server-status').innerText = '● Offline';
         document.getElementById('server-status').className = 'px-3 py-1 text-xs font-semibold rounded-full bg-red-900 text-red-300 border border-red-700';
@@ -117,6 +127,7 @@ export function getDashboardHtml(): string {
       });
       const data = await res.json();
       alert('Provider switched to: ' + data.activeProvider);
+      providersLoaded = false;
       fetchStatus();
     }
 

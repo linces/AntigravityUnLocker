@@ -63,12 +63,14 @@ app.get('/api/status', (req, res) => {
   res.json({
     status: 'online',
     defaultProvider: router.getActiveProviderId(),
+    providers: router.getAllProviders(),
     metrics: {
       uptimeSeconds: process.uptime(),
       memoryUsageMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024)
     }
   });
 });
+
 
 // Admin API switch provider
 app.post('/api/provider/switch', (req, res) => {
