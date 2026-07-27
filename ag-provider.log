@@ -2414,3 +2414,32 @@
 [ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
 [ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
 [ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
+[ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
+[ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
+[ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
+[ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
+[ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
+[ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
+[ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
+[ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
+[ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
+[ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
+[ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
+[ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
+[ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
+[ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
+[ag-provider] [v1internal] POST /v1internal:loadCodeAssist — bootstrapping LS
+[ag-provider] [v1internal] POST /v1internal:fetchAvailableModels
+[ag-provider] [v1internal] POST /v1internal:fetchUserInfo
+[ag-provider] [v1internal] POST /v1internal:loadCodeAssist — bootstrapping LS
+[ag-provider] [v1internal] Unhandled: POST /v1internal:retrieveUserQuotaSummary
+[ag-provider] [v1internal] POST /v1internal:fetchAdminControls
+[ag-provider] [v1internal] POST /v1internal:fetchUserInfo
+[ag-provider] [v1internal] POST /v1internal:fetchAvailableModels
+[ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
+[ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
+[ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
+[ag-provider] [v1internal] POST /v1internal:listExperiments
+[ag-provider] [v1internal] POST /v1internal:fetchAvailableModels
+[ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
+[ag-provider] [v1internal] Unhandled: GET /v1internal/undefined
