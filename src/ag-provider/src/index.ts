@@ -43,7 +43,7 @@ app.use(express.json());
 app.use(express.raw({ type: ['application/connect+proto', 'application/grpc', 'application/octet-stream'] }));
 
 // Healthcheck
-app.get('/health', (req, res) => {
+app.get(['/health', '/healt'], (req, res) => {
   res.json({
     status: 'ok',
     service: 'ag-provider',
