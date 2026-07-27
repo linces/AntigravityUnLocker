@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Status-Production--Ready-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Protocol-ConnectRPC%2FProtobuf-purple?style=for-the-badge&logo=grpc" alt="Protocol" />
   <img src="https://img.shields.io/badge/API-OpenAI%20v1%20Compatible-orange?style=for-the-badge&logo=openai" alt="API" />
-  <img src="https://img.shields.io/badge/Version-1.6.0-blue?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-1.7.0-blue?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
 </p>
 
@@ -16,43 +16,47 @@
 > [!IMPORTANT]
 > **CRITICAL ARCHITECTURE FACTS (DUAL-MODE OPERATIONAL DESIGN)**:
 > 1. **Proxy Mode vs. Native Official Gemini Mode**:
->    - **Universal Proxy Mode (`ag-provider`)**: Launch the IDE via PowerShell with `$env:CLOUD_CODE_ENDPOINT = "http://127.0.0.1:50051"`. 100% of LLM traffic is rerouted locally to `ag-provider` on port `50051`. Active backend is chosen in the **Web Control Dashboard (`http://127.0.0.1:50051/dashboard`)**. Google receives 0 bytes and quota is NEVER touched!
->    - **Official Gemini Mode**: Launch the IDE normally from your Windows Desktop / Start Menu shortcut (without terminal env vars). The IDE communicates directly with official Google Cloud AI servers.
+>    - **Universal Proxy Mode (`ag-provider`)**: Launch the IDE via PowerShell or `START.bat` with proxy endpoint `http://127.0.0.1:50051`. 100% of LLM traffic is rerouted locally to `ag-provider` on port `50051`. Active backend is chosen in the **Web Control Dashboard (`http://127.0.0.1:50051/dashboard`)**. Google receives 0 bytes and quota is NEVER touched!
+>    - **Official Gemini Mode**: Launch the IDE normally from your desktop shortcut (without proxy env vars). The IDE communicates directly with official Google Cloud AI servers.
 > 2. **IDE Frontend Selector Label**:
 >    - In Proxy Mode, the model dropdown inside Antigravity IDE UI (e.g. *Gemini 3.6 Flash*) is **purely a visual frontend label**. The actual engine responding to your prompts is controlled dynamically in the Web Dashboard!
 
 ---
 
-## 🔑 How Antigravity IDE Routing & Google Login Work
+## 🔑 How Antigravity IDE Routing & Google Auth Bypass Work
 
-### ❓ Why is Google Login required in Antigravity IDE?
-Antigravity IDE requires a Google login **solely to unlock the UI chat drawer and assistant panel**. 
+### ❓ Why does Antigravity IDE prompt for Google Login?
+Antigravity IDE normally attempts to authenticate with Google to unlock the UI chat drawer and assistant panel. When running behind a local proxy, OAuth deep-link redirects open external IDE instances, causing the proxied IDE to remain stuck on *"Authenticating..."*.
+
+### 🛡️ Automatic Auth Bypass Simulation
+`ag-provider` automatically intercepts Language Server authentication requests and returns synthetic pre-authenticated session payloads (`authState: AUTHENTICATED`, unlimited quotas, active subscription status). This unlocks the IDE interface seamlessly without requiring any Google OAuth interactions!
 
 ### 🔀 Traffic Rerouting
-Setting `"jetski.cloudCodeUrl": "http://127.0.0.1:50051"` and `"antigravity.agentHostAddress": "http://127.0.0.1:50051"` in `settings.json` (or launching via `scripts/open-proxied-ide.bat`) redirects **100% of LLM inference traffic** to your local `ag-provider` proxy. Zero prompt traffic is sent to cloud servers.
-
-### 🎯 Frontend Selector vs. Real LLM Engine
-- The model menu **inside Antigravity IDE UI** (e.g. *Gemini 3.6 Flash*) acts as a visual frontend label.
-- The **real LLM engine** that processes your prompts is chosen dynamically in the **Web Control Dashboard (`http://127.0.0.1:50051/dashboard`)**!
+Setting `"jetski.cloudCodeUrl": "http://127.0.0.1:50051"` and `"antigravity.agentHostAddress": "http://127.0.0.1:50051"` in `settings.json` (or launching via `START.bat`) redirects **100% of LLM inference traffic** to your local `ag-provider` proxy. Zero prompt traffic is sent to cloud servers.
 
 ---
 
-## ⚠️ Language Server Bootstrap (v1internal Routes)
+## ⚠️ Language Server Bootstrap & Auth Bypass (`v1internal` Routes)
 
-The Antigravity IDE Language Server (`language_server_windows_x64.exe`) requires a set of **Google Cloud Code internal API endpoints** to initialize its model catalog before it can accept any inference requests.
+The Antigravity IDE Language Server (`language_server_windows_x64.exe`) requires a set of **Google Cloud Code internal API endpoints** to initialize its model catalog and verify user entitlement.
 
-`ag-provider` now includes a full simulation of these endpoints:
+`ag-provider` includes a full simulation and auth bypass for these endpoints:
 
 | Endpoint | Method | Purpose |
 | :--- | :--- | :--- |
-| `/v1internal:loadCodeAssist` | POST | Bootstrap: user tier, model catalog, project ID |
+| `/v1internal:loadCodeAssist` | POST | Bootstrap: user tier, model catalog, auth state simulation |
+| `/v1internal:retrieveUserQuotaSummary` | POST | Quota summary simulation (returns unlimited quota) |
+| `/v1internal:fetchUserQuota` | POST | User quota details |
+| `/v1internal:checkEntitlement` | POST | Entitlement check (returns active premium status) |
+| `/v1internal/undefined` & `/:sessionId` | GET | Session auth status polling (breaks retry loops) |
 | `/v1internal:listExperiments` | POST | Feature flags (returns empty — no experiments needed) |
 | `/v1internal/cascadeNuxes` | GET | Onboarding prompts (returns empty list) |
 | `/v1internal:fetchAvailableModels` | POST | Model list for LS model resolver |
-| `/v1internal:fetchUserInfo` | POST | User account settings |
+| `/v1internal:fetchUserInfo` | POST | User account settings and synthetic user profile |
 | `/v1internal:fetchAdminControls` | POST | Enterprise/admin controls |
+| `/v1internal:onboardUser` | POST | Synthetic user onboarding |
 
-Without these routes the LS enters an infinite retry loop and all chat/agent features fail with `unknown model key MODEL_PLACEHOLDER_M71: model not found`.
+Without these routes the LS enters an infinite retry loop and chat/agent features fail with `unknown model key MODEL_PLACEHOLDER_M71: model not found`.
 
 ---
 
@@ -133,4 +137,4 @@ For detailed architecture analysis, ConnectRPC schemas, network diagrams, and tr
 
 ---
 
-**Versão:** 1.6.0 | **Última Revisão:** 2026-07-27 01:47:00
+**Versão:** 1.7.0 | **Última Revisão:** 2026-07-27 02:10:00

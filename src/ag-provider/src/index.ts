@@ -40,6 +40,13 @@ const configPath = path.join(__dirname, '../providers.json');
 
 const router = new ProviderRouter(configPath);
 
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/dashboard') && !req.path.startsWith('/health') && !req.path.startsWith('/api/status')) {
+    console.log(`[ag-provider] [INCOMING] ${req.method} ${req.path} (Content-Type: ${req.headers['content-type'] || 'none'})`);
+  }
+  next();
+});
+
 app.use(express.json());
 app.use(express.raw({ type: ['application/connect+proto', 'application/grpc', 'application/octet-stream'] }));
 
