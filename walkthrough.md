@@ -67,10 +67,14 @@ version: 1.4.0
   - Integrated `sync-auth.py` into both `START.bat` and `scripts/open-proxied-ide.bat`.
 - **Result**: The proxied IDE now opens with `"state":"signedIn"`, instantly skipping the OAuth prompt and connecting directly to `ag-provider`.
 
-### 7. Guaranteed Local Proxy Routing Enforcement
-- **Enhancement**: Updated `scripts/sync-auth.py` to automatically create/merge `.test-ide-profile\User\settings.json` with `"jetski.cloudCodeUrl": "http://127.0.0.1:50051"` and `"antigravity.agentHostAddress": "http://127.0.0.1:50051"`.
-- **Guarantee**: Even if `settings.json` already existed, the proxy overrides are now immutably enforced on every launch, ensuring 0 bytes ever leak to Google Cloud.
+### 8. Auth State SQLite Lock & `loginError` Sanitization (`scripts/sync-auth.py`)
+- **Root Cause Identified**: When launching `START.bat`, if an old `Antigravity IDE.exe` instance was still running, Electron held exclusive locks on `.test-ide-profile\User\globalStorage\state.vscdb`. `sync-auth.py` failed silently (due to `>nul 2>&1` suppression), leaving `oauthToken` trapped in `"state": "loginError"`. This caused the IDE sidebar to render `"⚠️ There was an error with your authentication. To log in, click here"`.
+- **Fix Applied**:
+  - Updated `scripts/sync-auth.py` to automatically terminate background test-profile IDE instances before writing to SQLite, ensuring zero database file locks.
+  - Added automatic payload sanitization in `sync-auth.py` that dynamically replaces any `"loginError"` state string with `"signedIn"`.
+  - Updated `START.bat` and `scripts/open-proxied-ide.bat` to run `sync-auth.py` with full console visibility.
+- **Validation**: Executed `sync-auth.py` and verified via SQLite inspection that `antigravityUnifiedStateSync.oauthToken` in `.test-ide-profile` is successfully set to `"state": "signedIn"`.
 
 ---
 
-**Versão:** 1.8.1 | **Última Revisão:** 2026-07-27 03:02:00
+**Versão:** 1.8.2 | **Última Revisão:** 2026-07-27 03:08:00

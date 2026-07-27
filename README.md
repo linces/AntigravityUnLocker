@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Status-Production--Ready-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Protocol-ConnectRPC%2FProtobuf-purple?style=for-the-badge&logo=grpc" alt="Protocol" />
   <img src="https://img.shields.io/badge/API-OpenAI%20v1%20Compatible-orange?style=for-the-badge&logo=openai" alt="API" />
-  <img src="https://img.shields.io/badge/Version-1.8.1-blue?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-1.8.2-blue?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
 </p>
 
@@ -138,4 +138,4 @@ For detailed architecture analysis, ConnectRPC schemas, network diagrams, and tr
 
 ---
 
-**Versão:** 1.8.1 | **Última Revisão:** 2026-07-27 03:02:00
+**Versão:** 1.8.2 | **Última Revisão:** 2026-07-27 03:08:00

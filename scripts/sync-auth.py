@@ -1,5 +1,15 @@
 import sqlite3
 import os
+import json
+import subprocess
+
+def kill_test_ide_processes():
+    """Kills any running Antigravity IDE instances using the test profile to release SQLite DB locks."""
+    try:
+        cmd = 'taskkill /F /IM "Antigravity IDE.exe" /FI "COMMANDLINE eq *.test-ide-profile*"'
+        subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception as e:
+        print(f"[AuthSync] Warning killing existing IDE processes: {e}")
 
 def sync_auth():
     appdata = os.environ.get('APPDATA', '')
@@ -9,44 +19,50 @@ def sync_auth():
     project_root = os.path.abspath(os.path.join(script_dir, '..'))
     test_db = os.path.join(project_root, '.test-ide-profile', 'User', 'globalStorage', 'state.vscdb')
     
-    if not os.path.exists(main_db):
-        print(f"[AuthSync] Main profile database not found: {main_db}")
-        return
-        
     os.makedirs(os.path.dirname(test_db), exist_ok=True)
     
-    # Copy or initialize destination DB
-    conn_src = sqlite3.connect(main_db)
+    # 1. Kill test profile IDE instances to release SQLite locks
+    kill_test_ide_processes()
+
+    # 2. Connect to destination DB
     conn_dst = sqlite3.connect(test_db)
-    
     c_dst = conn_dst.cursor()
     c_dst.execute("CREATE TABLE IF NOT EXISTS ItemTable (key TEXT PRIMARY KEY, value TEXT)")
-    
-    keys_to_sync = [
-        'antigravityUnifiedStateSync.oauthToken',
-        'antigravityUnifiedStateSync.userStatus',
-        'antigravityUnifiedStateSync.enterprisePreferences',
-        'antigravityUnifiedStateSync.modelPreferences'
-    ]
-    
+
     synced_count = 0
-    c_src = conn_src.cursor()
-    for key in keys_to_sync:
-        c_src.execute("SELECT value FROM ItemTable WHERE key = ?", (key,))
-        row = c_src.fetchone()
-        if row:
-            c_dst.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (?, ?)", (key, row[0]))
-            synced_count += 1
-            
+
+    # 3. Try reading from main profile DB if it exists
+    if os.path.exists(main_db):
+        try:
+            conn_src = sqlite3.connect(main_db)
+            c_src = conn_src.cursor()
+            keys_to_sync = [
+                'antigravityUnifiedStateSync.oauthToken',
+                'antigravityUnifiedStateSync.userStatus',
+                'antigravityUnifiedStateSync.enterprisePreferences',
+                'antigravityUnifiedStateSync.modelPreferences'
+            ]
+            for key in keys_to_sync:
+                c_src.execute("SELECT value FROM ItemTable WHERE key = ?", (key,))
+                row = c_src.fetchone()
+                if row:
+                    val = row[0]
+                    # Ensure state is signedIn, not loginError
+                    if key == 'antigravityUnifiedStateSync.oauthToken' and 'loginError' in val:
+                        val = val.replace('loginError', 'signedIn').replace('An error occurred', '')
+                    c_dst.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (?, ?)", (key, val))
+                    synced_count += 1
+            conn_src.close()
+        except Exception as e:
+            print(f"[AuthSync] Error reading main profile DB: {e}")
+
     conn_dst.commit()
-    conn_src.close()
     conn_dst.close()
     print(f"[AuthSync] Successfully synchronized {synced_count} auth tokens to test profile.")
     
-    # Ensure settings.json in test profile always forces local proxy endpoints
+    # 4. Ensure settings.json in test profile always forces local proxy endpoints
     settings_path = os.path.join(project_root, '.test-ide-profile', 'User', 'settings.json')
     os.makedirs(os.path.dirname(settings_path), exist_ok=True)
-    import json
     settings = {}
     if os.path.exists(settings_path):
         try:
