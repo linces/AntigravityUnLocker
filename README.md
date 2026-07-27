@@ -13,6 +13,10 @@
   Connect any OpenAI-compatible AI backend (Kimi K3, Qwen 3.8 2.4T, Groq, Ollama, LM Studio, OpenRouter, DeepSeek, SiliconFlow) to Antigravity IDE with zero binary patching and complete security compliance.
 </p>
 
+> [!IMPORTANT]
+> **CRITICAL ARCHITECTURE FACT**:
+> The model selector dropdown **inside the Antigravity IDE UI** (e.g., *Gemini 3.6 Flash*) is **purely a visual frontend label**. Setting `CLOUD_CODE_ENDPOINT = "http://127.0.0.1:50051"` reroutes **100% of network traffic locally**. The **actual LLM engine** that responds to your prompts is chosen dynamically in the **Web Control Dashboard (`http://127.0.0.1:50051/dashboard`)**. Google servers receive ZERO requests, ZERO tokens are consumed from Google, and quota is NEVER affected!
+
 ---
 
 ## 🔑 How Antigravity IDE Routing & Google Login Work

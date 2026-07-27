@@ -9,6 +9,10 @@ version: 1.2.0
 
 # Bridge Architecture - ag-provider
 
+> [!IMPORTANT]
+> **CRITICAL ARCHITECTURE FACT**:
+> The model selector dropdown **inside the Antigravity IDE UI** (e.g., *Gemini 3.6 Flash*) is **purely a visual frontend label**. Setting `CLOUD_CODE_ENDPOINT = "http://127.0.0.1:50051"` reroutes **100% of network traffic locally**. The **actual LLM engine** that responds to your prompts is chosen dynamically in the **Web Control Dashboard (`http://127.0.0.1:50051/dashboard`)**. Google servers receive ZERO requests, ZERO tokens are consumed from Google, and quota is NEVER affected!
+
 ## Overview
 
 `ag-provider` is a local intermediate proxy server designed to bridge Antigravity IDE's ConnectRPC client requests with any standard OpenAI-compatible LLM inference server.

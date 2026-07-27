@@ -9,7 +9,11 @@ version: 1.5.0
 
 # Operation & Usage Manual - Antigravity Universal AI Provider (`ag-provider`)
 
-## Table of Contents
+> [!IMPORTANT]
+> **FATO CRÍTICO DE ARQUITETURA (CRITICAL ARCHITECTURE FACT)**:
+> O seletor de modelos na interface do Antigravity IDE (ex: *Gemini 3.6 Flash*) é **meramente visual (rótulo frontend)**. Ao configurar `CLOUD_CODE_ENDPOINT = "http://127.0.0.1:50051"`, **100% das chamadas gRPC/ConnectRPC são enviadas localmente ao `ag-provider`**. O modelo real que processa seus prompts é escolhido exclusivamente no **Web Control Dashboard (`http://127.0.0.1:50051/dashboard`)**. Nenhum token é consumido da sua cota do Google!
+
+---
 
 1. [Understanding the Architecture & Google Login Requirement](#1-understanding-the-architecture--google-login-requirement)
 2. [Security & API Key Isolation (`.env` vs GitHub)](#2-security--api-key-isolation-env-vs-github)
