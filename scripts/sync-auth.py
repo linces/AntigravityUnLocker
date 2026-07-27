@@ -49,8 +49,10 @@ def sync_auth():
                     val = row[0]
                     # Ensure state is signedIn, not loginError, and clear error messages
                     if key == 'antigravityUnifiedStateSync.oauthToken':
-                        val = val.replace('loginError', 'signedIn').replace('"errorMessage":"An error occurred"', '"errorMessage":""')
+                        val = val.replace('"state":"signedOut"', '"state":"signedIn"').replace('"state":"loginError"', '"state":"signedIn"').replace('"state":"uninitialized"', '"state":"signedIn"')
+                        val = val.replace('"errorMessage":"An error occurred"', '"errorMessage":""')
                     c_dst.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (?, ?)", (key, val))
+
                     synced_count += 1
             conn_src.close()
         except Exception as e:

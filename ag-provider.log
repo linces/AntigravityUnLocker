@@ -9,10 +9,10 @@
 [ag-provider] [v1internal] POST /v1internal:loadCodeAssist — bootstrapping LS (auth bypass active)
 [ag-provider] [INCOMING] POST /v1internal:loadCodeAssist (Content-Type: application/json)
 [ag-provider] [v1internal] POST /v1internal:loadCodeAssist — bootstrapping LS (auth bypass active)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:fetchAvailableModels
 [ag-provider] [INCOMING] POST /v1internal:fetchUserInfo (Content-Type: application/json)
 [ag-provider] [v1internal] POST /v1internal:fetchUserInfo
+[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
+[ag-provider] [v1internal] POST /v1internal:fetchAvailableModels
 [ag-provider] [INCOMING] POST /v1internal:fetchUserInfo (Content-Type: application/json)
 [ag-provider] [INCOMING] POST /v1internal:onboardUser (Content-Type: application/json)
 [ag-provider] [v1internal] POST /v1internal:onboardUser — auth bypass: auto-onboarding
@@ -24,22 +24,19 @@
 [ag-provider] [v1internal] POST /v1internal:listExperiments
 [ag-provider] [INCOMING] POST /v1internal:loadCodeAssist (Content-Type: application/json)
 [ag-provider] [v1internal] POST /v1internal:loadCodeAssist — bootstrapping LS (auth bypass active)
-[ag-provider] [INCOMING] POST /v1internal:fetchAdminControls (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:fetchAdminControls
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchUserInfo (Content-Type: application/json)
 [ag-provider] [INCOMING] POST /v1internal:retrieveUserQuotaSummary (Content-Type: application/json)
 [ag-provider] [v1internal] POST /v1internal:retrieveUserQuotaSummary — returning unlimited quota
+[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
+[ag-provider] [INCOMING] POST /v1internal:fetchAdminControls (Content-Type: application/json)
+[ag-provider] [v1internal] POST /v1internal:fetchAdminControls
+[ag-provider] [INCOMING] POST /v1internal:fetchUserInfo (Content-Type: application/json)
 [ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
 [ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchUserInfo (Content-Type: application/json)
 [ag-provider] [INCOMING] POST /v1internal:loadCodeAssist (Content-Type: application/json)
 [ag-provider] [v1internal] POST /v1internal:loadCodeAssist — bootstrapping LS (auth bypass active)
 [ag-provider] [INCOMING] POST /v1internal:retrieveUserQuotaSummary (Content-Type: application/json)
 [ag-provider] [INCOMING] POST /v1internal:fetchAdminControls (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
+[ag-provider] [INCOMING] POST /v1internal:fetchUserInfo (Content-Type: application/json)
 [ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
 [ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
 [ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
@@ -63,159 +60,17 @@
 [ag-provider] [INCOMING] POST /v1internal:loadCodeAssist (Content-Type: application/json)
 [ag-provider] [v1internal] POST /v1internal:loadCodeAssist — bootstrapping LS (auth bypass active)
 [ag-provider] [INCOMING] POST /v1internal:fetchAdminControls (Content-Type: application/json)
+[ag-provider] [INCOMING] POST /v1internal:retrieveUserQuotaSummary (Content-Type: application/json)
 [ag-provider] [INCOMING] POST /v1internal:fetchUserInfo (Content-Type: application/json)
 [ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:retrieveUserQuotaSummary (Content-Type: application/json)
 [ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
 [ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
 [ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
 [ag-provider] [INCOMING] POST /v1internal:fetchUserInfo (Content-Type: application/json)
+[ag-provider] [v1internal] POST /v1internal:fetchUserInfo
 [ag-provider] [INCOMING] GET /v1internal/agentPlugins (Content-Type: none)
 [ag-provider] [v1internal] GET /v1internal/agentPlugins — LRO/auth bypass
 [ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:loadCodeAssist (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:loadCodeAssist — bootstrapping LS (auth bypass active)
-[ag-provider] [INCOMING] POST /v1internal:loadCodeAssist (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:loadCodeAssist — bootstrapping LS (auth bypass active)
-[ag-provider] [INCOMING] POST /v1internal:retrieveUserQuotaSummary (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchUserInfo (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchUserInfo (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAdminControls (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:loadCodeAssist (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:loadCodeAssist — bootstrapping LS (auth bypass active)
-[ag-provider] [INCOMING] POST /v1internal:onboardUser (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:onboardUser — auth bypass: auto-onboarding
-[ag-provider] [INCOMING] POST /v1internal:retrieveUserQuotaSummary (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:loadCodeAssist (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:loadCodeAssist — bootstrapping LS (auth bypass active)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchUserInfo (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:loadCodeAssist (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:loadCodeAssist — bootstrapping LS (auth bypass active)
-[ag-provider] [INCOMING] POST /v1internal:retrieveUserQuotaSummary (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchUserInfo (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAdminControls (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:listExperiments
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
 [ag-provider] [v1internal] POST /v1internal:fetchAvailableModels
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
 [ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:listExperiments
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:fetchAvailableModels
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:listExperiments
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:fetchAvailableModels
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:listExperiments
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:fetchAvailableModels
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:loadCodeAssist (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:loadCodeAssist — bootstrapping LS (auth bypass active)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:fetchAvailableModels
-[ag-provider] [INCOMING] POST /v1internal:fetchUserInfo (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:fetchUserInfo
-[ag-provider] [INCOMING] POST /v1internal:loadCodeAssist (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:loadCodeAssist — bootstrapping LS (auth bypass active)
-[ag-provider] [INCOMING] POST /v1internal:retrieveUserQuotaSummary (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:retrieveUserQuotaSummary — returning unlimited quota
-[ag-provider] [INCOMING] POST /v1internal:fetchAdminControls (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:fetchAdminControls
-[ag-provider] [INCOMING] POST /v1internal:fetchUserInfo (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] GET /v1internal/cascadeNuxes (Content-Type: application/json)
-[ag-provider] [v1internal] GET /v1internal/cascadeNuxes
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:listExperiments
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:listExperiments
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:fetchAvailableModels
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:loadCodeAssist (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:loadCodeAssist — bootstrapping LS (auth bypass active)
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:listExperiments
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:fetchAvailableModels
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:listExperiments
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:fetchAvailableModels
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:listExperiments
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:fetchAvailableModels
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:loadCodeAssist (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:loadCodeAssist — bootstrapping LS (auth bypass active)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:fetchAvailableModels
-[ag-provider] [INCOMING] POST /v1internal:fetchUserInfo (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:fetchUserInfo
-[ag-provider] [INCOMING] POST /v1internal:loadCodeAssist (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:loadCodeAssist — bootstrapping LS (auth bypass active)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAdminControls (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:fetchAdminControls
-[ag-provider] [INCOMING] POST /v1internal:retrieveUserQuotaSummary (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:retrieveUserQuotaSummary — returning unlimited quota
-[ag-provider] [INCOMING] POST /v1internal:fetchUserInfo (Content-Type: application/json)
-[ag-provider] [INCOMING] GET /v1internal/cascadeNuxes (Content-Type: application/json)
-[ag-provider] [v1internal] GET /v1internal/cascadeNuxes
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:listExperiments
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:listExperiments
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:fetchAvailableModels
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:listExperiments
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:fetchAvailableModels
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:loadCodeAssist (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:loadCodeAssist — bootstrapping LS (auth bypass active)
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:listExperiments
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:fetchAvailableModels
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:listExperiments
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
-[ag-provider] [v1internal] POST /v1internal:fetchAvailableModels
-[ag-provider] [INCOMING] POST /v1internal:listExperiments (Content-Type: application/json)
-[ag-provider] [INCOMING] POST /v1internal:fetchAvailableModels (Content-Type: application/json)
+^C
