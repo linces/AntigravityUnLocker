@@ -216,12 +216,30 @@ Or add the setting directly to your IDE `settings.json`:
 
 ## 8. Real-World Usage & Live Model Switching
 
-1. Log into your Google account inside Antigravity IDE to unlock the Assistant panel.
-2. Open any workspace or file in the IDE.
-3. Type a prompt in the Assistant Chat drawer (e.g. *"Write a TypeScript debounce function with unit tests"*).
-4. Open the Web Control Dashboard (`http://127.0.0.1:50051/dashboard`) in your browser.
-5. Change the active model on-the-fly (e.g. switch from **Kimi K3** to **Groq Fast Inference** or **Ollama Local**) and click **Switch Active Provider**.
-6. Send another prompt in the IDE chat—it will instantly respond using the newly selected LLM backend!
+### 📋 Passo a Passo para Teste Real Prático (Real-World Test Suite)
+
+1. **Autenticação na IDE**: Faça login na sua conta do Google no Antigravity IDE (necessário apenas para desbloquear o painel/gaveta visual do chat).
+2. **Confirmar Proxy Local**: Certifique-se de que o `ag-provider` está em execução (`npm start` na pasta `src/ag-provider`).
+3. **Abrir o Dashboard**: Acesse **`http://127.0.0.1:50051/dashboard`** no navegador.
+
+#### 🧪 Teste 1: Groq (Inferência Ultra-Rápida — ~400 tokens/sec)
+- No Dashboard (`http://127.0.0.1:50051/dashboard`), selecione **Groq Fast Inference (Llama 3.3 70B)** e clique em **Switch Active Provider**.
+- No chat da IDE, envie a mensagem:
+  > *"Crie uma função em TypeScript com generics para fazer debounce de chamadas de função com suporte a cancelamento."*
+- Observe a velocidade da resposta no chat e a medição de latência no Dashboard.
+
+#### 🧪 Teste 2: Kimi K3 (Contexto de 1M Tokens & Raciocínio Profundo)
+- No Dashboard, selecione **Kimi K3 (Moonshot AI - 1M Context)** e clique em **Switch Active Provider**.
+- No chat da IDE, envie uma pergunta de raciocínio de código ou arquitetura complexa.
+
+#### 🧪 Teste 3: Qwen 3.8 (DashScope Alibaba - 2.4T MoE)
+- No Dashboard, selecione **Qwen 3.8 (DashScope Alibaba)** e clique em **Switch Active Provider**.
+- No chat da IDE, solicite a geração ou refatoração de código com o modelo MoE flagship.
+
+#### 🧪 Teste 4: Execução 100% Local (Ollama / LM Studio)
+- Inicie o Ollama na sua máquina local (`ollama run qwen2.5-coder`).
+- No Dashboard, selecione **Ollama Local (qwen2.5-coder)** e clique em **Switch Active Provider**.
+- Envie um prompt no chat da IDE—a resposta será processada 100% offline no seu computador sem custo de nuvem.
 
 ---
 
