@@ -29,7 +29,7 @@
 Antigravity IDE requires a Google login **solely to unlock the UI chat drawer and assistant panel**. 
 
 ### 🔀 Traffic Rerouting
-Setting `"antigravity.agentHostAddress": "http://127.0.0.1:50051"` or `$env:CLOUD_CODE_ENDPOINT = "http://127.0.0.1:50051"` redirects **100% of LLM inference traffic** to your local `ag-provider` proxy. Zero prompt traffic is sent to cloud servers.
+Setting `"jetski.cloudCodeUrl": "http://127.0.0.1:50051"` and `"antigravity.agentHostAddress": "http://127.0.0.1:50051"` in `settings.json` (or launching via `scripts/open-proxied-ide.bat`) redirects **100% of LLM inference traffic** to your local `ag-provider` proxy. Zero prompt traffic is sent to cloud servers.
 
 ### 🎯 Frontend Selector vs. Real LLM Engine
 - The model menu **inside Antigravity IDE UI** (e.g. *Gemini 3.6 Flash*) acts as a visual frontend label.
@@ -106,4 +106,4 @@ For detailed architecture analysis, ConnectRPC schemas, network diagrams, and tr
 
 ---
 
-**Versão:** 1.5.0 | **Última Revisão:** 2026-07-27 00:00:00 -03:00
+**Versão:** 1.5.0 | **Última Revisão:** 2026-07-27 01:16:00

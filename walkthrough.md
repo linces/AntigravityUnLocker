@@ -35,10 +35,12 @@ version: 1.4.0
 - [dashboardHtml.ts](src/ag-provider/src/dashboard/dashboardHtml.ts): Dark-mode web control panel interface (`/dashboard`).
 - [index.ts](src/ag-provider/src/index.ts): HTTP/2 ConnectRPC server entrypoint.
 
-### 3. Safety & Compliance
-- Zero binary modifications or patches to the host IDE.
-- Completely non-intrusive, operating out-of-band via standard configuration.
+### 4. Deep IDE Binary Analysis & `jetski.cloudCodeUrl` Fix
+- **Root Cause Identified**: Decompiled `out/main.js` and `extensions/antigravity/dist/extension.js` inside the Antigravity IDE application package.
+- **Discovery**: In `out/main.js`, `getBaseUrl()` fetches the endpoint override specifically via `this._configurationService.getValue("jetski.cloudCodeUrl")`. Environment variable `$env:CLOUD_CODE_ENDPOINT` alone is bypassed by the language server process launcher (`language_server_windows_x64.exe`).
+- **Fix Applied**: Updated `.test-ide-profile/User/settings.json` to include `"jetski.cloudCodeUrl": "http://127.0.0.1:50051"` alongside `"antigravity.agentHostAddress"`.
+- **Launcher Created**: Added `scripts/open-proxied-ide.bat` to launch the IDE with all required settings and environment variables automatically initialized.
 
 ---
 
-**Versão:** 1.4.0 | **Última Revisão:** 2026-07-25 12:12:00 -03:00
+**Versão:** 1.5.0 | **Última Revisão:** 2026-07-27 01:16:00

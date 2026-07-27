@@ -215,8 +215,9 @@ $env:CODEIUM_CLOUD_CODE_ENDPOINT = "http://127.0.0.1:50051"
 Start-Process "$env:LOCALAPPDATA\Programs\Antigravity IDE\Antigravity IDE.exe" -ArgumentList "--user-data-dir=`"E:\00Dev\AntigravityUnlock\.test-ide-profile`"","--new-window"
 ```
 
-Or add the setting directly to your IDE `settings.json`:
+Or add the settings directly to your IDE `settings.json`:
 ```json
+"jetski.cloudCodeUrl": "http://127.0.0.1:50051",
 "antigravity.agentHostAddress": "http://127.0.0.1:50051"
 ```
 
