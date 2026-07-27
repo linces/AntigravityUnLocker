@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Status-Production--Ready-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Protocol-ConnectRPC%2FProtobuf-purple?style=for-the-badge&logo=grpc" alt="Protocol" />
   <img src="https://img.shields.io/badge/API-OpenAI%20v1%20Compatible-orange?style=for-the-badge&logo=openai" alt="API" />
-  <img src="https://img.shields.io/badge/Version-1.5.0-blue?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-1.6.0-blue?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
 </p>
 
@@ -34,6 +34,25 @@ Setting `"jetski.cloudCodeUrl": "http://127.0.0.1:50051"` and `"antigravity.agen
 ### 🎯 Frontend Selector vs. Real LLM Engine
 - The model menu **inside Antigravity IDE UI** (e.g. *Gemini 3.6 Flash*) acts as a visual frontend label.
 - The **real LLM engine** that processes your prompts is chosen dynamically in the **Web Control Dashboard (`http://127.0.0.1:50051/dashboard`)**!
+
+---
+
+## ⚠️ Language Server Bootstrap (v1internal Routes)
+
+The Antigravity IDE Language Server (`language_server_windows_x64.exe`) requires a set of **Google Cloud Code internal API endpoints** to initialize its model catalog before it can accept any inference requests.
+
+`ag-provider` now includes a full simulation of these endpoints:
+
+| Endpoint | Method | Purpose |
+| :--- | :--- | :--- |
+| `/v1internal:loadCodeAssist` | POST | Bootstrap: user tier, model catalog, project ID |
+| `/v1internal:listExperiments` | POST | Feature flags (returns empty — no experiments needed) |
+| `/v1internal/cascadeNuxes` | GET | Onboarding prompts (returns empty list) |
+| `/v1internal:fetchAvailableModels` | POST | Model list for LS model resolver |
+| `/v1internal:fetchUserInfo` | POST | User account settings |
+| `/v1internal:fetchAdminControls` | POST | Enterprise/admin controls |
+
+Without these routes the LS enters an infinite retry loop and all chat/agent features fail with `unknown model key MODEL_PLACEHOLDER_M71: model not found`.
 
 ---
 
@@ -114,4 +133,4 @@ For detailed architecture analysis, ConnectRPC schemas, network diagrams, and tr
 
 ---
 
-**Versão:** 1.6.0 | **Última Revisão:** 2026-07-27 04:25:00
+**Versão:** 1.6.0 | **Última Revisão:** 2026-07-27 01:47:00

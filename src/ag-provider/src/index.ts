@@ -8,6 +8,7 @@ import { ChatCompletionRequest } from './adapters/base.js';
 import { translateConnectRequestToOpenAI, decodeConnectEnvelope } from './translation/connectToOpenAI.js';
 import { encodeConnectEnvelope, formatConnectStreamChunk } from './translation/openAiToConnect.js';
 import { getDashboardHtml } from './dashboard/dashboardHtml.js';
+import v1internalRouter from './routes/v1internal.js';
 import { telemetry } from './telemetry.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -57,6 +58,12 @@ app.get(['/', '/dashboard'], (req, res) => {
   res.setHeader('Content-Type', 'text/html');
   res.send(getDashboardHtml());
 });
+
+// ── v1internal Bootstrap Routes (Language Server Initialization) ─────────────
+// These endpoints simulate the Google Cloud Code internal API that the
+// language_server_windows_x64.exe needs to bootstrap: model catalog, user tier,
+// NUXes, experiments. Without them the LS loops with "model not found" errors.
+app.use(v1internalRouter);
 
 // Admin API status & telemetry
 app.get('/api/status', (req, res) => {

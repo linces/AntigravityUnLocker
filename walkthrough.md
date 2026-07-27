@@ -41,6 +41,25 @@ version: 1.4.0
 - **Fix Applied**: Updated `.test-ide-profile/User/settings.json` to include `"jetski.cloudCodeUrl": "http://127.0.0.1:50051"` alongside `"antigravity.agentHostAddress"`.
 - **Launcher Created**: Added `scripts/open-proxied-ide.bat` to launch the IDE with all required settings and environment variables automatically initialized.
 
+### 5. v1internal Bootstrap Routes Fix — Language Server Unlock
+- **Root Cause Confirmed**: By analyzing `ls-main.log` and `auth.log`, discovered the Language Server (`language_server_windows_x64.exe`) was trapped in an infinite retry loop because `ag-provider` was missing the internal bootstrap API routes.
+- **All three blockers identified from logs**:
+  1. `Cannot POST /v1internal:loadCodeAssist` — LS never received model catalog
+  2. `unknown model key MODEL_PLACEHOLDER_M71: model not found` — consequence of (1)
+  3. `tls: unknown certificate` — LS internal gRPC TLS handshake (separate, non-blocking)
+- **Fix Applied**: Created `src/ag-provider/src/routes/v1internal.ts` with full simulation of all Google Cloud Code internal API endpoints:
+  - `POST /v1internal:loadCodeAssist` — returns `paidTier`, `cloudaicompanionProject`, `availableModels`
+  - `POST /v1internal:listExperiments` — returns empty experiments list
+  - `GET  /v1internal/cascadeNuxes` — returns empty NUX list (stops retry spam)
+  - `POST /v1internal:fetchAvailableModels` — returns model catalog
+  - `POST /v1internal:fetchUserInfo` — returns user settings stub
+  - `POST /v1internal:fetchAdminControls` — returns empty admin controls
+  - `POST /v1internal:setUserSettings` — echoes settings back
+  - `POST /v1internal:onboardUser` — returns project ID stub
+- **Model Catalog**: Registered `MODEL_PLACEHOLDER_M71` (the key the LS was looking for) plus standard Gemini model IDs, all mapped to the active `ag-provider` backend.
+- **Mounted**: Router integrated in `src/ag-provider/src/index.ts` before the ConnectRPC handler.
+- **Validated**: All routes tested via `Invoke-RestMethod` — all return HTTP 200 with correct JSON payloads.
+
 ---
 
-**Versão:** 1.5.0 | **Última Revisão:** 2026-07-27 01:16:00
+**Versão:** 1.6.0 | **Última Revisão:** 2026-07-27 01:47:00
