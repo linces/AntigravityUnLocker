@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Status-Production--Ready-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Protocol-ConnectRPC%2FProtobuf-purple?style=for-the-badge&logo=grpc" alt="Protocol" />
   <img src="https://img.shields.io/badge/API-OpenAI%20v1%20Compatible-orange?style=for-the-badge&logo=openai" alt="API" />
-  <img src="https://img.shields.io/badge/Version-1.9.0-blue?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-2.0.0-blue?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
 </p>
 
@@ -133,11 +133,12 @@ OPENROUTER_API_KEY=sk-or-v1-seu-token-openrouter
 
 ---
 
-## 📖 Full Documentation
+## 📖 Full Documentation & Troubleshooting Log
 
-For detailed architecture analysis, ConnectRPC schemas, network diagrams, and troubleshooting guides, see [`docs/user_manual.md`](./docs/user_manual.md).
+- Detailed Operation & Setup: [`docs/user_manual.md`](./docs/user_manual.md)
+- Reverse Engineering & Failures Log: [`docs/findings.md`](./docs/findings.md)
+- Internal Architecture: [`docs/architecture.md`](./docs/architecture.md)
 
 ---
 
-**Versão:** 1.9.0 | **Última Revisão:** 2026-07-27 03:22:00
-
+**Versão:** 2.0.0 | **Última Revisão:** 2026-07-27 03:36:00

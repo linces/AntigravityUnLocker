@@ -43,7 +43,12 @@ version: 1.4.0
   - [x] Script `sync-auth.py` para injetar tokens SQLite no perfil `.test-ide-profile` sem locks de banco.
   - [x] Patch `scripts/patch_main_js.py` para stubbed `getProfileData` no `main.js`, eliminando requisições de rede com erro para `googleapis.com/oauth2/v2/userinfo` e prevenindo a tela de erro no onboarding.
 
+- [x] **Documentação Transversal `[dev]` & Post-Mortem de Falhas**:
+  - [x] `docs/findings.md` atualizado com o histórico de falhas de inicialização, locks SQLite, patch do `getProfileData` e causa do modal React.
+  - [x] Sincronização automática do `README.md` (v2.0.0).
+
 ---
 
-**Versão:** 1.9.0 | **Última Revisão:** 2026-07-27 03:22:00
+**Versão:** 2.0.0 | **Última Revisão:** 2026-07-27 03:36:00
+
 
