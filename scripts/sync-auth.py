@@ -2,6 +2,8 @@ import sqlite3
 import os
 import json
 import subprocess
+import base64
+import re
 
 def kill_test_ide_processes():
     """Kills any running Antigravity IDE instances using the test profile to release SQLite DB locks."""
@@ -42,17 +44,53 @@ def sync_auth():
                 'antigravityUnifiedStateSync.enterprisePreferences',
                 'antigravityUnifiedStateSync.modelPreferences'
             ]
+            def clean_state_val(val):
+                if not val:
+                    return val
+                # Fix raw strings
+                val = val.replace('"state":"signedOut"', '"state":"signedIn"').replace('"state":"loginError"', '"state":"signedIn"').replace('"state":"uninitialized"', '"state":"signedIn"')
+                val = val.replace('"errorMessage":"An error occurred"', '"errorMessage":""')
+                
+                # Fix embedded base64 JSON payloads
+                pos = 0
+                while True:
+                    pos = val.find('eyJ', pos)
+                    if pos == -1:
+                        break
+                    found = False
+                    for l in range(20, len(val) - pos + 1):
+                        candidate = val[pos:pos+l]
+                        padded = candidate + '=' * ((4 - len(candidate) % 4) % 4)
+                        try:
+                            raw_bytes = base64.b64decode(padded)
+                            txt = raw_bytes.decode('utf-8')
+                            if txt.startswith('{') and txt.endswith('}'):
+                                obj = json.loads(txt)
+                                if 'state' in obj: obj['state'] = 'signedIn'
+                                if 'errorMessage' in obj: obj['errorMessage'] = ''
+                                if 'ineligibleMessage' in obj: obj['ineligibleMessage'] = ''
+                                if 'errorType' in obj: obj['errorType'] = ''
+                                if 'context' in obj and isinstance(obj['context'], dict):
+                                    obj['context']['errorMessage'] = ''
+                                    obj['context']['showProjectError'] = False
+                                new_txt = json.dumps(obj, separators=(',', ':'))
+                                new_b64 = base64.b64encode(new_txt.encode('utf-8')).decode('utf-8')
+                                val = val[:pos] + new_b64 + val[pos+l:]
+                                found = True
+                                pos += len(new_b64)
+                                break
+                        except Exception:
+                            continue
+                    if not found:
+                        pos += 3
+                return val
+
             for key in keys_to_sync:
                 c_src.execute("SELECT value FROM ItemTable WHERE key = ?", (key,))
                 row = c_src.fetchone()
                 if row:
-                    val = row[0]
-                    # Ensure state is signedIn, not loginError, and clear error messages
-                    if key == 'antigravityUnifiedStateSync.oauthToken':
-                        val = val.replace('"state":"signedOut"', '"state":"signedIn"').replace('"state":"loginError"', '"state":"signedIn"').replace('"state":"uninitialized"', '"state":"signedIn"')
-                        val = val.replace('"errorMessage":"An error occurred"', '"errorMessage":""')
+                    val = clean_state_val(row[0])
                     c_dst.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (?, ?)", (key, val))
-
                     synced_count += 1
             conn_src.close()
         except Exception as e:

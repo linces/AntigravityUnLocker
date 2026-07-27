@@ -64,6 +64,14 @@ Esta seção documenta todos os problemas técnicos, falhas de premissa, erros d
 * **Causa Raiz**: A descompilação do bundle React do workbench (`workbench.desktop.main.js`, linha 14673697) revelou que a função `S8o` lê o estado da máquina XState gravado no SQLite (`antigravityUnifiedStateSync.oauthToken`). Se o objeto contiver `errorMessage !== ""` ou `ineligibleMessage !== ""`, a regra de transição (*guard*) desvia automaticamente o estado para `loginError`, renderizando a tela de erro local.
 * **Solução Definitiva**: O script `sync-auth.py` higieniza a string de estado no SQLite, limpando os campos `errorMessage` e garantindo que o estado gravado seja estritamente `"signedIn"`.
 
+### 6. Payload Protobuf Base64 em SQLite & Remoção dos Banners de Login
+* **Problema**: O banner de aviso `"There was an error with your authentication. To log in, click here"` e o botão `"Log in ->"` continuavam aparecendo mesmo após as correções no SQLite.
+* **Causa Raiz**: O valor do estado no SQLite (`antigravityUnifiedStateSync.oauthToken`) armazena mensagens Protobuf onde os payloads JSON da máquina de estados XState são codificados em **Base64** (`eyJzdGF0Z...`). O script de sincronização realizava um `replace()` de string literal que não encontrava a correspondência. Adicionalmente, as funções geradoras de banner UI (`f_s` no `main.js`, `X6i` no `jetskiAgent/main.js` e `G8o` no `workbench.desktop.main.js`) e a função `updateLoginNudgeVisibility` renderizavam os componentes sempre que o estado XState não estivesse estritamente em `"signedIn"`.
+* **Solução Definitiva**:
+  1. O script `scripts/sync-auth.py` agora decodifica payloads JSON Base64 em Protobuf, forçando `"state": "signedIn"`, limpando mensagens de erro no objeto e contexto e re-codificando para Base64.
+  2. O script `scripts/patch_main_js.py` foi expandido para neutralizar os geradores de banner `f_s`, `X6i` e `G8o` (forçando retorno `undefined`) e fixar `loginNudge.style.display = "none"`, eliminando 100% dos alertas visuais de login da interface.
+
 ---
 
-**Versão:** 2.0.0 | **Última Revisão:** 2026-07-27 03:36:00
+**Versão:** 2.1.0 | **Última Revisão:** 2026-07-27 03:46:00
+

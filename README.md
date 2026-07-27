@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Status-Production--Ready-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Protocol-ConnectRPC%2FProtobuf-purple?style=for-the-badge&logo=grpc" alt="Protocol" />
   <img src="https://img.shields.io/badge/API-OpenAI%20v1%20Compatible-orange?style=for-the-badge&logo=openai" alt="API" />
-  <img src="https://img.shields.io/badge/Version-2.0.0-blue?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-2.1.0-blue?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
 </p>
 
@@ -126,8 +126,8 @@ OPENROUTER_API_KEY=sk-or-v1-seu-token-openrouter
 | :--- | :--- |
 | `scripts/start-bridge.bat` | Start proxy only |
 | `scripts/open-proxied-ide.bat` | Open IDE with proxy config & auth sync |
-| `scripts/sync-auth.py` | Sync SQLite OAuth token state into test profile & enforce proxy endpoints |
-| `scripts/patch_main_js.py` | Patch `getProfileData` in `main.js` to intercept external Google UserInfo network calls |
+| `scripts/sync-auth.py` | Sync & decode Base64 Protobuf OAuth token state into test profile & enforce proxy endpoints |
+| `scripts/patch_main_js.py` | Patch `getProfileData` & suppress auth banners/login nudge across `main.js`, `jetskiAgent/main.js`, and `workbench.desktop.main.js` |
 | `scripts/start-diag-proxy.bat` | Start diagnostic capture proxy |
 | `scripts/cleanup.bat` | Remove test profile & captures |
 
@@ -141,4 +141,5 @@ OPENROUTER_API_KEY=sk-or-v1-seu-token-openrouter
 
 ---
 
-**Versão:** 2.0.0 | **Última Revisão:** 2026-07-27 03:36:00
+**Versão:** 2.1.0 | **Última Revisão:** 2026-07-27 03:46:00
+
