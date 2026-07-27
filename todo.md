@@ -36,6 +36,14 @@ version: 1.4.0
   - [x] Implementar arquivo de configuração `providers.json`.
   - [x] Criar Dashboard Web de monitoramento local (`/dashboard`) e endpoint `/health`.
 
+- [x] **Fase 9 — Desbloqueio do Language Server (`v1internal`)**:
+  - [x] Simulação de rotas `v1internal:loadCodeAssist`, `fetchAvailableModels`, `fetchUserInfo`, `retrieveUserQuotaSummary`.
+  - [x] Resposta sintética `authState: AUTHENTICATED` para bypass completo do login do Google.
+- [x] **Fase 10 — Sincronização SQLite & Correção de Onboarding**:
+  - [x] Script `sync-auth.py` para injetar tokens SQLite no perfil `.test-ide-profile` sem locks de banco.
+  - [x] Patch `scripts/patch_main_js.py` para stubbed `getProfileData` no `main.js`, eliminando requisições de rede com erro para `googleapis.com/oauth2/v2/userinfo` e prevenindo a tela de erro no onboarding.
+
 ---
 
-**Versão:** 1.4.0 | **Última Revisão:** 2026-07-25 12:06:00 -03:00
+**Versão:** 1.9.0 | **Última Revisão:** 2026-07-27 03:22:00
+

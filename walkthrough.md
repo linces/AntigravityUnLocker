@@ -75,6 +75,16 @@ version: 1.4.0
   - Updated `START.bat` and `scripts/open-proxied-ide.bat` to run `sync-auth.py` with full console visibility.
 - **Validation**: Executed `sync-auth.py` and verified via SQLite inspection that `antigravityUnifiedStateSync.oauthToken` in `.test-ide-profile` is successfully set to `"state": "signedIn"`.
 
+### 9. Account Onboarding Crash & `getProfileData` Google UserInfo Network Interception (`scripts/patch_main_js.py`)
+- **Root Cause Identified**: Deep reverse engineering of Electron `main.js` and XState auth state machines (`enterpriseAuthenticating` / `personalAuthenticating`) revealed that during IDE startup, `confirmUserForService(t)` invokes `refreshUserStatus(t)`. Inside `refreshUserStatus`, `getProfileData(t)` attempts an explicit HTTP GET request directly to `https://www.googleapis.com/oauth2/v2/userinfo`. Because test auth tokens or local proxies cannot authenticate directly against Google's internet endpoint, `getProfileData` throws a network/auth exception. `confirmUserForService` catches this exception, triggers `this._sendAuthErrorEvent`, dispatches `SET_ERROR`, and rewrites `antigravityUnifiedStateSync.oauthToken` in SQLite `state.vscdb` to `{"state":"loginError", "errorMessage":"An error occurred"}`. This starts `BrowserOnboardingClientMainService` and renders `"There was an unexpected issue setting up your account."`.
+- **Fix Applied**:
+  - Created `scripts/patch_main_js.py` to patch `getProfileData(t)` inside `%LOCALAPPDATA%\Programs\Antigravity IDE\resources\app\out\main.js` so it returns `{name:"AG Provider User", email:"ag-provider@localhost", profilePictureUrl:""}` directly without hitting Google's external API.
+  - Automatically creates a safety backup at `main.js.bak`.
+  - Integrated `patch_main_js.py` into `scripts/sync-auth.py` so it runs automatically during launcher execution.
+  - Enhanced `scripts/sync-auth.py` to sanitize `errorMessage` strings inside `oauthToken` SQLite state.
+- **Validation**: Re-ran `sync-auth.py` and verified via SQLite inspection that `test_db` `oauthToken` is 100% clean (`"state":"signedIn"`, `"errorMessage":""`). `patch_main_js.py` executed cleanly with 1 replacement.
+
 ---
 
-**Versão:** 1.8.2 | **Última Revisão:** 2026-07-27 03:08:00
+**Versão:** 1.9.0 | **Última Revisão:** 2026-07-27 03:22:00
+

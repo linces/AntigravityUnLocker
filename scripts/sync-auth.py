@@ -47,9 +47,9 @@ def sync_auth():
                 row = c_src.fetchone()
                 if row:
                     val = row[0]
-                    # Ensure state is signedIn, not loginError
-                    if key == 'antigravityUnifiedStateSync.oauthToken' and 'loginError' in val:
-                        val = val.replace('loginError', 'signedIn').replace('An error occurred', '')
+                    # Ensure state is signedIn, not loginError, and clear error messages
+                    if key == 'antigravityUnifiedStateSync.oauthToken':
+                        val = val.replace('loginError', 'signedIn').replace('"errorMessage":"An error occurred"', '"errorMessage":""')
                     c_dst.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (?, ?)", (key, val))
                     synced_count += 1
             conn_src.close()
@@ -60,7 +60,14 @@ def sync_auth():
     conn_dst.close()
     print(f"[AuthSync] Successfully synchronized {synced_count} auth tokens to test profile.")
     
-    # 4. Ensure settings.json in test profile always forces local proxy endpoints
+    # 4. Patch main.js to stub getProfileData network call if needed
+    try:
+        from patch_main_js import patch_main_js
+        patch_main_js()
+    except Exception as e:
+        print(f"[AuthSync] Warning patching main.js: {e}")
+
+    # 5. Ensure settings.json in test profile always forces local proxy endpoints
     settings_path = os.path.join(project_root, '.test-ide-profile', 'User', 'settings.json')
     os.makedirs(os.path.dirname(settings_path), exist_ok=True)
     settings = {}
@@ -80,3 +87,4 @@ def sync_auth():
 
 if __name__ == '__main__':
     sync_auth()
+
