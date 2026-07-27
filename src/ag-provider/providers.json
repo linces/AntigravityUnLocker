@@ -1,6 +1,6 @@
 {
   "default": "kimi-k3",
-  "fallback": ["qwen-3.8-max", "qwen-siliconflow", "ollama-local"],
+  "fallback": ["qwen-3.8-max", "openrouter", "groq", "ollama-local"],
   "providers": [
     {
       "id": "kimi-k3",
@@ -12,18 +12,34 @@
     },
     {
       "id": "qwen-3.8-max",
-      "name": "Qwen 3.8 (2.4T MoE - DashScope)",
-      "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "name": "Qwen 3.8 (DashScope Alibaba)",
+      "baseUrl": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
       "apiKey": "${DASHSCOPE_API_KEY}",
       "model": "qwen3.8-max-preview",
       "timeoutMs": 120000
     },
     {
-      "id": "qwen-siliconflow",
-      "name": "Qwen 2.5 Coder 32B (SiliconFlow)",
-      "baseUrl": "https://api.siliconflow.cn/v1",
-      "apiKey": "${SILICONFLOW_API_KEY}",
-      "model": "Qwen/Qwen2.5-Coder-32B-Instruct",
+      "id": "qwen-2.5-coder",
+      "name": "Qwen 2.5 Coder 32B (DashScope)",
+      "baseUrl": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+      "apiKey": "${DASHSCOPE_API_KEY}",
+      "model": "qwen2.5-coder-32b-instruct",
+      "timeoutMs": 60000
+    },
+    {
+      "id": "openrouter",
+      "name": "OpenRouter (Qwen 2.5 Coder Free/Pro)",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "apiKey": "${OPENROUTER_API_KEY}",
+      "model": "qwen/qwen-2.5-coder-32b-instruct",
+      "timeoutMs": 60000
+    },
+    {
+      "id": "groq",
+      "name": "Groq Fast Inference (Llama 3.3 70B)",
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "apiKey": "${GROQ_API_KEY}",
+      "model": "llama-3.3-70b-versatile",
       "timeoutMs": 60000
     },
     {
@@ -41,14 +57,6 @@
       "apiKey": "lm-studio",
       "model": "local-model",
       "timeoutMs": 120000
-    },
-    {
-      "id": "openrouter",
-      "name": "OpenRouter Multi-Provider",
-      "baseUrl": "https://openrouter.ai/api/v1",
-      "apiKey": "${OPENROUTER_API_KEY}",
-      "model": "qwen/qwen-2.5-coder-32b-instruct",
-      "timeoutMs": 60000
     }
   ]
 }
