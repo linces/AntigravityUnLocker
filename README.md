@@ -63,15 +63,30 @@ Setting `"jetski.cloudCodeUrl": "http://127.0.0.1:50051"` and `"antigravity.agen
 
 ## 🛠️ Quick Start Guide
 
-### 1. Installation & Build
+### ⚡ One-Click Launch (Recommended)
+
+Double-click **`START.bat`** at the project root. It will automatically:
+
+1. 🔴 Kill any existing proxy on port `50051`
+2. 🟢 Build (if needed) and start `ag-provider` in the background
+3. 🌐 Open the Web Dashboard at **`http://127.0.0.1:50051/dashboard`**
+4. 🖥️ Launch Antigravity IDE with proxy settings pre-configured
+
+Logs are saved to `ag-provider.log` at the project root.
+
+---
+
+### Manual Setup
+
+#### 1. Installation & Build
 
 ```powershell
-cd E:\00Dev\AntigravityUnlock\src\ag-provider
+cd ./src/ag-provider
 npm install
 npm run build
 ```
 
-### 2. Configure Secret Keys
+#### 2. Configure Secret Keys
 
 Create `src/ag-provider/.env`:
 
@@ -82,21 +97,14 @@ GROQ_API_KEY=gsk_seu-token-groq
 OPENROUTER_API_KEY=sk-or-v1-seu-token-openrouter
 ```
 
-### 3. Launch Proxy Server & Dashboard
+#### 3. Individual Scripts (in `scripts/`)
 
-```powershell
-npm start
-```
-
-Open Dashboard: **`http://127.0.0.1:50051/dashboard`**
-
-### 4. Launch Antigravity IDE
-
-```powershell
-$env:CLOUD_CODE_ENDPOINT = "http://127.0.0.1:50051"
-$env:CODEIUM_CLOUD_CODE_ENDPOINT = "http://127.0.0.1:50051"
-Start-Process "$env:LOCALAPPDATA\Programs\Antigravity IDE\Antigravity IDE.exe" -ArgumentList "--user-data-dir=`"E:\00Dev\AntigravityUnlock\.test-ide-profile`"","--new-window"
-```
+| Script | Purpose |
+| :--- | :--- |
+| `scripts/start-bridge.bat` | Start proxy only |
+| `scripts/open-proxied-ide.bat` | Open IDE with proxy config |
+| `scripts/start-diag-proxy.bat` | Start diagnostic capture proxy |
+| `scripts/cleanup.bat` | Remove test profile & captures |
 
 ---
 
@@ -106,4 +114,4 @@ For detailed architecture analysis, ConnectRPC schemas, network diagrams, and tr
 
 ---
 
-**Versão:** 1.5.0 | **Última Revisão:** 2026-07-27 01:16:00
+**Versão:** 1.6.0 | **Última Revisão:** 2026-07-27 04:25:00
