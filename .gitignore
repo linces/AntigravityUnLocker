@@ -1,16 +1,7 @@
-council_audit.md
-
-# IDE test profile (isolated instance)
-.test-ide-profile/
-
-# Diagnostic captures
-src/ag-provider/captures/
-
-# Environment keys & local overrides (CRITICAL SECURITY)
+node_modules/
+dist/
+*.vsix
+.vscode-test/
+out/
 .env
-.env.*
-*.env
-*.ps1
-*.bat
-providers.local.json
-
+*.log

@@ -1,0 +1,272 @@
+{
+  "name": "ag-universal-ai",
+  "displayName": "AG Universal AI",
+  "description": "Universal multi-provider AI assistant for VS Code & Antigravity IDE — Code completion, chat, agent workflows, MCP, and tool calling powered by any OpenAI-compatible backend.",
+  "version": "0.1.0",
+  "publisher": "linces",
+  "license": "MIT",
+  "icon": "resources/icons/ag-icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/linces/ag-universal-ai"
+  },
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "AI",
+    "Chat",
+    "Machine Learning",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "ai",
+    "copilot",
+    "code completion",
+    "llm",
+    "openai",
+    "ollama",
+    "groq",
+    "qwen",
+    "kimi",
+    "deepseek",
+    "mcp",
+    "agent"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "languageModelChatProviders": [
+      {
+        "vendor": "ag-universal-ai",
+        "displayName": "AG Universal AI"
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "ag-universal-ai.chat",
+        "name": "ag",
+        "fullName": "AG Universal AI",
+        "description": "Multi-provider AI assistant with code generation, refactoring, testing, and agent workflows.",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "explain",
+            "description": "Explain the selected code or concept"
+          },
+          {
+            "name": "refactor",
+            "description": "Suggest refactoring for the selected code"
+          },
+          {
+            "name": "test",
+            "description": "Generate unit tests for the selected code"
+          },
+          {
+            "name": "fix",
+            "description": "Fix bugs or errors in the selected code"
+          },
+          {
+            "name": "docs",
+            "description": "Generate documentation for the selected code"
+          },
+          {
+            "name": "review",
+            "description": "Review the selected code for issues and improvements"
+          }
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "command": "ag-universal-ai.switchProvider",
+        "title": "AG AI: Switch Provider",
+        "icon": "$(server)"
+      },
+      {
+        "command": "ag-universal-ai.switchModel",
+        "title": "AG AI: Switch Model",
+        "icon": "$(hubot)"
+      },
+      {
+        "command": "ag-universal-ai.setApiKey",
+        "title": "AG AI: Set API Key for Provider",
+        "icon": "$(key)"
+      },
+      {
+        "command": "ag-universal-ai.showDashboard",
+        "title": "AG AI: Show Dashboard",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "ag-universal-ai.toggleInlineCompletion",
+        "title": "AG AI: Toggle Inline Completion",
+        "icon": "$(lightbulb)"
+      },
+      {
+        "command": "ag-universal-ai.checkHealth",
+        "title": "AG AI: Check Provider Health",
+        "icon": "$(pulse)"
+      }
+    ],
+    "configuration": {
+      "title": "AG Universal AI",
+      "properties": {
+        "ag-universal-ai.activeProvider": {
+          "type": "string",
+          "default": "ollama-local",
+          "description": "The currently active AI provider ID.",
+          "enum": [
+            "ollama-local",
+            "lmstudio-local",
+            "openai",
+            "groq",
+            "openrouter",
+            "dashscope-qwen",
+            "moonshot-kimi",
+            "deepseek",
+            "siliconflow",
+            "together-ai",
+            "fireworks-ai",
+            "custom"
+          ],
+          "enumDescriptions": [
+            "Ollama (Local, Free, Offline)",
+            "LM Studio (Local, Free, Offline)",
+            "OpenAI (GPT-4o, o1, o3-mini)",
+            "Groq (Ultra-fast LPU inference)",
+            "OpenRouter (Multi-model routing)",
+            "DashScope / Alibaba (Qwen models)",
+            "Moonshot AI (Kimi K3, 1M context)",
+            "DeepSeek (V3, R1 reasoning)",
+            "SiliconFlow (Fast Qwen/DeepSeek)",
+            "Together AI (Open models)",
+            "Fireworks AI (Fast function calling)",
+            "Custom OpenAI-compatible endpoint"
+          ]
+        },
+        "ag-universal-ai.activeModel": {
+          "type": "string",
+          "default": "",
+          "description": "Override the default model for the active provider. Leave empty to use the provider's default."
+        },
+        "ag-universal-ai.providers": {
+          "type": "object",
+          "default": {},
+          "description": "Custom provider configurations. Keys are provider IDs, values are { baseUrl, model, timeoutMs }.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "baseUrl": { "type": "string" },
+              "model": { "type": "string" },
+              "timeoutMs": { "type": "number", "default": 60000 }
+            }
+          }
+        },
+        "ag-universal-ai.customProvider": {
+          "type": "object",
+          "default": {
+            "baseUrl": "",
+            "model": ""
+          },
+          "description": "Configuration for a fully custom OpenAI-compatible provider.",
+          "properties": {
+            "baseUrl": {
+              "type": "string",
+              "description": "Base URL (e.g., http://localhost:8080/v1)"
+            },
+            "model": {
+              "type": "string",
+              "description": "Model identifier"
+            }
+          }
+        },
+        "ag-universal-ai.inlineCompletion.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable AI-powered inline code completions (ghost text)."
+        },
+        "ag-universal-ai.inlineCompletion.model": {
+          "type": "string",
+          "default": "",
+          "description": "Model to use specifically for inline completions. Leave empty to use the active provider's model."
+        },
+        "ag-universal-ai.inlineCompletion.debounceMs": {
+          "type": "number",
+          "default": 300,
+          "description": "Debounce delay in milliseconds before triggering inline completion."
+        },
+        "ag-universal-ai.inlineCompletion.maxTokens": {
+          "type": "number",
+          "default": 256,
+          "description": "Maximum tokens for inline completion responses."
+        },
+        "ag-universal-ai.chat.temperature": {
+          "type": "number",
+          "default": 0.7,
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Temperature for chat responses (0 = deterministic, 2 = creative)."
+        },
+        "ag-universal-ai.chat.maxTokens": {
+          "type": "number",
+          "default": 4096,
+          "description": "Maximum tokens for chat responses."
+        },
+        "ag-universal-ai.fallbackProviders": {
+          "type": "array",
+          "default": [],
+          "items": { "type": "string" },
+          "description": "Ordered list of provider IDs to try if the active provider fails."
+        },
+        "ag-universal-ai.telemetry.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable local request metrics tracking (never sent externally)."
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "ag-universal-ai",
+          "title": "AG Universal AI",
+          "icon": "resources/icons/ag-sidebar.svg"
+        }
+      ]
+    },
+    "views": {
+      "ag-universal-ai": [
+        {
+          "id": "ag-universal-ai.providers",
+          "name": "Providers"
+        },
+        {
+          "id": "ag-universal-ai.metrics",
+          "name": "Metrics"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "node esbuild.config.mjs",
+    "watch": "node esbuild.config.mjs --watch",
+    "lint": "eslint src --ext ts",
+    "test": "node ./test/runTest.js",
+    "package": "npx @vscode/vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.100.0",
+    "@types/node": "^22.0.0",
+    "@types/mocha": "^10.0.0",
+    "@vscode/test-electron": "^2.4.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.24.0",
+    "eslint": "^9.0.0",
+    "mocha": "^10.0.0",
+    "typescript": "^5.6.0"
+  }
+}

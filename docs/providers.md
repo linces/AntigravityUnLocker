@@ -1,97 +1,70 @@
----
-domain: dev
-category: provider_specification
-type: documentation
-created: 2026-07-25
-last_updated: 2026-07-25T01:09:00-03:00
-version: 1.2.0
----
-
-# Target Providers & Adapter Specification - Antigravity Universal AI Provider
+# Supported Providers — AG Universal AI
 
 ## Overview
 
-This document specifies the target AI provider ecosystem, capability requirements, configuration structure, and the standard `ILLMProvider` interface powering the `ag-provider` compatibility layer.
+AG Universal AI supports any OpenAI-compatible API endpoint through a universal adapter pattern. Below are the built-in provider presets.
 
 ---
 
-## Supported Providers
+## Local Providers (Free, Offline)
 
-| Provider | Access Model | Base URL / Protocol | Key Features |
+| Provider | Default Model | Base URL | Notes |
 | :--- | :--- | :--- | :--- |
-| **Kimi K3 (Moonshot AI)** | Cloud API | `https://api.moonshot.ai/v1` | **1,048,576 Context Tokens**, Always-on reasoning |
-| **Qwen 3.8 (DashScope)** | Cloud / MoE | `https://dashscope.aliyuncs.com/compatible-mode/v1` | **2.4 Trillion Parameters**, Flagship MoE Preview |
-| **OpenRouter** | Cloud Router API | `https://openrouter.ai/api/v1` | Multi-model routing, prompt caching, fallback |
-| **Ollama** | Local Runner | `http://localhost:11434/v1` | Local inference, zero latency cost, offline |
-| **LM Studio** | Local Server | `http://localhost:1234/v1` | Local GUI server, GGUF models |
-| **llama.cpp** | Local Server | `http://localhost:8080/v1` | High performance C++ local inference |
-| **vLLM** | Self-Hosted Server | `http://localhost:8000/v1` | High throughput batching & serving |
-| **SiliconFlow** | Cloud API | `https://api.siliconflow.cn/v1` | High speed Qwen/DeepSeek hosting |
-| **Groq** | Cloud LPU | `https://api.groq.com/openai/v1` | Ultra-fast token generation |
-| **Together AI** | Cloud API | `https://api.together.xyz/v1` | Open models API |
-| **Fireworks AI**| Cloud API | `https://api.fireworks.ai/inference/v1` | High speed function calling & vision |
-| **DeepSeek** | Cloud API | `https://api.deepseek.com/v1` | DeepSeek-V3 / DeepSeek-R1 reasoning |
-| **Qwen (DashScope)**| Cloud API | `https://dashscope.aliyuncs.com/compatible-mode/v1` | Qwen 2.5 Coder & Qwen 3.8 models |
-| **Kimi (Moonshot)**| Cloud API | `https://api.moonshot.ai/v1` | 1M Context length |
-| **GLM (Zhipu)** | Cloud API | `https://open.bigmodel.cn/api/paas/v4` | GLM-4 models |
-| **OpenAI** | Direct API | `https://api.openai.com/v1` | GPT-4o, o1, o3-mini models |
+| **Ollama** | `qwen2.5-coder:14b` | `http://localhost:11434` | Auto-model discovery, no API key |
+| **LM Studio** | `local-model` | `http://localhost:1234/v1` | GGUF models, no API key |
+
+## Cloud Providers
+
+| Provider | Default Model | Base URL | Key Procurement |
+| :--- | :--- | :--- | :--- |
+| **OpenAI** | `gpt-4o` | `https://api.openai.com/v1` | [platform.openai.com](https://platform.openai.com/api-keys) |
+| **Groq** | `llama-3.3-70b-versatile` | `https://api.groq.com/openai/v1` | [console.groq.com](https://console.groq.com/keys) |
+| **OpenRouter** | `qwen/qwen-2.5-coder-32b-instruct` | `https://openrouter.ai/api/v1` | [openrouter.ai](https://openrouter.ai/settings/keys) |
+| **DashScope** | `qwen3.8-max-preview` | `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` | [dashscope.console.aliyun.com](https://dashscope.console.aliyun.com/apiKey) |
+| **Moonshot AI** | `kimi-k3` | `https://api.moonshot.ai/v1` | [platform.moonshot.cn](https://platform.moonshot.cn/console/api-keys) |
+| **DeepSeek** | `deepseek-chat` | `https://api.deepseek.com/v1` | [platform.deepseek.com](https://platform.deepseek.com/api_keys) |
+| **SiliconFlow** | `Qwen/Qwen2.5-Coder-32B-Instruct` | `https://api.siliconflow.cn/v1` | [cloud.siliconflow.cn](https://cloud.siliconflow.cn/account/ak) |
+| **Together AI** | `Qwen/Qwen2.5-Coder-32B-Instruct` | `https://api.together.xyz/v1` | [together.xyz](https://api.together.xyz/settings/api-keys) |
+| **Fireworks AI** | `qwen2p5-coder-32b-instruct` | `https://api.fireworks.ai/inference/v1` | [fireworks.ai](https://fireworks.ai/account/api-keys) |
 
 ---
 
-## Core Interface Definition (`ILLMProvider`)
+## Custom Provider
 
-```typescript
-export interface ILLMProvider {
-  id: string;
-  name: string;
-  
-  initialize(config: ProviderConfig): Promise<void>;
-  listModels(): Promise<ModelInfo[]>;
-  chat(request: ChatCompletionRequest): Promise<ChatCompletionResponse>;
-  stream(request: ChatCompletionRequest): AsyncIterable<ChatCompletionChunk>;
-  embeddings?(request: EmbeddingRequest): Promise<EmbeddingResponse>;
-  health(): Promise<HealthStatus>;
-  capabilities(): ProviderCapabilities;
-}
-
-export interface ProviderCapabilities {
-  supportsStreaming: boolean;
-  supportsTools: boolean;
-  supportsVision: boolean;
-  supportsPromptCache: boolean;
-  maxContextTokens: number;
-}
-```
-
----
-
-## Configuration Schema (`providers.json`)
+You can connect to any OpenAI-compatible endpoint by configuring `ag-universal-ai.customProvider` in your VS Code settings:
 
 ```json
 {
-  "default": "kimi-k3",
-  "fallback": ["qwen-3.8-max", "ollama-local"],
-  "providers": [
-    {
-      "id": "kimi-k3",
-      "name": "Kimi K3 (Moonshot AI - 1M Context)",
-      "baseUrl": "https://api.moonshot.ai/v1",
-      "apiKey": "${KIMI_API_KEY}",
-      "model": "kimi-k3",
-      "timeoutMs": 120000
-    },
-    {
-      "id": "qwen-3.8-max",
-      "name": "Qwen 3.8 (2.4T MoE - DashScope)",
-      "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-      "apiKey": "${DASHSCOPE_API_KEY}",
-      "model": "qwen3.8-max-preview",
-      "timeoutMs": 120000
-    }
-  ]
+  "ag-universal-ai.activeProvider": "custom",
+  "ag-universal-ai.customProvider": {
+    "baseUrl": "http://your-server:8080/v1",
+    "model": "your-model-name"
+  }
+}
+```
+
+Then set the API key via the command: `AG AI: Set API Key for Provider`.
+
+---
+
+## Provider Interface
+
+All providers implement the `ILLMProvider` interface:
+
+```typescript
+interface ILLMProvider {
+  readonly id: string;
+  readonly name: string;
+  readonly config: ProviderConfig;
+
+  chat(request: ChatCompletionRequest): Promise<ChatCompletionResponse>;
+  stream(request: ChatCompletionRequest, signal?: AbortSignal): AsyncIterable<string>;
+  health(): Promise<HealthStatus>;
+  capabilities(): ProviderCapabilities;
+  listModels?(): Promise<ModelInfo[]>;
 }
 ```
 
 ---
 
-**Versão:** 1.2.0 | **Última Revisão:** 2026-07-25 01:09:00 -03:00
+**Versão:** 3.0.0 | **Última Revisão:** 2026-07-29 19:45:00
