@@ -109,6 +109,11 @@
         "command": "ag-universal-ai.checkHealth",
         "title": "AG AI: Check Provider Health",
         "icon": "$(pulse)"
+      },
+      {
+        "command": "ag-universal-ai.runAgent",
+        "title": "AG AI: Run Agent Task",
+        "icon": "$(robot)"
       }
     ],
     "configuration": {
