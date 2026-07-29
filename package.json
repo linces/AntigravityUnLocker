@@ -5,7 +5,6 @@
   "version": "0.1.0",
   "publisher": "linces",
   "license": "MIT",
-  "icon": "resources/icons/ag-icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/linces/ag-universal-ai"
