@@ -10,6 +10,8 @@
  */
 
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import { OpenAIAdapter } from './openai-adapter';
 import { OllamaAdapter } from './ollama-adapter';
 import { getPreset, getAllPresets, type ProviderPreset } from './provider-registry';
@@ -27,6 +29,22 @@ import type {
 const CONFIG_SECTION = 'ag-universal-ai';
 const SECRET_KEY_PREFIX = 'ag-universal-ai.apiKey.';
 
+/**
+ * Maps provider IDs to environment variable names in .env file.
+ */
+const ENV_KEY_MAP: Record<string, string> = {
+  'openai': 'OPENAI_API_KEY',
+  'groq': 'GROQ_API_KEY',
+  'openrouter': 'OPENROUTER_API_KEY',
+  'dashscope-qwen': 'DASHSCOPE_API_KEY',
+  'moonshot-kimi': 'KIMI_API_KEY',
+  'deepseek': 'DEEPSEEK_API_KEY',
+  'siliconflow': 'SILICONFLOW_API_KEY',
+  'together-ai': 'TOGETHER_API_KEY',
+  'fireworks-ai': 'FIREWORKS_API_KEY',
+  'custom': 'CUSTOM_API_KEY',
+};
+
 export class ProviderManager implements vscode.Disposable {
   private providers = new Map<string, ILLMProvider>();
   private activeProviderId: string | undefined;
@@ -34,6 +52,7 @@ export class ProviderManager implements vscode.Disposable {
   private outputChannel: vscode.OutputChannel;
   private disposables: vscode.Disposable[] = [];
   private metrics: RequestMetric[] = [];
+  private envKeys = new Map<string, string>();
 
   private readonly _onDidChangeProvider = new vscode.EventEmitter<ProviderChangeEvent>();
   public readonly onDidChangeProvider = this._onDidChangeProvider.event;
@@ -63,6 +82,9 @@ export class ProviderManager implements vscode.Disposable {
    */
   public async initialize(): Promise<void> {
     this.log('Initializing Provider Manager...');
+
+    // Bootstrap: load API keys from .env file if present
+    this.loadEnvFile();
 
     // Initialize providers from presets
     for (const preset of getAllPresets()) {
@@ -255,9 +277,19 @@ export class ProviderManager implements vscode.Disposable {
   // ─── Private Methods ────────────────────────────────────────────────────────
 
   private async initializeProvider(preset: ProviderPreset): Promise<void> {
-    const apiKey = preset.requiresApiKey
-      ? await this.getApiKey(preset.id)
-      : undefined;
+    // Resolution order: SecretStorage → .env file → empty
+    let apiKey: string | undefined;
+    if (preset.requiresApiKey) {
+      apiKey = await this.getApiKey(preset.id);
+      if (!apiKey) {
+        apiKey = this.getEnvKey(preset.id);
+        if (apiKey) {
+          this.log(`[${preset.id}] API key loaded from .env file`);
+          // Migrate to SecretStorage for next time
+          await this.setApiKey(preset.id, apiKey);
+        }
+      }
+    }
 
     const providerConfig: ProviderConfig = {
       id: preset.id,
@@ -360,6 +392,68 @@ export class ProviderManager implements vscode.Disposable {
   private log(message: string): void {
     const timestamp = new Date().toISOString();
     this.outputChannel.appendLine(`[${timestamp}] [ProviderManager] ${message}`);
+  }
+
+  /**
+   * Load API keys from .env file in the workspace root.
+   * This serves as a bootstrap mechanism for first-time setup.
+   * Keys are migrated to SecretStorage on first load.
+   */
+  private loadEnvFile(): void {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      return;
+    }
+
+    const envPath = path.join(workspaceFolders[0].uri.fsPath, '.env');
+    if (!fs.existsSync(envPath)) {
+      // Also try extension install path
+      const extEnvPath = path.join(this.context.extensionPath, '.env');
+      if (!fs.existsSync(extEnvPath)) {
+        return;
+      }
+      this.parseEnvFile(extEnvPath);
+      return;
+    }
+
+    this.parseEnvFile(envPath);
+  }
+
+  private parseEnvFile(envPath: string): void {
+    try {
+      const content = fs.readFileSync(envPath, 'utf-8');
+      let count = 0;
+      for (const line of content.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) {continue;}
+        const idx = trimmed.indexOf('=');
+        if (idx <= 0) {continue;}
+
+        const key = trimmed.slice(0, idx).trim();
+        let val = trimmed.slice(idx + 1).trim();
+        // Strip quotes
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1);
+        }
+
+        if (val.length > 0) {
+          this.envKeys.set(key, val);
+          count++;
+        }
+      }
+      this.log(`.env file loaded: ${count} keys found`);
+    } catch (err: unknown) {
+      this.log(`.env file error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  /**
+   * Get an API key for a provider from the .env file.
+   */
+  private getEnvKey(providerId: string): string | undefined {
+    const envVarName = ENV_KEY_MAP[providerId];
+    if (!envVarName) {return undefined;}
+    return this.envKeys.get(envVarName);
   }
 
   public dispose(): void {
