@@ -292,6 +292,17 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   // ─── HTML/CSS/JS Template ───────────────────────────────────────────────────
 
   private getHtml(): string {
+    const activeId = this.providerManager.getActiveProviderId() || 'dashscope-qwen';
+    const presets = getAllPresets();
+    const optionsHtml = presets
+      .map(
+        (p) =>
+          `<option value="${p.id}" ${p.id === activeId ? 'selected' : ''}>${
+            p.id === activeId ? '⭐ ' : ''
+          }${p.name}${p.isLocal ? ' (Local)' : ''}</option>`
+      )
+      .join('\n');
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -591,7 +602,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
     <!-- Provider Dropdown -->
     <select id="providerSelect" class="select-box" onchange="onProviderChange(this.value)">
-      <option value="">Loading providers...</option>
+      ${optionsHtml}
     </select>
 
     <!-- Key Input Bar -->
@@ -635,9 +646,6 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     const vscode = acquireVsCodeApi();
     let currentStreamDiv = null;
 
-    // Request initial state
-    vscode.postMessage({ command: 'getState' });
-
     // Handle incoming messages from Extension Backend
     window.addEventListener('message', event => {
       const msg = event.data;
@@ -669,6 +677,11 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
           break;
       }
     });
+
+    // Request initial state after registering listener
+    setTimeout(() => {
+      vscode.postMessage({ command: 'getState' });
+    }, 50);
 
     function renderState(state) {
       const select = document.getElementById('providerSelect');
