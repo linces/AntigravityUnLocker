@@ -244,12 +244,10 @@
     "views": {
       "ag-universal-ai": [
         {
-          "id": "ag-universal-ai.providers",
-          "name": "Providers"
-        },
-        {
-          "id": "ag-universal-ai.metrics",
-          "name": "Metrics"
+          "type": "webview",
+          "id": "ag-universal-ai.sidebarView",
+          "name": "AG Universal AI Assistant",
+          "icon": "resources/icons/ag-sidebar.svg"
         }
       ]
     }

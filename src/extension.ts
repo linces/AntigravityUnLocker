@@ -20,6 +20,7 @@ import { PlanExecutor } from './agent/executor';
 import { AGStatusBar } from './ui/status-bar';
 import { AGTreeDataProvider } from './ui/tree-view';
 import { AGWebviewDashboard } from './ui/webview-dashboard';
+import { AGSidebarWebviewProvider } from './ui/sidebar-webview';
 import {
   showProviderPicker,
   showModelPicker,
@@ -77,14 +78,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(chatParticipant);
   chatParticipant.register();
 
-  // ─── 9. Tree View Sidebar ──────────────────────────────────────────────
-  const treeDataProvider = new AGTreeDataProvider(providerManager);
-  context.subscriptions.push(
-    treeDataProvider,
-    vscode.window.registerTreeDataProvider('ag-universal-ai.providers', treeDataProvider),
-    vscode.window.registerTreeDataProvider('ag-universal-ai.metrics', treeDataProvider)
+  // ─── 9. Primary Sidebar Webview (Kimi Code / Cursor style) ──────────────
+  const sidebarWebviewProvider = new AGSidebarWebviewProvider(
+    context.extensionUri,
+    providerManager,
+    toolRegistry,
+    agentEngine,
+    outputChannel
   );
-  log('Tree View sidebar registered');
+  context.subscriptions.push(
+    sidebarWebviewProvider,
+    vscode.window.registerWebviewViewProvider(
+      'ag-universal-ai.sidebarView',
+      sidebarWebviewProvider
+    )
+  );
+  log('Primary Sidebar Webview registered (Kimi/Cursor/Cline style)');
 
   // ─── 10. Status Bar ─────────────────────────────────────────────────────
   const statusBar = new AGStatusBar(providerManager);
