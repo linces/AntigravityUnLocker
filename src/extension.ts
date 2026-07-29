@@ -3,7 +3,8 @@
  *
  * Orchestrates the initialization and lifecycle of all extension components:
  * Provider System, Language Model Chat Provider, Inline Completion,
- * Chat Participant, Tool Registry, Agent Engine, UI, and Commands.
+ * Chat Participant, Tool Registry, MCP Server, Agent Engine (Planner & Executor),
+ * Tree View Sidebar, Webview Dashboard, Status Bar, and Commands.
  */
 
 import * as vscode from 'vscode';
@@ -12,8 +13,13 @@ import { AGLanguageModelChatProvider } from './lm/chat-provider';
 import { AGChatParticipant } from './chat/participant';
 import { AGInlineCompletionProvider } from './completion/inline-provider';
 import { ToolRegistry } from './tools/tool-registry';
+import { MCPServer } from './mcp/server';
 import { AgentEngine } from './agent/engine';
+import { AgentPlanner } from './agent/planner';
+import { PlanExecutor } from './agent/executor';
 import { AGStatusBar } from './ui/status-bar';
+import { AGTreeDataProvider } from './ui/tree-view';
+import { AGWebviewDashboard } from './ui/webview-dashboard';
 import {
   showProviderPicker,
   showModelPicker,
@@ -27,7 +33,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // ─── 1. Output Channel ──────────────────────────────────────────────────
   outputChannel = vscode.window.createOutputChannel('AG Universal AI');
   context.subscriptions.push(outputChannel);
-  log('Activating AG Universal AI extension...');
+  log('Activating AG Universal AI extension (Phase 3 Full Capabilities)...');
 
   // ─── 2. Provider Manager ────────────────────────────────────────────────
   const providerManager = new ProviderManager(context, outputChannel);
@@ -45,30 +51,47 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const inlineProvider = new AGInlineCompletionProvider(providerManager, outputChannel);
   context.subscriptions.push(inlineProvider);
   inlineProvider.register(context);
-  log('Inline completion provider activated');
+  log('Inline completion provider activated (Ghost Text FIM)');
 
   // ─── 5. Tool Registry ──────────────────────────────────────────────────
   const toolRegistry = new ToolRegistry(outputChannel);
   context.subscriptions.push(toolRegistry);
   toolRegistry.register(context);
-  log('Tool registry activated (7 tools registered)');
+  log('Tool registry activated (7 workspace/file/terminal tools)');
 
-  // ─── 6. Agent Engine ───────────────────────────────────────────────────
+  // ─── 6. Embedded MCP Server ────────────────────────────────────────────
+  const mcpServer = new MCPServer(toolRegistry, outputChannel);
+  context.subscriptions.push(mcpServer);
+  mcpServer.start();
+  log('Embedded Model Context Protocol (MCP) server running');
+
+  // ─── 7. Agent Engine & Planner ─────────────────────────────────────────
   const agentEngine = new AgentEngine(providerManager, toolRegistry, outputChannel);
+  const agentPlanner = new AgentPlanner(providerManager);
+  const planExecutor = new PlanExecutor(toolRegistry);
   context.subscriptions.push(agentEngine);
-  log('Agent engine activated');
+  log('Agent engine & planner activated');
 
-  // ─── 7. Chat Participant (@ag) ──────────────────────────────────────────
+  // ─── 8. Chat Participant (@ag) ──────────────────────────────────────────
   const chatParticipant = new AGChatParticipant(lmProvider, providerManager, outputChannel);
   context.subscriptions.push(chatParticipant);
   chatParticipant.register();
 
-  // ─── 8. Status Bar ──────────────────────────────────────────────────────
+  // ─── 9. Tree View Sidebar ──────────────────────────────────────────────
+  const treeDataProvider = new AGTreeDataProvider(providerManager);
+  context.subscriptions.push(
+    treeDataProvider,
+    vscode.window.registerTreeDataProvider('ag-universal-ai.providers', treeDataProvider),
+    vscode.window.registerTreeDataProvider('ag-universal-ai.metrics', treeDataProvider)
+  );
+  log('Tree View sidebar registered');
+
+  // ─── 10. Status Bar ─────────────────────────────────────────────────────
   const statusBar = new AGStatusBar(providerManager);
   context.subscriptions.push(statusBar);
   statusBar.show();
 
-  // ─── 9. Register Commands ───────────────────────────────────────────────
+  // ─── 11. Register Commands ──────────────────────────────────────────────
   context.subscriptions.push(
     vscode.commands.registerCommand('ag-universal-ai.switchProvider', () => {
       showProviderPicker(providerManager);
@@ -87,29 +110,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
 
     vscode.commands.registerCommand('ag-universal-ai.showDashboard', () => {
-      // Phase 3: Will open a Webview Panel with rich metrics dashboard
-      const metrics = providerManager.getMetrics();
-      const activeProvider = providerManager.getActiveProvider();
-
-      if (metrics.length === 0) {
-        vscode.window.showInformationMessage(
-          `AG AI: ${activeProvider ? activeProvider.name : 'No provider'} active. ` +
-          'No requests recorded yet. Start chatting with @ag!'
-        );
-        return;
-      }
-
-      const successCount = metrics.filter((m) => m.status === 'success').length;
-      const avgLatency =
-        metrics.reduce((sum, m) => sum + m.latencyMs, 0) / metrics.length;
-      const totalTokens = metrics.reduce((sum, m) => sum + m.totalTokens, 0);
-
-      vscode.window.showInformationMessage(
-        `AG AI Dashboard: ${metrics.length} requests | ` +
-        `${successCount} success | ` +
-        `Avg ${Math.round(avgLatency)}ms | ` +
-        `${totalTokens.toLocaleString()} total tokens`
-      );
+      AGWebviewDashboard.show(context.extensionUri, providerManager);
     }),
 
     vscode.commands.registerCommand('ag-universal-ai.toggleInlineCompletion', () => {
@@ -121,63 +122,71 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       );
     }),
 
-    // Agent mode command
+    // Plan-Then-Act Agent Task Command
     vscode.commands.registerCommand('ag-universal-ai.runAgent', async () => {
-      const input = await vscode.window.showInputBox({
-        prompt: 'What would you like the AG Agent to do?',
-        placeHolder: 'e.g., "Add error handling to all functions in this file"',
+      const goal = await vscode.window.showInputBox({
+        prompt: 'What goal should the AG Agent accomplish?',
+        placeHolder: 'e.g., "Refactor error handling and generate unit tests for this workspace"',
       });
 
-      if (!input) {return;}
+      if (!goal) {return;}
 
       vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: 'AG AI Agent working...',
+          title: 'AG AI Agent Planning...',
           cancellable: true,
         },
-        async (_progress, token) => {
+        async (progress, token) => {
+          progress.report({ message: 'Generating execution plan...' });
+          const plan = await agentPlanner.createPlan(goal);
+
+          const planSummary = plan.steps
+            .map((s) => `• Step ${s.id}: ${s.description}`)
+            .join('\n');
+
+          const action = await vscode.window.showInformationMessage(
+            `Execution Plan Generated (${plan.steps.length} steps):\n${planSummary}`,
+            { modal: true },
+            'Execute Plan',
+            'Cancel'
+          );
+
+          if (action !== 'Execute Plan') {
+            return;
+          }
+
+          progress.report({ message: 'Running plan steps...' });
           const result = await agentEngine.run(
-            input,
-            'You are AG Universal AI, an agentic coding assistant. Use the available tools to complete the user\'s request. Read files, make changes, run commands as needed.',
+            `Goal: ${goal}\nPlan Strategy: ${plan.rationale}\nSteps:\n${planSummary}`,
+            'You are AG Universal AI Agent. Execute the planned steps using your tools.',
             undefined,
             token
           );
 
           vscode.window.showInformationMessage(
-            `AG Agent completed: ${result.iterations} iterations, ${result.toolCalls.length} tool calls`
+            `AG Agent finished: ${result.iterations} iterations, ${result.toolCalls.length} tools executed`
           );
         }
       );
     })
   );
 
-  // ─── 10. Welcome Message ───────────────────────────────────────────────
+  // ─── 12. Startup Summary ────────────────────────────────────────────────
   const activeProvider = providerManager.getActiveProvider();
   if (activeProvider) {
     log(`Active provider: ${activeProvider.name} (${activeProvider.config.model})`);
-  } else {
-    log('No active provider configured.');
-    const hasShownWelcome = context.globalState.get('ag-universal-ai.welcomeShown', false);
-    if (!hasShownWelcome) {
-      const action = await vscode.window.showInformationMessage(
-        '🚀 Welcome to AG Universal AI! Configure an AI provider to get started.',
-        'Set Up Provider',
-        'Later'
-      );
-      if (action === 'Set Up Provider') {
-        showProviderPicker(providerManager);
-      }
-      context.globalState.update('ag-universal-ai.welcomeShown', true);
-    }
   }
 
-  log('═══════════════════════════════════════════════════');
-  log('  AG Universal AI extension activated successfully! 🚀');
-  log('  Components: Provider Manager, LM Chat Provider,');
-  log('  Inline Completion, Chat @ag, Tools (7),');
-  log('  Agent Engine, Status Bar');
-  log('═══════════════════════════════════════════════════');
+  log('═════════════════════════════════════════════════════════');
+  log('  AG Universal AI Extension Fully Activated! 🚀');
+  log('  - Multi-Provider LLM Engine (11+ Backends)');
+  log('  - Chat Participant @ag');
+  log('  - Ghost Text Inline Completion');
+  log('  - 7 Tool Declarations & MCP JSON-RPC Server');
+  log('  - Plan-Then-Act Agentic Workflows');
+  log('  - Activity Bar Sidebar & Webview Dashboard');
+  log('═════════════════════════════════════════════════════════');
 }
 
 export function deactivate(): void {
