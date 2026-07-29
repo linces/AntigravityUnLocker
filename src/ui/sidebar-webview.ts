@@ -170,9 +170,11 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     this.postMessage({ command: 'startStream' });
 
     let fullResponse = '';
+    let usedProvider = activeProvider;
+
     try {
-      const stream = activeProvider.stream({
-        model: activeProvider.config.model,
+      const stream = usedProvider.stream({
+        model: usedProvider.config.model,
         messages,
         temperature: 0.7,
         stream: true,
@@ -185,11 +187,46 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
       this.chatHistory.push({ role: 'assistant', content: fullResponse });
       this.postMessage({ command: 'endStream', fullText: fullResponse });
-    } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+    } catch (primaryErr: unknown) {
+      const primaryMsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
+      this.log(`Primary provider (${usedProvider.id}) failed: ${primaryMsg}`);
+
+      // Try automatic fallback to Groq or Ollama
+      const fallbackProvider =
+        usedProvider.id !== 'groq' ? this.providerManager.getProvider('groq') : this.providerManager.getProvider('ollama-local');
+
+      if (fallbackProvider && fallbackProvider.id !== usedProvider.id) {
+        this.log(`Attempting fallback to ${fallbackProvider.name}...`);
+        this.postMessage({
+          command: 'streamChunk',
+          chunk: `⚠️ *[${usedProvider.name} failed (${primaryMsg}). Automatically falling back to ${fallbackProvider.name}...]*\n\n`,
+        });
+
+        try {
+          const fallbackStream = fallbackProvider.stream({
+            model: fallbackProvider.config.model,
+            messages,
+            temperature: 0.7,
+            stream: true,
+          });
+
+          for await (const chunk of fallbackStream) {
+            fullResponse += chunk;
+            this.postMessage({ command: 'streamChunk', chunk });
+          }
+
+          this.chatHistory.push({ role: 'assistant', content: fullResponse });
+          this.postMessage({ command: 'endStream', fullText: fullResponse });
+          return;
+        } catch (fallbackErr: unknown) {
+          const fallbackMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+          this.log(`Fallback provider also failed: ${fallbackMsg}`);
+        }
+      }
+
       this.postMessage({
         command: 'endStream',
-        fullText: `❌ **Error:** ${errorMsg}\n\nCheck your API key in settings.`,
+        fullText: `❌ **Provider Error (${usedProvider.name}):** ${primaryMsg}\n\n💡 *Tip: Try switching to **Groq (Llama 3.3 70B)** in the header dropdown for instant ultra-fast response!*`,
       });
     }
   }

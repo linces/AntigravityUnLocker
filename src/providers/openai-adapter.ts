@@ -100,7 +100,7 @@ export class OpenAIAdapter implements ILLMProvider {
 
       if (!response.ok || !response.body) {
         const errorText = response.body ? await response.text() : 'No response body';
-        throw new Error(`Stream HTTP ${response.status}: ${errorText}`);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
       const reader = (response.body as ReadableStream<Uint8Array>).getReader();
@@ -110,6 +110,9 @@ export class OpenAIAdapter implements ILLMProvider {
       while (true) {
         const { done, value } = await reader.read();
         if (done) {break;}
+
+        // Clear connection timeout once data starts streaming
+        clearTimeout(timer);
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
