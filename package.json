@@ -11,7 +11,7 @@
     "url": "https://github.com/linces/ag-universal-ai"
   },
   "engines": {
-    "vscode": "^1.100.0"
+    "vscode": "^1.85.0"
   },
   "categories": [
     "AI",
@@ -34,7 +34,7 @@
     "agent"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "*"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -262,7 +262,7 @@
     "package": "npx @vscode/vsce package --no-dependencies"
   },
   "devDependencies": {
-    "@types/vscode": "^1.100.0",
+    "@types/vscode": "^1.85.0",
     "@types/node": "^22.0.0",
     "@types/mocha": "^10.0.0",
     "@vscode/test-electron": "^2.4.0",
