@@ -1,7 +1,7 @@
 # AG Universal AI
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Status-Alpha-orange?style=for-the-badge&logo=github" alt="Status" />
+  <img src="https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Platform-VS%20Code%20%7C%20Antigravity%20IDE-blue?style=for-the-badge&logo=visualstudiocode" alt="Platform" />
   <img src="https://img.shields.io/badge/Providers-11%2B-purple?style=for-the-badge&logo=openai" alt="Providers" />
   <img src="https://img.shields.io/badge/Version-0.1.0-green?style=for-the-badge" alt="Version" />
@@ -10,7 +10,7 @@
 
 <p align="center">
   <b>A powerful, multi-provider AI coding assistant extension for VS Code & Antigravity IDE.</b><br />
-  Code completion, chat, agent workflows, MCP integration, and tool calling — powered by any OpenAI-compatible backend.
+  Code completion, chat, agent workflows, MCP integration, real-time telemetry, and tool calling — powered by any OpenAI-compatible backend.
 </p>
 
 > [!IMPORTANT]
@@ -20,11 +20,11 @@
 
 ## ✨ Features
 
-### 🤖 Multi-Provider AI Chat (`@ag`)
-- Native chat participant integrated into VS Code's chat panel
+### 🤖 Multi-Provider AI Chat (`@ag` & Kimi/Cursor Sidebar)
+- Native chat participant integrated into VS Code's chat panel and custom Sidebar Webview (`ag-sidebar`)
 - Slash commands: `/explain`, `/refactor`, `/test`, `/fix`, `/docs`, `/review`
 - Context-aware with `#file` and `#selection` references
-- Streaming responses with conversation history
+- Real-time streaming responses with fallback provider chain
 
 ### 🔌 11+ Supported Providers (2 Local + 9 Cloud)
 
@@ -42,16 +42,15 @@
 | **Together AI** | ☁️ Cloud | Open-source model hosting |
 | **Fireworks AI** | ☁️ Cloud | High-speed function calling |
 
-### 🔒 Secure by Design
-- API keys stored in VS Code's encrypted `SecretStorage` — never on disk
-- All processing runs through official VS Code Extension APIs
-- No binary patching, no proxy interception, no protocol hacking
+### 📊 Real-Time Telemetry & Interactive Dashboard
+- Event-driven live metrics tracking: Total Requests, Success Rate %, Latency (ms), and Tokens
+- Interactive Provider Grid — 1-click active provider switching directly from dashboard cards
+- Real-time error traceback logging and stream reader lock safety guards
 
-### 🎯 Smart Provider Management
-- One-click provider switching via status bar or command palette
-- Automatic fallback chain when a provider fails
-- Real-time health monitoring for all providers
-- Per-provider model selection with auto-discovery
+### ⚙️ Model Context Protocol (MCP) & Plan-Then-Act Agent
+- Embedded MCP Server over JSON-RPC 2.0 (`tools/list`, `tools/call`, `resources/list`)
+- Autonomous Agent Engine with tool calls (File management, Terminal execution, Workspace search)
+- Ghost Text Inline Completion with FIM (Fill-In-the-Middle) prompting
 
 ---
 
@@ -63,54 +62,19 @@ Install from Open VSX or load directly in VS Code / Antigravity IDE.
 
 ### 2. Configure a Provider
 
-**For local inference (recommended for getting started):**
+**For local inference:**
 1. Install [Ollama](https://ollama.com)
 2. Pull a model: `ollama pull qwen2.5-coder:14b`
 3. The extension auto-detects Ollama on `localhost:11434`
 
 **For cloud providers:**
 1. Open Command Palette (`Ctrl+Shift+P`)
-2. Run `AG AI: Set API Key for Provider`
-3. Select your provider and enter your API key
+2. Run `AG AI: Set API Key for Provider` or place keys in `.env` (gitignored)
+3. Select your provider via Status Bar or Dashboard
 
 ### 3. Start Chatting
 
-Open the Chat panel and type `@ag` followed by your question. Use slash commands for specialized tasks:
-
-```
-@ag /explain What does this function do?
-@ag /refactor Simplify this code
-@ag /test Generate tests for the selected code
-@ag /fix There's a bug in the error handling
-@ag /docs Add documentation to this module
-@ag /review Review this PR for issues
-```
-
----
-
-## ⚙️ Configuration
-
-All settings are available in VS Code Settings under `AG Universal AI`:
-
-| Setting | Default | Description |
-| :--- | :--- | :--- |
-| `activeProvider` | `ollama-local` | Currently active provider |
-| `activeModel` | *(provider default)* | Override model for active provider |
-| `inlineCompletion.enabled` | `true` | Enable ghost text completions |
-| `inlineCompletion.debounceMs` | `300` | Debounce delay for completions |
-| `chat.temperature` | `0.7` | Chat response temperature |
-| `chat.maxTokens` | `4096` | Max tokens per response |
-| `fallbackProviders` | `[]` | Fallback provider chain |
-| `customProvider.baseUrl` | *(empty)* | Custom endpoint URL |
-
----
-
-## 🛣️ Roadmap
-
-- [x] **Phase 1 (MVP)**: Provider system, chat participant, status bar
-- [ ] **Phase 2**: Inline code completion, tool registry, agent engine
-- [ ] **Phase 3**: MCP server, dashboard webview, tree view sidebar
-- [ ] **Phase 4**: Full test suite, Open VSX publishing
+Open the Chat panel and type `@ag` followed by your question, or use the 🤖 Activity Bar sidebar.
 
 ---
 
@@ -127,4 +91,4 @@ MIT — See [LICENSE](./LICENSE)
 
 ---
 
-**Versão:** 0.1.0 | **Última Revisão:** 2026-07-29 19:45:00
+**Versão:** 0.1.0 | **Última Revisão:** 2026-07-30 13:54:00
