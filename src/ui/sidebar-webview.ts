@@ -2,14 +2,9 @@
  * AG Universal AI — Sidebar Webview View Provider
  *
  * Implements a full-featured, sleek AI assistant sidebar (like Kimi Code, Cline, Cursor, Roo Code)
- * rendered directly inside the Primary Sidebar. Includes:
- * - Provider & Model Selector header
- * - API Key management
- * - Multi-turn Chat with Markdown & Code Block rendering
- * - Slash command quick chips (/explain, /refactor, /test, /fix, /docs, /review, /agent)
- * - Agentic tool execution progress & confirmation cards
- * - Direct "Apply to Editor" and "Copy Code" actions
- * - Real-time streaming response
+ * rendered directly inside the Primary Sidebar.
+ *
+ * Fully compliant with VS Code Webview CSP policies (using addEventListener instead of inline onclick).
  */
 
 import * as vscode from 'vscode';
@@ -22,7 +17,7 @@ import { buildSystemPrompt, buildSlashCommandPrompt } from '../chat/prompt-build
 export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vscode.Disposable {
   private view?: vscode.WebviewView;
   private disposables: vscode.Disposable[] = [];
-  private chatHistory: Array<{ role: 'user' | 'assistant'; content: string; toolCalls?: any[] }> = [];
+  private chatHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -31,7 +26,6 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     private readonly agentEngine: AgentEngine,
     private readonly outputChannel: vscode.OutputChannel
   ) {
-    // Listen for provider changes and update webview state
     this.disposables.push(
       this.providerManager.onDidChangeProvider(() => {
         this.postStateUpdate();
@@ -53,9 +47,9 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
     webviewView.webview.html = this.getHtml();
 
-    // Handle messages sent from the Webview frontend
     webviewView.webview.onDidReceiveMessage(async (message) => {
-      this.log(`Webview message: ${message.command}`);
+      this.log(`Webview message received: ${message.command}`);
+
       switch (message.command) {
         case 'getState':
           this.postStateUpdate();
@@ -64,14 +58,6 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         case 'switchProvider':
           if (message.providerId) {
             this.providerManager.setActiveProvider(message.providerId);
-            this.postStateUpdate();
-          }
-          break;
-
-        case 'setModel':
-          if (message.model) {
-            const config = vscode.workspace.getConfiguration('ag-universal-ai');
-            await config.update('activeModel', message.model, vscode.ConfigurationTarget.Global);
             this.postStateUpdate();
           }
           break;
@@ -110,23 +96,17 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
             this.applyCodeToActiveEditor(message.code);
           }
           break;
-
-        case 'insertAtCursor':
-          if (message.code) {
-            this.insertCodeAtCursor(message.code);
-          }
-          break;
       }
     });
 
-    // Initial state sync
     this.postStateUpdate();
   }
 
-  // ─── Backend Logic ─────────────────────────────────────────────────────────
+  // ─── Backend Prompt Logic ──────────────────────────────────────────────────
 
   private async handleUserPrompt(text: string, slashCommand?: string): Promise<void> {
     const activeProvider = this.providerManager.getActiveProvider();
+
     if (!activeProvider) {
       this.postMessage({
         command: 'endStream',
@@ -135,15 +115,12 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       return;
     }
 
-    // Add user message to history
     this.chatHistory.push({ role: 'user', content: text });
 
-    // Prepare system prompt
     const systemPrompt = slashCommand
       ? buildSlashCommandPrompt(slashCommand)
       : buildSystemPrompt();
 
-    // Context from current editor selection/file if available
     let contextMessage = '';
     const activeEditor = vscode.window.activeTextEditor;
     if (activeEditor) {
@@ -168,13 +145,14 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       messages[messages.length - 1].content += contextMessage;
     }
 
-    // Signal start streaming
     this.postMessage({ command: 'startStream' });
 
     let fullResponse = '';
-    let usedProvider = activeProvider;
+    const usedProvider = activeProvider;
 
     try {
+      this.log(`Streaming prompt with provider: ${usedProvider.name} (${usedProvider.config.model})`);
+
       const stream = usedProvider.stream({
         model: usedProvider.config.model,
         messages,
@@ -193,15 +171,17 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       const primaryMsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
       this.log(`Primary provider (${usedProvider.id}) failed: ${primaryMsg}`);
 
-      // Try automatic fallback to Groq or Ollama
+      // Automatic fallback to Groq or Ollama
       const fallbackProvider =
-        usedProvider.id !== 'groq' ? this.providerManager.getProvider('groq') : this.providerManager.getProvider('ollama-local');
+        usedProvider.id !== 'groq'
+          ? this.providerManager.getProvider('groq')
+          : this.providerManager.getProvider('ollama-local');
 
       if (fallbackProvider && fallbackProvider.id !== usedProvider.id) {
-        this.log(`Attempting fallback to ${fallbackProvider.name}...`);
+        this.log(`Fallback to ${fallbackProvider.name}...`);
         this.postMessage({
           command: 'streamChunk',
-          chunk: `⚠️ *[${usedProvider.name} failed (${primaryMsg}). Automatically falling back to ${fallbackProvider.name}...]*\n\n`,
+          chunk: `⚠️ *[${usedProvider.name} failed (${primaryMsg}). Falling back to ${fallbackProvider.name}...]*\n\n`,
         });
 
         try {
@@ -222,13 +202,13 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
           return;
         } catch (fallbackErr: unknown) {
           const fallbackMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
-          this.log(`Fallback provider also failed: ${fallbackMsg}`);
+          this.log(`Fallback failed: ${fallbackMsg}`);
         }
       }
 
       this.postMessage({
         command: 'endStream',
-        fullText: `❌ **Provider Error (${usedProvider.name}):** ${primaryMsg}\n\n💡 *Tip: Try switching to **Groq (Llama 3.3 70B)** in the header dropdown for instant ultra-fast response!*`,
+        fullText: `❌ **Provider Error (${usedProvider.name}):** ${primaryMsg}\n\n💡 *Tip: Switch to **Groq (Llama 3.3 70B)** in the dropdown for instant fast responses.*`,
       });
     }
   }
@@ -240,22 +220,21 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     try {
       const result = await this.agentEngine.run(
         goal,
-        'You are AG Universal AI Agent. Use your available workspace/file/terminal tools to achieve the goal.',
-        undefined // Stream progress directly to webview
+        'You are AG Universal AI Agent. Use your available tools to accomplish the user goal.'
       );
 
-      const summary = `\n\n✅ **Agent Task Completed** (${result.iterations} iterations, ${result.toolCalls.length} tool actions executed).\n\n${result.response}`;
+      const summary = `\n\n✅ **Agent Task Completed** (${result.iterations} iterations, ${result.toolCalls.length} tool actions).\n\n${result.response}`;
       this.postMessage({ command: 'endStream', fullText: summary });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.postMessage({ command: 'endStream', fullText: `❌ **Agent Execution Error:** ${msg}` });
+      this.postMessage({ command: 'endStream', fullText: `❌ **Agent Error:** ${msg}` });
     }
   }
 
   private applyCodeToActiveEditor(code: string): void {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
-      vscode.window.showWarningMessage('No active editor open to apply code.');
+      vscode.window.showWarningMessage('No active editor open.');
       return;
     }
 
@@ -274,25 +253,13 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     vscode.window.showInformationMessage('Code applied to active editor!');
   }
 
-  private insertCodeAtCursor(code: string): void {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) {
-      vscode.window.showWarningMessage('No active editor open.');
-      return;
-    }
-
-    editor.edit((editBuilder) => {
-      editBuilder.insert(editor.selection.active, code);
-    });
-  }
-
   private postStateUpdate(): void {
     const activeProvider = this.providerManager.getActiveProvider();
     const presets = getAllPresets();
 
     this.postMessage({
       command: 'stateUpdate',
-      activeId: this.providerManager.getActiveProviderId() || 'dashscope-qwen',
+      activeId: this.providerManager.getActiveProviderId() || 'groq',
       activeProvider: activeProvider
         ? {
             id: activeProvider.id,
@@ -331,7 +298,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   // ─── HTML/CSS/JS Template ───────────────────────────────────────────────────
 
   private getHtml(): string {
-    const activeId = this.providerManager.getActiveProviderId() || 'dashscope-qwen';
+    const activeId = this.providerManager.getActiveProviderId() || 'groq';
     const presets = getAllPresets();
     const optionsHtml = presets
       .map(
@@ -393,7 +360,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
     .brand-title {
       font-weight: 700;
-      font-size: 14px;
+      font-size: 13px;
       display: flex;
       align-items: center;
       gap: 6px;
@@ -634,46 +601,46 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         <span class="badge-status" id="statusBadge">ONLINE</span>
       </div>
       <div class="header-actions">
-        <button class="icon-btn" onclick="clearChat()" title="Clear Chat">🧹</button>
-        <button class="icon-btn" onclick="openDashboard()" title="Metrics Dashboard">📊</button>
+        <button class="icon-btn" id="clearBtn" title="Clear Chat">🧹</button>
+        <button class="icon-btn" id="dashboardBtn" title="Metrics Dashboard">📊</button>
       </div>
     </div>
 
     <!-- Provider Dropdown -->
-    <select id="providerSelect" class="select-box" onchange="onProviderChange(this.value)">
+    <select id="providerSelect" class="select-box">
       ${optionsHtml}
     </select>
 
     <!-- Key Input Bar -->
     <div class="key-bar" id="keyBar" style="display: none;">
       <input type="password" id="keyInput" class="key-input" placeholder="Paste API Key here..." />
-      <button class="icon-btn" onclick="saveApiKey()">Save Key</button>
+      <button class="icon-btn" id="saveKeyBtn">Save Key</button>
     </div>
   </div>
 
   <!-- Slash Command Quick Chips -->
   <div class="chips-row">
-    <div class="chip" onclick="applyChip('/explain')">/explain</div>
-    <div class="chip" onclick="applyChip('/refactor')">/refactor</div>
-    <div class="chip" onclick="applyChip('/test')">/test</div>
-    <div class="chip" onclick="applyChip('/fix')">/fix</div>
-    <div class="chip" onclick="applyChip('/docs')">/docs</div>
-    <div class="chip" onclick="applyChip('/review')">/review</div>
-    <div class="chip" onclick="applyChip('🤖 Agent Task: ')">🤖 Agent</div>
+    <div class="chip" data-cmd="/explain">/explain</div>
+    <div class="chip" data-cmd="/refactor">/refactor</div>
+    <div class="chip" data-cmd="/test">/test</div>
+    <div class="chip" data-cmd="/fix">/fix</div>
+    <div class="chip" data-cmd="/docs">/docs</div>
+    <div class="chip" data-cmd="/review">/review</div>
+    <div class="chip" data-cmd="🤖 Agent Task: ">🤖 Agent</div>
   </div>
 
   <!-- Chat History Area -->
   <div class="chat-container" id="chatContainer">
     <div class="message assistant">
-      👋 Welcome to <strong>AG Universal AI</strong>! Select your preferred provider (Qwen 3.8 2.4T, Kimi K3, OpenRouter, Groq, Ollama) above and start coding.
+      👋 Welcome to <strong>AG Universal AI</strong>! Select your provider (Groq, Qwen 3.8 2.4T, Kimi K3, OpenRouter, Ollama) and start coding.
     </div>
   </div>
 
   <!-- Input Footer Area -->
   <div class="input-footer">
     <div class="input-wrapper">
-      <textarea id="promptInput" class="prompt-textarea" placeholder="Ask AG AI or type a command..." onkeydown="handleKeyDown(event)"></textarea>
-      <button class="send-btn" onclick="sendPrompt()">Send</button>
+      <textarea id="promptInput" class="prompt-textarea" placeholder="Ask AG AI or type a command..."></textarea>
+      <button id="sendBtn" class="send-btn">Send</button>
     </div>
     <div class="agent-toggle">
       <input type="checkbox" id="agentMode" />
@@ -682,163 +649,227 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   </div>
 
   <script>
-    const vscode = acquireVsCodeApi();
-    let currentStreamDiv = null;
+    (function() {
+      const vscode = acquireVsCodeApi();
+      let currentStreamDiv = null;
 
-    // Handle incoming messages from Extension Backend
-    window.addEventListener('message', event => {
-      const msg = event.data;
-      switch (msg.command) {
-        case 'stateUpdate':
-          renderState(msg);
-          break;
-        case 'addMessage':
-          appendMessage(msg.role, msg.content);
-          break;
-        case 'startStream':
-          if (!currentStreamDiv) {
-            currentStreamDiv = appendMessage('assistant', '⏳ *Thinking...*');
-          }
-          break;
-        case 'streamChunk':
-          if (currentStreamDiv) {
-            if (currentStreamDiv.innerHTML.includes('Thinking...')) {
-              currentStreamDiv.innerHTML = '';
-            }
-            currentStreamDiv.innerHTML += formatText(msg.chunk);
-            scrollToBottom();
-          }
-          break;
-        case 'endStream':
-          if (currentStreamDiv) {
-            currentStreamDiv.innerHTML = formatMarkdown(msg.fullText);
-            currentStreamDiv = null;
-            scrollToBottom();
-          }
-          break;
-        case 'clearChat':
-          document.getElementById('chatContainer').innerHTML = '';
-          break;
-      }
-    });
-
-    // Request initial state after registering listener
-    setTimeout(() => {
-      vscode.postMessage({ command: 'getState' });
-    }, 50);
-
-    function renderState(state) {
-      const select = document.getElementById('providerSelect');
-      select.innerHTML = '';
-
-      state.providers.forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = p.id;
-        opt.textContent = (p.id === state.activeId ? '⭐ ' : '') + p.name + (p.isLocal ? ' (Local)' : '');
-        if (p.id === state.activeId) opt.selected = true;
-        select.appendChild(opt);
+      // Register DOM Event Listeners (CSP compliant - no inline onclicks)
+      document.addEventListener('DOMContentLoaded', () => {
+        setupEventListeners();
       });
 
-      const keyBar = document.getElementById('keyBar');
-      if (state.activeProvider && !state.activeProvider.hasKey && !state.activeProvider.baseUrl.includes('localhost')) {
-        keyBar.style.display = 'flex';
-      } else {
-        keyBar.style.display = 'none';
+      // Also setup immediately in case DOMContentLoaded already fired
+      if (document.readyState === 'interactive' || document.readyState === 'complete') {
+        setupEventListeners();
       }
-    }
 
-    function onProviderChange(val) {
-      vscode.postMessage({ command: 'switchProvider', providerId: val });
-    }
-
-    function saveApiKey() {
-      const val = document.getElementById('keyInput').value;
-      const select = document.getElementById('providerSelect');
-      if (val) {
-        vscode.postMessage({ command: 'saveApiKey', providerId: select.value, apiKey: val });
-        document.getElementById('keyInput').value = '';
-      }
-    }
-
-    function sendPrompt() {
-      const input = document.getElementById('promptInput');
-      const text = input.value.trim();
-      if (!text) return;
-
-      // Optimistic UI: Render user message and thinking indicator immediately
-      appendMessage('user', text);
-      currentStreamDiv = appendMessage('assistant', '⏳ *Thinking...*');
-
-      const isAgent = document.getElementById('agentMode').checked;
-      if (isAgent) {
-        vscode.postMessage({ command: 'runAgentTask', text: text });
-      } else {
-        let commandType = undefined;
-        if (text.startsWith('/')) {
-          commandType = text.split(' ')[0].substring(1);
+      function setupEventListeners() {
+        const sendBtn = document.getElementById('sendBtn');
+        if (sendBtn && !sendBtn.dataset.bound) {
+          sendBtn.dataset.bound = 'true';
+          sendBtn.addEventListener('click', sendPrompt);
         }
-        vscode.postMessage({ command: 'sendPrompt', text: text, commandType: commandType });
+
+        const promptInput = document.getElementById('promptInput');
+        if (promptInput && !promptInput.dataset.bound) {
+          promptInput.dataset.bound = 'true';
+          promptInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              sendPrompt();
+            }
+          });
+        }
+
+        const clearBtn = document.getElementById('clearBtn');
+        if (clearBtn && !clearBtn.dataset.bound) {
+          clearBtn.dataset.bound = 'true';
+          clearBtn.addEventListener('click', () => {
+            vscode.postMessage({ command: 'clearChat' });
+          });
+        }
+
+        const dashboardBtn = document.getElementById('dashboardBtn');
+        if (dashboardBtn && !dashboardBtn.dataset.bound) {
+          dashboardBtn.dataset.bound = 'true';
+          dashboardBtn.addEventListener('click', () => {
+            vscode.postMessage({ command: 'openDashboard' });
+          });
+        }
+
+        const saveKeyBtn = document.getElementById('saveKeyBtn');
+        if (saveKeyBtn && !saveKeyBtn.dataset.bound) {
+          saveKeyBtn.dataset.bound = 'true';
+          saveKeyBtn.addEventListener('click', saveApiKey);
+        }
+
+        const providerSelect = document.getElementById('providerSelect');
+        if (providerSelect && !providerSelect.dataset.bound) {
+          providerSelect.dataset.bound = 'true';
+          providerSelect.addEventListener('change', (e) => {
+            vscode.postMessage({ command: 'switchProvider', providerId: e.target.value });
+          });
+        }
+
+        // Chip click delegation
+        document.querySelectorAll('.chip').forEach(chip => {
+          if (!chip.dataset.bound) {
+            chip.dataset.bound = 'true';
+            chip.addEventListener('click', () => {
+              const cmd = chip.getAttribute('data-cmd');
+              if (cmd && promptInput) {
+                promptInput.value = cmd + ' ';
+                promptInput.focus();
+              }
+            });
+          }
+        });
+
+        // Code button click delegation
+        document.addEventListener('click', (e) => {
+          if (e.target && e.target.classList.contains('code-btn')) {
+            const codeEl = e.target.closest('pre')?.querySelector('code');
+            if (codeEl) {
+              vscode.postMessage({ command: 'applyToEditor', code: codeEl.innerText });
+            }
+          }
+        });
+
+        // Sync initial state
+        setTimeout(() => {
+          vscode.postMessage({ command: 'getState' });
+        }, 100);
       }
 
-      input.value = '';
-    }
-
-    function handleKeyDown(e) {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendPrompt();
-      }
-    }
-
-    function applyChip(cmd) {
-      const input = document.getElementById('promptInput');
-      input.value = cmd + ' ';
-      input.focus();
-    }
-
-    function clearChat() {
-      vscode.postMessage({ command: 'clearChat' });
-    }
-
-    function openDashboard() {
-      vscode.postMessage({ command: 'openDashboard' });
-    }
-
-    function appendMessage(role, text) {
-      const container = document.getElementById('chatContainer');
-      const div = document.createElement('div');
-      div.className = 'message ' + role;
-      div.innerHTML = formatMarkdown(text);
-      container.appendChild(div);
-      scrollToBottom();
-      return div;
-    }
-
-    function formatText(str) {
-      return str.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
-    }
-
-    function formatMarkdown(text) {
-      if (!text) return '';
-      // Basic code block formatting
-      let html = text.replace(/\`\`\`(\w*)\n([\s\S]*?)\`\`\`/g, function(match, lang, code) {
-        const cleanCode = code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        return '<pre><code>' + cleanCode + '</code><div class="code-actions"><button class="code-btn" onclick="applyCode(this)">Apply to Editor</button></div></pre>';
+      // Handle incoming messages from Extension Backend
+      window.addEventListener('message', event => {
+        const msg = event.data;
+        switch (msg.command) {
+          case 'stateUpdate':
+            renderState(msg);
+            break;
+          case 'addMessage':
+            appendMessage(msg.role, msg.content);
+            break;
+          case 'startStream':
+            if (!currentStreamDiv) {
+              currentStreamDiv = appendMessage('assistant', '⏳ *Thinking...*');
+            }
+            break;
+          case 'streamChunk':
+            if (currentStreamDiv) {
+              if (currentStreamDiv.innerHTML.includes('Thinking...')) {
+                currentStreamDiv.innerHTML = '';
+              }
+              currentStreamDiv.innerHTML += formatText(msg.chunk);
+              scrollToBottom();
+            }
+            break;
+          case 'endStream':
+            if (currentStreamDiv) {
+              currentStreamDiv.innerHTML = formatMarkdown(msg.fullText);
+              currentStreamDiv = null;
+              scrollToBottom();
+            }
+            break;
+          case 'clearChat':
+            document.getElementById('chatContainer').innerHTML = '';
+            break;
+        }
       });
-      html = html.replace(/\`([^\`]+)\`/g, '<code>$1</code>');
-      html = html.replace(/\n/g, '<br/>');
-      return html;
-    }
 
-    function applyCode(btn) {
-      const code = btn.parentElement.parentElement.querySelector('code').innerText;
-      vscode.postMessage({ command: 'applyToEditor', code: code });
-    }
+      function renderState(state) {
+        const select = document.getElementById('providerSelect');
+        if (select && state.providers) {
+          select.innerHTML = '';
+          state.providers.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = (p.id === state.activeId ? '⭐ ' : '') + p.name + (p.isLocal ? ' (Local)' : '');
+            if (p.id === state.activeId) opt.selected = true;
+            select.appendChild(opt);
+          });
+        }
 
-    function scrollToBottom() {
-      const container = document.getElementById('chatContainer');
-      container.scrollTop = container.scrollHeight;
-    }
+        const keyBar = document.getElementById('keyBar');
+        if (keyBar) {
+          if (state.activeProvider && !state.activeProvider.hasKey && !state.activeProvider.baseUrl.includes('localhost')) {
+            keyBar.style.display = 'flex';
+          } else {
+            keyBar.style.display = 'none';
+          }
+        }
+      }
+
+      function saveApiKey() {
+        const keyInput = document.getElementById('keyInput');
+        const select = document.getElementById('providerSelect');
+        if (keyInput && keyInput.value && select) {
+          vscode.postMessage({ command: 'saveApiKey', providerId: select.value, apiKey: keyInput.value });
+          keyInput.value = '';
+        }
+      }
+
+      function sendPrompt() {
+        const input = document.getElementById('promptInput');
+        if (!input) return;
+        const text = input.value.trim();
+        if (!text) return;
+
+        // Render user message and thinking indicator immediately
+        appendMessage('user', text);
+        currentStreamDiv = appendMessage('assistant', '⏳ *Thinking...*');
+
+        const isAgentEl = document.getElementById('agentMode');
+        const isAgent = isAgentEl ? isAgentEl.checked : false;
+
+        if (isAgent) {
+          vscode.postMessage({ command: 'runAgentTask', text: text });
+        } else {
+          let commandType = undefined;
+          if (text.startsWith('/')) {
+            commandType = text.split(' ')[0].substring(1);
+          }
+          vscode.postMessage({ command: 'sendPrompt', text: text, commandType: commandType });
+        }
+
+        input.value = '';
+      }
+
+      function appendMessage(role, text) {
+        const container = document.getElementById('chatContainer');
+        if (!container) return null;
+        const div = document.createElement('div');
+        div.className = 'message ' + role;
+        div.innerHTML = formatMarkdown(text);
+        container.appendChild(div);
+        scrollToBottom();
+        return div;
+      }
+
+      function formatText(str) {
+        if (!str) return '';
+        return str.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
+      }
+
+      function formatMarkdown(text) {
+        if (!text) return '';
+        let html = text.replace(/\`\`\`(\w*)\n([\s\S]*?)\`\`\`/g, function(match, lang, code) {
+          const cleanCode = code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          return '<pre><code>' + cleanCode + '</code><div class="code-actions"><button class="code-btn">Apply to Editor</button></div></pre>';
+        });
+        html = html.replace(/\`([^\`]+)\`/g, '<code>$1</code>');
+        html = html.replace(/\n/g, '<br/>');
+        return html;
+      }
+
+      function scrollToBottom() {
+        const container = document.getElementById('chatContainer');
+        if (container) {
+          container.scrollTop = container.scrollHeight;
+        }
+      }
+    })();
   </script>
 </body>
 </html>`;
