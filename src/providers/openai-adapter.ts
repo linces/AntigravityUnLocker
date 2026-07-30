@@ -85,10 +85,12 @@ export class OpenAIAdapter implements ILLMProvider {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 
-    // Link external signal
+    const abortHandler = () => controller.abort();
     if (signal) {
-      signal.addEventListener('abort', () => controller.abort());
+      signal.addEventListener('abort', abortHandler);
     }
+
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
     try {
       const response = await fetch(url, {
@@ -99,11 +101,16 @@ export class OpenAIAdapter implements ILLMProvider {
       });
 
       if (!response.ok || !response.body) {
-        const errorText = response.body ? await response.text() : 'No response body';
+        let errorText = 'No response body';
+        try {
+          errorText = await response.text();
+        } catch {
+          // ignore
+        }
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
-      const reader = (response.body as ReadableStream<Uint8Array>).getReader();
+      reader = (response.body as ReadableStream<Uint8Array>).getReader();
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
 
@@ -135,6 +142,16 @@ export class OpenAIAdapter implements ILLMProvider {
       }
     } finally {
       clearTimeout(timer);
+      if (signal) {
+        signal.removeEventListener('abort', abortHandler);
+      }
+      if (reader) {
+        try {
+          reader.releaseLock();
+        } catch {
+          // ignore
+        }
+      }
     }
   }
 

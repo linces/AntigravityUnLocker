@@ -129,7 +129,11 @@ export class AGWebviewDashboard {
       })),
     };
 
-    AGWebviewDashboard.currentPanel.webview.postMessage(payload);
+    try {
+      AGWebviewDashboard.currentPanel.webview.postMessage(payload);
+    } catch {
+      // Ignore if webview panel is disposed
+    }
   }
 
   private static getNonce(): string {
