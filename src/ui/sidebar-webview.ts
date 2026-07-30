@@ -43,6 +43,17 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
     webviewView.webview.html = this.getHtml(webviewView.webview);
 
+    // Re-hydrate state when webview becomes visible
+    webviewView.onDidChangeVisibility(() => {
+      if (webviewView.visible) {
+        this.postStateUpdate();
+      }
+    });
+
+    webviewView.onDidDispose(() => {
+      this.view = undefined;
+    });
+
     webviewView.webview.onDidReceiveMessage(async (msg) => {
       this.log(`MSG IN: ${msg.type}`);
       try {
@@ -83,6 +94,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       }
     });
 
+    // Hydrate immediately on load
     this.postStateUpdate();
   }
 
@@ -268,7 +280,13 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   }
 
   private post(msg: any): void {
-    this.view?.webview.postMessage(msg);
+    if (this.view) {
+      try {
+        this.view.webview.postMessage(msg);
+      } catch {
+        // ignore if webview is disposed
+      }
+    }
   }
 
   private log(m: string): void {

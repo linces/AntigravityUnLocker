@@ -69,15 +69,32 @@ export class AgentEngine implements vscode.Disposable {
 
       this.log(`Agent iteration ${iterations}/${MAX_ITERATIONS}`);
 
-      // Call LLM with tools
-      const response = await provider.chat({
-        model: provider.config.model,
-        messages,
-        tools,
-        tool_choice: 'auto',
-        temperature: 0.3,
-        stream: false,
-      });
+      let response;
+      try {
+        response = await provider.chat({
+          model: provider.config.model,
+          messages,
+          tools,
+          tool_choice: 'auto',
+          temperature: 0.3,
+          stream: false,
+        });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.log(`Native tool payload rejected by ${provider.name}: ${msg}. Retrying without native tools payload...`);
+
+        // Fall back to prompt-based tool guidance without native tools parameter
+        if (messages[0] && messages[0].role === 'system') {
+          messages[0].content += `\n\nAvailable Tools:\n${JSON.stringify(tools, null, 2)}\nTo call a tool, reply with JSON: {"tool_calls":[{"function":{"name":"tool_name","arguments":"{...}"}}]}`;
+        }
+
+        response = await provider.chat({
+          model: provider.config.model,
+          messages,
+          temperature: 0.3,
+          stream: false,
+        });
+      }
 
       const choice = response.choices[0];
       if (!choice) {
