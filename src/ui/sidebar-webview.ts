@@ -101,6 +101,10 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
           this.postMessage({ command: 'clearChat' });
           break;
 
+        case 'openDashboard':
+          vscode.commands.executeCommand('ag-universal-ai.showDashboard');
+          break;
+
         case 'applyToEditor':
           if (message.code) {
             this.applyCodeToActiveEditor(message.code);
@@ -125,16 +129,14 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     const activeProvider = this.providerManager.getActiveProvider();
     if (!activeProvider) {
       this.postMessage({
-        command: 'addMessage',
-        role: 'assistant',
-        content: '⚠️ **No active AI provider configured.** Please select a provider from the header dropdown.',
+        command: 'endStream',
+        fullText: '⚠️ **No active AI provider configured.** Please select a provider from the header dropdown.',
       });
       return;
     }
 
     // Add user message to history
     this.chatHistory.push({ role: 'user', content: text });
-    this.postMessage({ command: 'addMessage', role: 'user', content: text });
 
     // Prepare system prompt
     const systemPrompt = slashCommand
@@ -694,10 +696,15 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
           appendMessage(msg.role, msg.content);
           break;
         case 'startStream':
-          currentStreamDiv = appendMessage('assistant', '');
+          if (!currentStreamDiv) {
+            currentStreamDiv = appendMessage('assistant', '⏳ *Thinking...*');
+          }
           break;
         case 'streamChunk':
           if (currentStreamDiv) {
+            if (currentStreamDiv.innerHTML.includes('Thinking...')) {
+              currentStreamDiv.innerHTML = '';
+            }
             currentStreamDiv.innerHTML += formatText(msg.chunk);
             scrollToBottom();
           }
@@ -758,6 +765,10 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       const text = input.value.trim();
       if (!text) return;
 
+      // Optimistic UI: Render user message and thinking indicator immediately
+      appendMessage('user', text);
+      currentStreamDiv = appendMessage('assistant', '⏳ *Thinking...*');
+
       const isAgent = document.getElementById('agentMode').checked;
       if (isAgent) {
         vscode.postMessage({ command: 'runAgentTask', text: text });
@@ -790,7 +801,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     }
 
     function openDashboard() {
-      vscode.postMessage({ command: 'sendPrompt', text: '/status' });
+      vscode.postMessage({ command: 'openDashboard' });
     }
 
     function appendMessage(role, text) {
