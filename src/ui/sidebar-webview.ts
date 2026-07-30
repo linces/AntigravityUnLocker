@@ -1,10 +1,8 @@
 /**
  * AG Universal AI — Sidebar Webview View Provider
  *
- * Implements a full-featured, sleek AI assistant sidebar (like Kimi Code, Cline, Cursor, Roo Code)
- * rendered directly inside the Primary Sidebar.
- *
- * Fully compliant with VS Code Webview CSP policies (using addEventListener instead of inline onclick).
+ * Uses VS Code nonce-based CSP for script execution.
+ * All event handling via addEventListener (CSP compliant).
  */
 
 import * as vscode from 'vscode';
@@ -27,9 +25,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     private readonly outputChannel: vscode.OutputChannel
   ) {
     this.disposables.push(
-      this.providerManager.onDidChangeProvider(() => {
-        this.postStateUpdate();
-      })
+      this.providerManager.onDidChangeProvider(() => this.postStateUpdate())
     );
   }
 
@@ -45,833 +41,425 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       localResourceRoots: [this.extensionUri],
     };
 
-    webviewView.webview.html = this.getHtml();
+    webviewView.webview.html = this.getHtml(webviewView.webview);
 
-    webviewView.webview.onDidReceiveMessage(async (message) => {
-      this.log(`Webview message received: ${message.command}`);
-
-      switch (message.command) {
-        case 'getState':
-          this.postStateUpdate();
-          break;
-
-        case 'switchProvider':
-          if (message.providerId) {
-            this.providerManager.setActiveProvider(message.providerId);
+    webviewView.webview.onDidReceiveMessage(async (msg) => {
+      this.log(`MSG IN: ${msg.type}`);
+      try {
+        switch (msg.type) {
+          case 'ready':
             this.postStateUpdate();
-          }
-          break;
-
-        case 'saveApiKey':
-          if (message.providerId && message.apiKey) {
-            await this.providerManager.setApiKey(message.providerId, message.apiKey.trim());
-            vscode.window.showInformationMessage(`AG AI: API Key saved for ${message.providerId}`);
+            break;
+          case 'switchProvider':
+            this.providerManager.setActiveProvider(msg.id);
             this.postStateUpdate();
-          }
-          break;
-
-        case 'sendPrompt':
-          if (message.text) {
-            await this.handleUserPrompt(message.text, message.commandType);
-          }
-          break;
-
-        case 'runAgentTask':
-          if (message.text) {
-            await this.handleAgentTask(message.text);
-          }
-          break;
-
-        case 'clearChat':
-          this.chatHistory = [];
-          this.postMessage({ command: 'clearChat' });
-          break;
-
-        case 'openDashboard':
-          vscode.commands.executeCommand('ag-universal-ai.showDashboard');
-          break;
-
-        case 'applyToEditor':
-          if (message.code) {
-            this.applyCodeToActiveEditor(message.code);
-          }
-          break;
+            break;
+          case 'saveKey':
+            await this.providerManager.setApiKey(msg.id, msg.key.trim());
+            vscode.window.showInformationMessage(`API Key saved for ${msg.id}`);
+            this.postStateUpdate();
+            break;
+          case 'chat':
+            await this.handleChat(msg.text, msg.slash);
+            break;
+          case 'agent':
+            await this.handleAgent(msg.text);
+            break;
+          case 'clear':
+            this.chatHistory = [];
+            this.post({ type: 'cleared' });
+            break;
+          case 'dashboard':
+            vscode.commands.executeCommand('ag-universal-ai.showDashboard');
+            break;
+          case 'apply':
+            this.applyCode(msg.code);
+            break;
+        }
+      } catch (err: unknown) {
+        const m = err instanceof Error ? err.message : String(err);
+        this.log(`ERROR handling ${msg.type}: ${m}`);
+        this.post({ type: 'error', text: m });
       }
     });
 
     this.postStateUpdate();
   }
 
-  // ─── Backend Prompt Logic ──────────────────────────────────────────────────
+  // ── Chat Handler ──────────────────────────────────────────────────────────
 
-  private async handleUserPrompt(text: string, slashCommand?: string): Promise<void> {
-    const activeProvider = this.providerManager.getActiveProvider();
+  private async handleChat(text: string, slash?: string): Promise<void> {
+    this.chatHistory.push({ role: 'user', content: text });
 
-    if (!activeProvider) {
-      this.postMessage({
-        command: 'endStream',
-        fullText: '⚠️ **No active AI provider configured.** Please select a provider from the header dropdown.',
-      });
+    const provider = this.providerManager.getActiveProvider();
+    if (!provider) {
+      this.post({ type: 'done', text: '⚠️ No provider active. Select one from the dropdown.' });
       return;
     }
 
-    this.chatHistory.push({ role: 'user', content: text });
+    const sysPrompt = slash ? buildSlashCommandPrompt(slash) : buildSystemPrompt();
 
-    const systemPrompt = slashCommand
-      ? buildSlashCommandPrompt(slashCommand)
-      : buildSystemPrompt();
-
-    let contextMessage = '';
-    const activeEditor = vscode.window.activeTextEditor;
-    if (activeEditor) {
-      const relPath = vscode.workspace.asRelativePath(activeEditor.document.uri);
-      const selText = activeEditor.document.getText(activeEditor.selection);
-      if (selText.trim().length > 0) {
-        contextMessage = `\nContext File: ${relPath} (Selected Code):\n\`\`\`${activeEditor.document.languageId}\n${selText}\n\`\`\``;
-      } else {
-        const fileText = activeEditor.document.getText();
-        if (fileText.length < 4000) {
-          contextMessage = `\nContext File: ${relPath}:\n\`\`\`${activeEditor.document.languageId}\n${fileText}\n\`\`\``;
-        }
+    // Add editor context
+    let ctx = '';
+    const ed = vscode.window.activeTextEditor;
+    if (ed) {
+      const rel = vscode.workspace.asRelativePath(ed.document.uri);
+      const sel = ed.document.getText(ed.selection);
+      if (sel.trim()) {
+        ctx = `\nFile: ${rel} (selection):\n\`\`\`${ed.document.languageId}\n${sel}\n\`\`\``;
+      } else if (ed.document.getText().length < 4000) {
+        ctx = `\nFile: ${rel}:\n\`\`\`${ed.document.languageId}\n${ed.document.getText()}\n\`\`\``;
       }
     }
 
-    const messages = [
-      { role: 'system' as const, content: systemPrompt },
-      ...this.chatHistory.slice(-6).map((m) => ({ role: m.role, content: m.content })),
+    const msgs = [
+      { role: 'system' as const, content: sysPrompt },
+      ...this.chatHistory.slice(-6).map(m => ({ role: m.role, content: m.content })),
     ];
+    if (ctx) { msgs[msgs.length - 1].content += ctx; }
 
-    if (contextMessage) {
-      messages[messages.length - 1].content += contextMessage;
-    }
+    this.log(`Calling ${provider.name} (${provider.config.model})...`);
 
-    this.postMessage({ command: 'startStream' });
-
-    let fullResponse = '';
-    const usedProvider = activeProvider;
-
+    let full = '';
     try {
-      this.log(`Streaming prompt with provider: ${usedProvider.name} (${usedProvider.config.model})`);
-
-      const stream = usedProvider.stream({
-        model: usedProvider.config.model,
-        messages,
+      const stream = provider.stream({
+        model: provider.config.model,
+        messages: msgs,
         temperature: 0.7,
         stream: true,
       });
 
       for await (const chunk of stream) {
-        fullResponse += chunk;
-        this.postMessage({ command: 'streamChunk', chunk });
+        full += chunk;
+        this.post({ type: 'chunk', text: chunk });
       }
-
-      this.chatHistory.push({ role: 'assistant', content: fullResponse });
-      this.postMessage({ command: 'endStream', fullText: fullResponse });
-    } catch (primaryErr: unknown) {
-      const primaryMsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
-      this.log(`Primary provider (${usedProvider.id}) failed: ${primaryMsg}`);
-
-      // Automatic fallback to Groq or Ollama
-      const fallbackProvider =
-        usedProvider.id !== 'groq'
-          ? this.providerManager.getProvider('groq')
-          : this.providerManager.getProvider('ollama-local');
-
-      if (fallbackProvider && fallbackProvider.id !== usedProvider.id) {
-        this.log(`Fallback to ${fallbackProvider.name}...`);
-        this.postMessage({
-          command: 'streamChunk',
-          chunk: `⚠️ *[${usedProvider.name} failed (${primaryMsg}). Falling back to ${fallbackProvider.name}...]*\n\n`,
-        });
-
-        try {
-          const fallbackStream = fallbackProvider.stream({
-            model: fallbackProvider.config.model,
-            messages,
-            temperature: 0.7,
-            stream: true,
-          });
-
-          for await (const chunk of fallbackStream) {
-            fullResponse += chunk;
-            this.postMessage({ command: 'streamChunk', chunk });
-          }
-
-          this.chatHistory.push({ role: 'assistant', content: fullResponse });
-          this.postMessage({ command: 'endStream', fullText: fullResponse });
-          return;
-        } catch (fallbackErr: unknown) {
-          const fallbackMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
-          this.log(`Fallback failed: ${fallbackMsg}`);
-        }
-      }
-
-      this.postMessage({
-        command: 'endStream',
-        fullText: `❌ **Provider Error (${usedProvider.name}):** ${primaryMsg}\n\n💡 *Tip: Switch to **Groq (Llama 3.3 70B)** in the dropdown for instant fast responses.*`,
-      });
-    }
-  }
-
-  private async handleAgentTask(goal: string): Promise<void> {
-    this.postMessage({ command: 'addMessage', role: 'user', content: `🤖 **Agent Task:** ${goal}` });
-    this.postMessage({ command: 'startStream' });
-
-    try {
-      const result = await this.agentEngine.run(
-        goal,
-        'You are AG Universal AI Agent. Use your available tools to accomplish the user goal.'
-      );
-
-      const summary = `\n\n✅ **Agent Task Completed** (${result.iterations} iterations, ${result.toolCalls.length} tool actions).\n\n${result.response}`;
-      this.postMessage({ command: 'endStream', fullText: summary });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.postMessage({ command: 'endStream', fullText: `❌ **Agent Error:** ${msg}` });
-    }
-  }
+      this.log(`Provider ${provider.id} failed: ${msg}`);
 
-  private applyCodeToActiveEditor(code: string): void {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) {
-      vscode.window.showWarningMessage('No active editor open.');
-      return;
-    }
-
-    editor.edit((editBuilder) => {
-      if (!editor.selection.isEmpty) {
-        editBuilder.replace(editor.selection, code);
+      // Fallback
+      const fbId = provider.id !== 'groq' ? 'groq' : 'ollama-local';
+      const fb = this.providerManager.getProvider(fbId);
+      if (fb) {
+        this.log(`Falling back to ${fb.name}`);
+        this.post({ type: 'chunk', text: `\n⚠️ ${provider.name} failed. Trying ${fb.name}...\n\n` });
+        try {
+          const s2 = fb.stream({ model: fb.config.model, messages: msgs, temperature: 0.7, stream: true });
+          for await (const c of s2) { full += c; this.post({ type: 'chunk', text: c }); }
+        } catch (e2: unknown) {
+          const m2 = e2 instanceof Error ? e2.message : String(e2);
+          full = `❌ ${provider.name}: ${msg}\n❌ ${fb.name}: ${m2}`;
+        }
       } else {
-        const fullRange = new vscode.Range(
-          editor.document.positionAt(0),
-          editor.document.positionAt(editor.document.getText().length)
-        );
-        editBuilder.replace(fullRange, code);
+        full = `❌ ${provider.name}: ${msg}`;
       }
-    });
+    }
 
-    vscode.window.showInformationMessage('Code applied to active editor!');
+    if (full) { this.chatHistory.push({ role: 'assistant', content: full }); }
+    this.post({ type: 'done', text: full });
   }
+
+  private async handleAgent(goal: string): Promise<void> {
+    try {
+      const result = await this.agentEngine.run(goal, 'Use tools to accomplish the goal.');
+      this.post({ type: 'done', text: `✅ Agent done (${result.iterations} steps, ${result.toolCalls.length} tools)\n\n${result.response}` });
+    } catch (err: unknown) {
+      this.post({ type: 'done', text: `❌ Agent error: ${err instanceof Error ? err.message : String(err)}` });
+    }
+  }
+
+  private applyCode(code: string): void {
+    const ed = vscode.window.activeTextEditor;
+    if (!ed) { vscode.window.showWarningMessage('No active editor'); return; }
+    ed.edit(b => {
+      if (!ed.selection.isEmpty) { b.replace(ed.selection, code); }
+      else { b.insert(ed.selection.active, code); }
+    });
+    vscode.window.showInformationMessage('Code applied!');
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
   private postStateUpdate(): void {
-    const activeProvider = this.providerManager.getActiveProvider();
-    const presets = getAllPresets();
-
-    this.postMessage({
-      command: 'stateUpdate',
+    const ap = this.providerManager.getActiveProvider();
+    this.post({
+      type: 'state',
       activeId: this.providerManager.getActiveProviderId() || 'groq',
-      activeProvider: activeProvider
-        ? {
-            id: activeProvider.id,
-            name: activeProvider.name,
-            model: activeProvider.config.model,
-            baseUrl: activeProvider.config.baseUrl,
-            hasKey: Boolean(activeProvider.config.apiKey),
-          }
-        : null,
-      providers: presets.map((p) => ({
-        id: p.id,
-        name: p.name,
-        isLocal: p.isLocal,
-        requiresApiKey: p.requiresApiKey,
-        defaultModel: p.defaultModel,
-      })),
+      active: ap ? { id: ap.id, name: ap.name, model: ap.config.model, url: ap.config.baseUrl, hasKey: !!ap.config.apiKey } : null,
+      providers: getAllPresets().map(p => ({ id: p.id, name: p.name, local: p.isLocal, needsKey: p.requiresApiKey })),
     });
   }
 
-  private postMessage(msg: any): void {
-    if (this.view) {
-      this.view.webview.postMessage(msg);
-    }
+  private post(msg: any): void {
+    this.view?.webview.postMessage(msg);
   }
 
-  private log(message: string): void {
-    this.outputChannel.appendLine(`[SidebarWebview] ${message}`);
+  private log(m: string): void {
+    this.outputChannel.appendLine(`[Sidebar] ${m}`);
   }
 
   public dispose(): void {
-    for (const d of this.disposables) {
-      d.dispose();
+    this.disposables.forEach(d => d.dispose());
+  }
+
+  // ── HTML Generation ───────────────────────────────────────────────────────
+
+  private getNonce(): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let r = '';
+    for (let i = 0; i < 32; i++) { r += chars.charAt(Math.floor(Math.random() * chars.length)); }
+    return r;
+  }
+
+  private getHtml(webview: vscode.Webview): string {
+    const nonce = this.getNonce();
+    const csp = webview.cspSource;
+
+    const activeId = this.providerManager.getActiveProviderId() || 'groq';
+    const opts = getAllPresets().map(p =>
+      '<option value="' + p.id + '"' + (p.id === activeId ? ' selected' : '') + '>' +
+      (p.id === activeId ? '⭐ ' : '') + p.name + (p.isLocal ? ' (Local)' : '') +
+      '</option>'
+    ).join('');
+
+    return '<!DOCTYPE html>\n<html lang="en">\n<head>\n' +
+      '<meta charset="UTF-8">\n' +
+      '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src ' + csp + ' \'unsafe-inline\'; script-src \'nonce-' + nonce + '\';">\n' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+      '<style>\n' + this.getCss() + '\n</style>\n' +
+      '</head>\n<body>\n' +
+      this.getBody(opts) +
+      '\n<script nonce="' + nonce + '">\n' + this.getScript() + '\n</script>\n' +
+      '</body>\n</html>';
+  }
+
+  private getCss(): string {
+    return `
+      :root {
+        --bg: var(--vscode-sideBar-background, #1e1e1e);
+        --fg: var(--vscode-sideBar-foreground, #ccc);
+        --border: var(--vscode-widget-border, #333);
+        --accent: var(--vscode-button-background, #007acc);
+        --input-bg: var(--vscode-input-background, #252526);
+        --input-fg: var(--vscode-input-foreground, #ccc);
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: var(--vscode-font-family, sans-serif); font-size: 13px; color: var(--fg); background: var(--bg); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+      .hdr { padding: 10px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
+      .hdr-row { display: flex; align-items: center; justify-content: space-between; }
+      .brand { font-weight: 700; font-size: 13px; color: #fff; }
+      .badge { font-size: 9px; padding: 2px 5px; border-radius: 8px; background: rgba(76,175,80,.2); color: #4caf50; margin-left: 6px; }
+      .hdr-btns { display: flex; gap: 4px; }
+      .ibtn { background: transparent; border: 1px solid var(--border); color: var(--fg); padding: 3px 7px; border-radius: 3px; cursor: pointer; font-size: 12px; }
+      .ibtn:hover { background: rgba(255,255,255,.1); }
+      select { width: 100%; background: var(--input-bg); color: var(--input-fg); border: 1px solid var(--border); padding: 5px; border-radius: 3px; font-size: 12px; }
+      .keybar { display: none; gap: 4px; margin-top: 4px; }
+      .keybar input { flex: 1; background: var(--input-bg); color: var(--input-fg); border: 1px solid var(--border); padding: 3px 6px; border-radius: 3px; font-size: 11px; }
+      .chips { display: flex; gap: 3px; padding: 5px 10px; border-bottom: 1px solid var(--border); overflow-x: auto; background: rgba(0,0,0,.15); }
+      .chip { white-space: nowrap; background: rgba(255,255,255,.05); border: 1px solid var(--border); color: var(--fg); padding: 2px 7px; border-radius: 10px; font-size: 11px; cursor: pointer; }
+      .chip:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+      #chat { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+      .msg { padding: 8px 10px; border-radius: 6px; line-height: 1.45; font-size: 12px; word-wrap: break-word; animation: fi .15s ease; }
+      @keyframes fi { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+      .msg.user { background: rgba(0,122,204,.15); border: 1px solid rgba(0,122,204,.3); align-self: flex-end; max-width: 85%; }
+      .msg.assistant { background: rgba(255,255,255,.04); border: 1px solid var(--border); align-self: flex-start; max-width: 95%; }
+      pre { background: #0d0d0d; border: 1px solid #2a2a2a; border-radius: 5px; padding: 8px; margin: 6px 0; overflow-x: auto; }
+      code { font-family: var(--vscode-editor-font-family, monospace); font-size: 11px; }
+      .cbtn { background: #222; border: 1px solid #444; color: #ccc; padding: 2px 6px; border-radius: 3px; font-size: 10px; cursor: pointer; margin-top: 4px; display: inline-block; }
+      .cbtn:hover { background: var(--accent); color: #fff; }
+      .foot { padding: 10px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
+      .irow { display: flex; gap: 5px; }
+      textarea { flex: 1; background: var(--input-bg); color: var(--input-fg); border: 1px solid var(--border); border-radius: 5px; padding: 7px; font-size: 12px; resize: none; height: 54px; font-family: inherit; outline: none; }
+      textarea:focus { border-color: var(--accent); }
+      .sendbtn { background: var(--accent); color: #fff; border: none; border-radius: 5px; padding: 0 12px; cursor: pointer; font-weight: 600; }
+      .sendbtn:hover { opacity: .85; }
+      .agtgl { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #999; }
+    `;
+  }
+
+  private getBody(optionsHtml: string): string {
+    return `
+  <div class="hdr">
+    <div class="hdr-row">
+      <span class="brand">🤖 AG UNIVERSAL AI <span class="badge">ONLINE</span></span>
+      <div class="hdr-btns">
+        <button class="ibtn" id="btnClear" title="Clear">🧹</button>
+        <button class="ibtn" id="btnDash" title="Dashboard">📊</button>
+      </div>
+    </div>
+    <select id="selProv">${optionsHtml}</select>
+    <div class="keybar" id="keybar">
+      <input type="password" id="keyIn" placeholder="Paste API Key..." />
+      <button class="ibtn" id="btnSaveKey">💾</button>
+    </div>
+  </div>
+  <div class="chips" id="chips">
+    <span class="chip" data-c="/explain ">/explain</span>
+    <span class="chip" data-c="/refactor ">/refactor</span>
+    <span class="chip" data-c="/test ">/test</span>
+    <span class="chip" data-c="/fix ">/fix</span>
+    <span class="chip" data-c="/docs ">/docs</span>
+    <span class="chip" data-c="/review ">/review</span>
+    <span class="chip" data-c="🤖 ">🤖 Agent</span>
+  </div>
+  <div id="chat">
+    <div class="msg assistant">👋 Welcome to <b>AG Universal AI</b>! Pick a provider above and start coding.</div>
+  </div>
+  <div class="foot">
+    <div class="irow">
+      <textarea id="inp" placeholder="Ask AG AI..."></textarea>
+      <button id="btnSend" class="sendbtn">Send</button>
+    </div>
+    <div class="agtgl">
+      <input type="checkbox" id="agentCb" />
+      <label for="agentCb">Agent Mode (uses tools)</label>
+    </div>
+  </div>`;
+  }
+
+  private getScript(): string {
+    return `
+(function(){
+  var vsc = acquireVsCodeApi();
+  var streamEl = null;
+
+  // ─── Elements ──────────────────────────────────────
+  var inp = document.getElementById('inp');
+  var chat = document.getElementById('chat');
+  var selProv = document.getElementById('selProv');
+  var keybar = document.getElementById('keybar');
+  var keyIn = document.getElementById('keyIn');
+  var agentCb = document.getElementById('agentCb');
+
+  // ─── Buttons ───────────────────────────────────────
+  document.getElementById('btnSend').addEventListener('click', doSend);
+  document.getElementById('btnClear').addEventListener('click', function(){ vsc.postMessage({type:'clear'}); });
+  document.getElementById('btnDash').addEventListener('click', function(){ vsc.postMessage({type:'dashboard'}); });
+  document.getElementById('btnSaveKey').addEventListener('click', function(){
+    if(keyIn.value){ vsc.postMessage({type:'saveKey', id:selProv.value, key:keyIn.value}); keyIn.value=''; }
+  });
+  selProv.addEventListener('change', function(){ vsc.postMessage({type:'switchProvider', id:selProv.value}); });
+
+  // ─── Chips ─────────────────────────────────────────
+  document.getElementById('chips').addEventListener('click', function(e){
+    var t = e.target;
+    if(t && t.getAttribute('data-c')){ inp.value = t.getAttribute('data-c'); inp.focus(); }
+  });
+
+  // ─── Code Apply delegation ─────────────────────────
+  chat.addEventListener('click', function(e){
+    if(e.target && e.target.classList.contains('cbtn')){
+      var pre = e.target.closest('pre');
+      if(pre){ var c = pre.querySelector('code'); if(c) vsc.postMessage({type:'apply', code:c.innerText}); }
+    }
+  });
+
+  // ─── Keyboard ──────────────────────────────────────
+  inp.addEventListener('keydown', function(e){
+    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); doSend(); }
+  });
+
+  // ─── Send ──────────────────────────────────────────
+  function doSend(){
+    var text = inp.value.trim();
+    if(!text) return;
+    addMsg('user', text);
+    streamEl = addMsg('assistant', '⏳ Thinking...');
+    inp.value = '';
+
+    if(agentCb.checked){
+      vsc.postMessage({type:'agent', text:text});
+    } else {
+      var slash = null;
+      if(text.charAt(0)==='/'){
+        var sp = text.indexOf(' ');
+        if(sp>0) slash = text.substring(1, sp);
+      }
+      vsc.postMessage({type:'chat', text:text, slash:slash});
     }
   }
 
-  // ─── HTML/CSS/JS Template ───────────────────────────────────────────────────
+  // ─── Incoming Messages ─────────────────────────────
+  window.addEventListener('message', function(ev){
+    var m = ev.data;
+    if(!m || !m.type) return;
 
-  private getHtml(): string {
-    const activeId = this.providerManager.getActiveProviderId() || 'groq';
-    const presets = getAllPresets();
-    const optionsHtml = presets
-      .map(
-        (p) =>
-          `<option value="${p.id}" ${p.id === activeId ? 'selected' : ''}>${
-            p.id === activeId ? '⭐ ' : ''
-          }${p.name}${p.isLocal ? ' (Local)' : ''}</option>`
-      )
-      .join('\n');
-
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AG Universal AI</title>
-  <style>
-    :root {
-      --bg: var(--vscode-sideBar-background, #1e1e1e);
-      --fg: var(--vscode-sideBar-foreground, #cccccc);
-      --border: var(--vscode-widget-border, #333333);
-      --accent: var(--vscode-button-background, #007acc);
-      --accent-hover: var(--vscode-button-hoverBackground, #005999);
-      --input-bg: var(--vscode-input-background, #252526);
-      --input-fg: var(--vscode-input-foreground, #cccccc);
-      --card-bg: var(--vscode-editor-background, #141414);
-      --user-msg-bg: rgba(0, 122, 204, 0.15);
-      --ai-msg-bg: rgba(255, 255, 255, 0.04);
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
-      font-size: 13px;
-      color: var(--fg);
-      background-color: var(--bg);
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      overflow: hidden;
-    }
-
-    /* Header Controls */
-    .header {
-      padding: 12px;
-      border-bottom: 1px solid var(--border);
-      background: var(--bg);
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .brand-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .brand-title {
-      font-weight: 700;
-      font-size: 13px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      color: #fff;
-    }
-
-    .badge-status {
-      font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 10px;
-      background: rgba(76, 175, 80, 0.2);
-      color: #4caf50;
-      font-weight: 600;
-    }
-
-    .header-actions {
-      display: flex;
-      gap: 6px;
-    }
-
-    .icon-btn {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--fg);
-      padding: 4px 8px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 12px;
-      transition: all 0.2s;
-    }
-
-    .icon-btn:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: var(--accent);
-    }
-
-    .select-box {
-      width: 100%;
-      background: var(--input-bg);
-      color: var(--input-fg);
-      border: 1px solid var(--border);
-      padding: 6px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-      outline: none;
-    }
-
-    .select-box:focus {
-      border-color: var(--accent);
-    }
-
-    /* Key Setup Bar */
-    .key-bar {
-      display: flex;
-      gap: 6px;
-      margin-top: 4px;
-    }
-
-    .key-input {
-      flex: 1;
-      background: var(--input-bg);
-      color: var(--input-fg);
-      border: 1px solid var(--border);
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-    }
-
-    /* Slash Chips */
-    .chips-row {
-      display: flex;
-      gap: 4px;
-      overflow-x: auto;
-      padding: 6px 12px;
-      border-bottom: 1px solid var(--border);
-      background: rgba(0, 0, 0, 0.2);
-      scrollbar-width: none;
-    }
-
-    .chip {
-      white-space: nowrap;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border);
-      color: var(--fg);
-      padding: 3px 8px;
-      border-radius: 12px;
-      font-size: 11px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .chip:hover {
-      background: var(--accent);
-      color: #fff;
-      border-color: var(--accent);
-    }
-
-    /* Chat Messages Area */
-    .chat-container {
-      flex: 1;
-      overflow-y: auto;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .message {
-      padding: 10px 12px;
-      border-radius: 8px;
-      line-height: 1.5;
-      font-size: 12.5px;
-      max-width: 100%;
-      word-wrap: break-word;
-      animation: fadeIn 0.2s ease-in-out;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .message.user {
-      background: var(--user-msg-bg);
-      border: 1px solid rgba(0, 122, 204, 0.3);
-      align-self: flex-end;
-    }
-
-    .message.assistant {
-      background: var(--ai-msg-bg);
-      border: 1px solid var(--border);
-      align-self: flex-start;
-    }
-
-    /* Code Block Formatting */
-    pre {
-      background: #0d0d0d;
-      border: 1px solid #2a2a2a;
-      border-radius: 6px;
-      padding: 10px;
-      margin: 8px 0;
-      overflow-x: auto;
-      position: relative;
-    }
-
-    code {
-      font-family: var(--vscode-editor-font-family, 'Consolas', 'Courier New', monospace);
-      font-size: 11.5px;
-    }
-
-    .code-actions {
-      display: flex;
-      gap: 6px;
-      justify-content: flex-end;
-      margin-top: 6px;
-    }
-
-    .code-btn {
-      background: #222;
-      border: 1px solid #444;
-      color: #ccc;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 10.5px;
-      cursor: pointer;
-    }
-
-    .code-btn:hover {
-      background: var(--accent);
-      color: #fff;
-    }
-
-    /* Input Footer */
-    .input-footer {
-      padding: 12px;
-      border-top: 1px solid var(--border);
-      background: var(--bg);
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .input-wrapper {
-      display: flex;
-      gap: 6px;
-      position: relative;
-    }
-
-    .prompt-textarea {
-      flex: 1;
-      background: var(--input-bg);
-      color: var(--input-fg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 8px;
-      font-size: 12px;
-      resize: none;
-      height: 60px;
-      font-family: inherit;
-      outline: none;
-    }
-
-    .prompt-textarea:focus {
-      border-color: var(--accent);
-    }
-
-    .send-btn {
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      padding: 0 14px;
-      cursor: pointer;
-      font-weight: 600;
-      transition: background 0.2s;
-    }
-
-    .send-btn:hover {
-      background: var(--accent-hover);
-    }
-
-    .agent-toggle {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      color: #aaa;
-    }
-  </style>
-</head>
-<body>
-
-  <!-- Header Section -->
-  <div class="header">
-    <div class="brand-row">
-      <div class="brand-title">
-        <span>🤖 AG UNIVERSAL AI</span>
-        <span class="badge-status" id="statusBadge">ONLINE</span>
-      </div>
-      <div class="header-actions">
-        <button class="icon-btn" id="clearBtn" title="Clear Chat">🧹</button>
-        <button class="icon-btn" id="dashboardBtn" title="Metrics Dashboard">📊</button>
-      </div>
-    </div>
-
-    <!-- Provider Dropdown -->
-    <select id="providerSelect" class="select-box">
-      ${optionsHtml}
-    </select>
-
-    <!-- Key Input Bar -->
-    <div class="key-bar" id="keyBar" style="display: none;">
-      <input type="password" id="keyInput" class="key-input" placeholder="Paste API Key here..." />
-      <button class="icon-btn" id="saveKeyBtn">Save Key</button>
-    </div>
-  </div>
-
-  <!-- Slash Command Quick Chips -->
-  <div class="chips-row">
-    <div class="chip" data-cmd="/explain">/explain</div>
-    <div class="chip" data-cmd="/refactor">/refactor</div>
-    <div class="chip" data-cmd="/test">/test</div>
-    <div class="chip" data-cmd="/fix">/fix</div>
-    <div class="chip" data-cmd="/docs">/docs</div>
-    <div class="chip" data-cmd="/review">/review</div>
-    <div class="chip" data-cmd="🤖 Agent Task: ">🤖 Agent</div>
-  </div>
-
-  <!-- Chat History Area -->
-  <div class="chat-container" id="chatContainer">
-    <div class="message assistant">
-      👋 Welcome to <strong>AG Universal AI</strong>! Select your provider (Groq, Qwen 3.8 2.4T, Kimi K3, OpenRouter, Ollama) and start coding.
-    </div>
-  </div>
-
-  <!-- Input Footer Area -->
-  <div class="input-footer">
-    <div class="input-wrapper">
-      <textarea id="promptInput" class="prompt-textarea" placeholder="Ask AG AI or type a command..."></textarea>
-      <button id="sendBtn" class="send-btn">Send</button>
-    </div>
-    <div class="agent-toggle">
-      <input type="checkbox" id="agentMode" />
-      <label for="agentMode">Plan-Then-Act Agent Mode (Executes Tools)</label>
-    </div>
-  </div>
-
-  <script>
-    (function() {
-      const vscode = acquireVsCodeApi();
-      let currentStreamDiv = null;
-
-      // Register DOM Event Listeners (CSP compliant - no inline onclicks)
-      document.addEventListener('DOMContentLoaded', () => {
-        setupEventListeners();
+    if(m.type === 'state'){
+      // Update dropdown
+      selProv.innerHTML = '';
+      m.providers.forEach(function(p){
+        var o = document.createElement('option');
+        o.value = p.id;
+        o.textContent = (p.id === m.activeId ? '⭐ ':'') + p.name + (p.local ? ' (Local)':'');
+        if(p.id === m.activeId) o.selected = true;
+        selProv.appendChild(o);
       });
-
-      // Also setup immediately in case DOMContentLoaded already fired
-      if (document.readyState === 'interactive' || document.readyState === 'complete') {
-        setupEventListeners();
+      // Show/hide key bar
+      if(m.active && !m.active.hasKey && m.active.url.indexOf('localhost')<0){
+        keybar.style.display = 'flex';
+      } else {
+        keybar.style.display = 'none';
       }
-
-      function setupEventListeners() {
-        const sendBtn = document.getElementById('sendBtn');
-        if (sendBtn && !sendBtn.dataset.bound) {
-          sendBtn.dataset.bound = 'true';
-          sendBtn.addEventListener('click', sendPrompt);
-        }
-
-        const promptInput = document.getElementById('promptInput');
-        if (promptInput && !promptInput.dataset.bound) {
-          promptInput.dataset.bound = 'true';
-          promptInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              sendPrompt();
-            }
-          });
-        }
-
-        const clearBtn = document.getElementById('clearBtn');
-        if (clearBtn && !clearBtn.dataset.bound) {
-          clearBtn.dataset.bound = 'true';
-          clearBtn.addEventListener('click', () => {
-            vscode.postMessage({ command: 'clearChat' });
-          });
-        }
-
-        const dashboardBtn = document.getElementById('dashboardBtn');
-        if (dashboardBtn && !dashboardBtn.dataset.bound) {
-          dashboardBtn.dataset.bound = 'true';
-          dashboardBtn.addEventListener('click', () => {
-            vscode.postMessage({ command: 'openDashboard' });
-          });
-        }
-
-        const saveKeyBtn = document.getElementById('saveKeyBtn');
-        if (saveKeyBtn && !saveKeyBtn.dataset.bound) {
-          saveKeyBtn.dataset.bound = 'true';
-          saveKeyBtn.addEventListener('click', saveApiKey);
-        }
-
-        const providerSelect = document.getElementById('providerSelect');
-        if (providerSelect && !providerSelect.dataset.bound) {
-          providerSelect.dataset.bound = 'true';
-          providerSelect.addEventListener('change', (e) => {
-            vscode.postMessage({ command: 'switchProvider', providerId: e.target.value });
-          });
-        }
-
-        // Chip click delegation
-        document.querySelectorAll('.chip').forEach(chip => {
-          if (!chip.dataset.bound) {
-            chip.dataset.bound = 'true';
-            chip.addEventListener('click', () => {
-              const cmd = chip.getAttribute('data-cmd');
-              if (cmd && promptInput) {
-                promptInput.value = cmd + ' ';
-                promptInput.focus();
-              }
-            });
-          }
-        });
-
-        // Code button click delegation
-        document.addEventListener('click', (e) => {
-          if (e.target && e.target.classList.contains('code-btn')) {
-            const codeEl = e.target.closest('pre')?.querySelector('code');
-            if (codeEl) {
-              vscode.postMessage({ command: 'applyToEditor', code: codeEl.innerText });
-            }
-          }
-        });
-
-        // Sync initial state
-        setTimeout(() => {
-          vscode.postMessage({ command: 'getState' });
-        }, 100);
+    }
+    else if(m.type === 'chunk'){
+      if(streamEl){
+        if(streamEl.innerHTML.indexOf('Thinking')>=0) streamEl.innerHTML = '';
+        streamEl.innerHTML += esc(m.text);
+        bot();
       }
-
-      // Handle incoming messages from Extension Backend
-      window.addEventListener('message', event => {
-        const msg = event.data;
-        switch (msg.command) {
-          case 'stateUpdate':
-            renderState(msg);
-            break;
-          case 'addMessage':
-            appendMessage(msg.role, msg.content);
-            break;
-          case 'startStream':
-            if (!currentStreamDiv) {
-              currentStreamDiv = appendMessage('assistant', '⏳ *Thinking...*');
-            }
-            break;
-          case 'streamChunk':
-            if (currentStreamDiv) {
-              if (currentStreamDiv.innerHTML.includes('Thinking...')) {
-                currentStreamDiv.innerHTML = '';
-              }
-              currentStreamDiv.innerHTML += formatText(msg.chunk);
-              scrollToBottom();
-            }
-            break;
-          case 'endStream':
-            if (currentStreamDiv) {
-              currentStreamDiv.innerHTML = formatMarkdown(msg.fullText);
-              currentStreamDiv = null;
-              scrollToBottom();
-            }
-            break;
-          case 'clearChat':
-            document.getElementById('chatContainer').innerHTML = '';
-            break;
-        }
-      });
-
-      function renderState(state) {
-        const select = document.getElementById('providerSelect');
-        if (select && state.providers) {
-          select.innerHTML = '';
-          state.providers.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p.id;
-            opt.textContent = (p.id === state.activeId ? '⭐ ' : '') + p.name + (p.isLocal ? ' (Local)' : '');
-            if (p.id === state.activeId) opt.selected = true;
-            select.appendChild(opt);
-          });
-        }
-
-        const keyBar = document.getElementById('keyBar');
-        if (keyBar) {
-          if (state.activeProvider && !state.activeProvider.hasKey && !state.activeProvider.baseUrl.includes('localhost')) {
-            keyBar.style.display = 'flex';
-          } else {
-            keyBar.style.display = 'none';
-          }
-        }
+    }
+    else if(m.type === 'done'){
+      if(streamEl){
+        streamEl.innerHTML = md(m.text);
+        streamEl = null;
+        bot();
       }
+    }
+    else if(m.type === 'error'){
+      if(streamEl){ streamEl.innerHTML = '<b style=\"color:#f44\">Error:</b> ' + esc(m.text); streamEl = null; }
+    }
+    else if(m.type === 'cleared'){
+      chat.innerHTML = '';
+    }
+  });
 
-      function saveApiKey() {
-        const keyInput = document.getElementById('keyInput');
-        const select = document.getElementById('providerSelect');
-        if (keyInput && keyInput.value && select) {
-          vscode.postMessage({ command: 'saveApiKey', providerId: select.value, apiKey: keyInput.value });
-          keyInput.value = '';
-        }
-      }
+  // ─── Helpers ───────────────────────────────────────
+  function addMsg(role, text){
+    var d = document.createElement('div');
+    d.className = 'msg ' + role;
+    d.innerHTML = md(text);
+    chat.appendChild(d);
+    bot();
+    return d;
+  }
 
-      function sendPrompt() {
-        const input = document.getElementById('promptInput');
-        if (!input) return;
-        const text = input.value.trim();
-        if (!text) return;
+  function bot(){
+    chat.scrollTop = chat.scrollHeight;
+  }
 
-        // Render user message and thinking indicator immediately
-        appendMessage('user', text);
-        currentStreamDiv = appendMessage('assistant', '⏳ *Thinking...*');
+  function esc(s){
+    if(!s) return '';
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\\n/g,'<br>');
+  }
 
-        const isAgentEl = document.getElementById('agentMode');
-        const isAgent = isAgentEl ? isAgentEl.checked : false;
+  function md(s){
+    if(!s) return '';
+    // Code blocks
+    s = s.replace(/\x60\x60\x60(\\w*)\\n([\\s\\S]*?)\x60\x60\x60/g, function(_,lang,code){
+      return '<pre><code>' + code.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</code><br><button class=\"cbtn\">Apply to Editor</button></pre>';
+    });
+    // Inline code
+    s = s.replace(/\x60([^\x60]+)\x60/g, '<code>$1</code>');
+    // Bold
+    s = s.replace(/\\*\\*(.+?)\\*\\*/g, '<b>$1</b>');
+    // Newlines
+    s = s.replace(/\\n/g, '<br>');
+    return s;
+  }
 
-        if (isAgent) {
-          vscode.postMessage({ command: 'runAgentTask', text: text });
-        } else {
-          let commandType = undefined;
-          if (text.startsWith('/')) {
-            commandType = text.split(' ')[0].substring(1);
-          }
-          vscode.postMessage({ command: 'sendPrompt', text: text, commandType: commandType });
-        }
-
-        input.value = '';
-      }
-
-      function appendMessage(role, text) {
-        const container = document.getElementById('chatContainer');
-        if (!container) return null;
-        const div = document.createElement('div');
-        div.className = 'message ' + role;
-        div.innerHTML = formatMarkdown(text);
-        container.appendChild(div);
-        scrollToBottom();
-        return div;
-      }
-
-      function formatText(str) {
-        if (!str) return '';
-        return str.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
-      }
-
-      function formatMarkdown(text) {
-        if (!text) return '';
-        let html = text.replace(/\`\`\`(\w*)\n([\s\S]*?)\`\`\`/g, function(match, lang, code) {
-          const cleanCode = code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-          return '<pre><code>' + cleanCode + '</code><div class="code-actions"><button class="code-btn">Apply to Editor</button></div></pre>';
-        });
-        html = html.replace(/\`([^\`]+)\`/g, '<code>$1</code>');
-        html = html.replace(/\n/g, '<br/>');
-        return html;
-      }
-
-      function scrollToBottom() {
-        const container = document.getElementById('chatContainer');
-        if (container) {
-          container.scrollTop = container.scrollHeight;
-        }
-      }
-    })();
-  </script>
-</body>
-</html>`;
+  // Signal ready
+  vsc.postMessage({type:'ready'});
+})();
+`;
   }
 }
