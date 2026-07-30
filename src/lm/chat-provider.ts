@@ -52,7 +52,6 @@ export class AGLanguageModelChatProvider implements vscode.Disposable {
     }
 
     const chatMessages = this.convertMessages(messages);
-
     const config = vscode.workspace.getConfiguration('ag-universal-ai');
 
     const request = {
@@ -66,7 +65,45 @@ export class AGLanguageModelChatProvider implements vscode.Disposable {
 
     this.log(`Chat request → ${provider.name} (${request.model}), ${chatMessages.length} messages`);
 
-    return provider.stream(request, options.signal);
+    const startTime = Date.now();
+    const promptChars = chatMessages.reduce((acc, m) => acc + (typeof m.content === 'string' ? m.content.length : 0), 0);
+    const promptTokensEst = Math.ceil(promptChars / 4);
+
+    const self = this;
+    async function* streamWrapper() {
+      let full = '';
+      try {
+        const stream = provider!.stream(request, options.signal);
+        for await (const chunk of stream) {
+          full += chunk;
+          yield chunk;
+        }
+        self.providerManager.recordMetric({
+          providerId: provider!.id,
+          model: request.model,
+          isStream: true,
+          promptTokens: promptTokensEst,
+          completionTokens: Math.ceil(full.length / 4),
+          latencyMs: Date.now() - startTime,
+          status: 'success',
+        });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        self.providerManager.recordMetric({
+          providerId: provider!.id,
+          model: request.model,
+          isStream: true,
+          promptTokens: promptTokensEst,
+          completionTokens: 0,
+          latencyMs: Date.now() - startTime,
+          status: 'error',
+          errorMessage: msg,
+        });
+        throw err;
+      }
+    }
+
+    return streamWrapper();
   }
 
   /**
@@ -98,8 +135,37 @@ export class AGLanguageModelChatProvider implements vscode.Disposable {
       stream: false,
     };
 
-    const response = await provider.chat(request);
-    return response.choices[0]?.message?.content as string || '';
+    const startTime = Date.now();
+    const promptChars = chatMessages.reduce((acc, m) => acc + (typeof m.content === 'string' ? m.content.length : 0), 0);
+    const promptTokensEst = Math.ceil(promptChars / 4);
+
+    try {
+      const response = await provider.chat(request);
+      const content = (response.choices[0]?.message?.content as string) || '';
+      this.providerManager.recordMetric({
+        providerId: provider.id,
+        model: request.model,
+        isStream: false,
+        promptTokens: response.usage?.prompt_tokens || promptTokensEst,
+        completionTokens: response.usage?.completion_tokens || Math.ceil(content.length / 4),
+        latencyMs: Date.now() - startTime,
+        status: 'success',
+      });
+      return content;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.providerManager.recordMetric({
+        providerId: provider.id,
+        model: request.model,
+        isStream: false,
+        promptTokens: promptTokensEst,
+        completionTokens: 0,
+        latencyMs: Date.now() - startTime,
+        status: 'error',
+        errorMessage: msg,
+      });
+      throw err;
+    }
   }
 
   // ─── Private Methods ────────────────────────────────────────────────────────

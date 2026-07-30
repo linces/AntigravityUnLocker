@@ -120,6 +120,10 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
     this.log(`Calling ${provider.name} (${provider.config.model})...`);
 
+    const startTime = Date.now();
+    const promptChars = msgs.reduce((acc, m) => acc + (typeof m.content === 'string' ? m.content.length : 0), 0);
+    const promptTokensEst = Math.ceil(promptChars / 4);
+
     let full = '';
     try {
       const stream = provider.stream({
@@ -133,9 +137,33 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         full += chunk;
         this.post({ type: 'chunk', text: chunk });
       }
+
+      const latencyMs = Date.now() - startTime;
+      const completionTokensEst = Math.ceil(full.length / 4);
+      this.providerManager.recordMetric({
+        providerId: provider.id,
+        model: provider.config.model,
+        isStream: true,
+        promptTokens: promptTokensEst,
+        completionTokens: completionTokensEst,
+        latencyMs,
+        status: 'success',
+      });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       this.log(`Provider ${provider.id} failed: ${msg}`);
+
+      const latencyMs = Date.now() - startTime;
+      this.providerManager.recordMetric({
+        providerId: provider.id,
+        model: provider.config.model,
+        isStream: true,
+        promptTokens: promptTokensEst,
+        completionTokens: 0,
+        latencyMs,
+        status: 'error',
+        errorMessage: msg,
+      });
 
       // Fallback
       const fbId = provider.id !== 'groq' ? 'groq' : 'ollama-local';
@@ -143,12 +171,34 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       if (fb) {
         this.log(`Falling back to ${fb.name}`);
         this.post({ type: 'chunk', text: `\n⚠️ ${provider.name} failed. Trying ${fb.name}...\n\n` });
+        const fbStartTime = Date.now();
         try {
           const s2 = fb.stream({ model: fb.config.model, messages: msgs, temperature: 0.7, stream: true });
-          for await (const c of s2) { full += c; this.post({ type: 'chunk', text: c }); }
+          let fbFull = '';
+          for await (const c of s2) { fbFull += c; full += c; this.post({ type: 'chunk', text: c }); }
+
+          this.providerManager.recordMetric({
+            providerId: fb.id,
+            model: fb.config.model,
+            isStream: true,
+            promptTokens: promptTokensEst,
+            completionTokens: Math.ceil(fbFull.length / 4),
+            latencyMs: Date.now() - fbStartTime,
+            status: 'success',
+          });
         } catch (e2: unknown) {
           const m2 = e2 instanceof Error ? e2.message : String(e2);
           full = `❌ ${provider.name}: ${msg}\n❌ ${fb.name}: ${m2}`;
+          this.providerManager.recordMetric({
+            providerId: fb.id,
+            model: fb.config.model,
+            isStream: true,
+            promptTokens: promptTokensEst,
+            completionTokens: 0,
+            latencyMs: Date.now() - fbStartTime,
+            status: 'error',
+            errorMessage: m2,
+          });
         }
       } else {
         full = `❌ ${provider.name}: ${msg}`;
@@ -160,11 +210,38 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   }
 
   private async handleAgent(goal: string): Promise<void> {
+    const startTime = Date.now();
+    const activeProvider = this.providerManager.getActiveProvider();
+    const providerId = activeProvider ? activeProvider.id : 'agent';
+    const model = activeProvider ? activeProvider.config.model : 'agent-loop';
+
     try {
       const result = await this.agentEngine.run(goal, 'Use tools to accomplish the goal.');
+      const latencyMs = Date.now() - startTime;
+      const totalChars = result.response.length;
+      this.providerManager.recordMetric({
+        providerId,
+        model,
+        isStream: false,
+        promptTokens: Math.ceil(goal.length / 4),
+        completionTokens: Math.ceil(totalChars / 4),
+        latencyMs,
+        status: 'success',
+      });
       this.post({ type: 'done', text: `✅ Agent done (${result.iterations} steps, ${result.toolCalls.length} tools)\n\n${result.response}` });
     } catch (err: unknown) {
-      this.post({ type: 'done', text: `❌ Agent error: ${err instanceof Error ? err.message : String(err)}` });
+      const msg = err instanceof Error ? err.message : String(err);
+      this.providerManager.recordMetric({
+        providerId,
+        model,
+        isStream: false,
+        promptTokens: Math.ceil(goal.length / 4),
+        completionTokens: 0,
+        latencyMs: Date.now() - startTime,
+        status: 'error',
+        errorMessage: msg,
+      });
+      this.post({ type: 'done', text: `❌ Agent error: ${msg}` });
     }
   }
 

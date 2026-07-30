@@ -172,40 +172,69 @@ export class AGInlineCompletionProvider
         stop: ['\n\n\n', '```', '// ---'],
       };
 
+      const startTime = Date.now();
+      const promptChars = systemPrompt.length + prompt.length;
+
       // Call provider
-      const response = await provider.chat(request);
-      const completionText = response.choices[0]?.message?.content;
+      try {
+        const response = await provider.chat(request);
+        const completionText = response.choices[0]?.message?.content;
+        const latencyMs = Date.now() - startTime;
 
-      if (
-        !completionText ||
-        typeof completionText !== 'string' ||
-        completionText.trim().length === 0
-      ) {
+        this.providerManager.recordMetric({
+          providerId: provider.id,
+          model: completionModel,
+          isStream: false,
+          promptTokens: response.usage?.prompt_tokens || Math.ceil(promptChars / 4),
+          completionTokens: response.usage?.completion_tokens || Math.ceil((typeof completionText === 'string' ? completionText.length : 0) / 4),
+          latencyMs,
+          status: 'success',
+        });
+
+        if (
+          !completionText ||
+          typeof completionText !== 'string' ||
+          completionText.trim().length === 0
+        ) {
+          return undefined;
+        }
+
+        // Clean up the completion
+        const cleaned = this.cleanCompletion(completionText, ctx);
+        if (!cleaned || cleaned.trim().length === 0) {
+          return undefined;
+        }
+
+        // Verify this request is still the latest
+        if (requestId !== this.lastRequestId || token.isCancellationRequested) {
+          return undefined;
+        }
+
+        // Cache the result
+        this.cacheResult(cacheKey, cleaned);
+
+        this.log(`Completion generated: ${cleaned.length} chars`);
+
+        return [
+          new vscode.InlineCompletionItem(
+            cleaned,
+            new vscode.Range(position, position)
+          ),
+        ];
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.providerManager.recordMetric({
+          providerId: provider.id,
+          model: completionModel,
+          isStream: false,
+          promptTokens: Math.ceil(promptChars / 4),
+          completionTokens: 0,
+          latencyMs: Date.now() - startTime,
+          status: 'error',
+          errorMessage: msg,
+        });
         return undefined;
       }
-
-      // Clean up the completion
-      const cleaned = this.cleanCompletion(completionText, ctx);
-      if (!cleaned || cleaned.trim().length === 0) {
-        return undefined;
-      }
-
-      // Verify this request is still the latest
-      if (requestId !== this.lastRequestId || token.isCancellationRequested) {
-        return undefined;
-      }
-
-      // Cache the result
-      this.cacheResult(cacheKey, cleaned);
-
-      this.log(`Completion generated: ${cleaned.length} chars`);
-
-      return [
-        new vscode.InlineCompletionItem(
-          cleaned,
-          new vscode.Range(position, position)
-        ),
-      ];
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') {
         return undefined;

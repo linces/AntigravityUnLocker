@@ -60,6 +60,9 @@ export class ProviderManager implements vscode.Disposable {
   private readonly _onDidChangeHealth = new vscode.EventEmitter<{ id: string; status: HealthStatus }>();
   public readonly onDidChangeHealth = this._onDidChangeHealth.event;
 
+  private readonly _onDidChangeMetrics = new vscode.EventEmitter<RequestMetric>();
+  public readonly onDidChangeMetrics = this._onDidChangeMetrics.event;
+
   constructor(
     private readonly context: vscode.ExtensionContext,
     outputChannel: vscode.OutputChannel
@@ -206,10 +209,29 @@ export class ProviderManager implements vscode.Disposable {
     try {
       const startTime = Date.now();
       const response = await active.chat(request);
-      this.recordMetric(active, request, response, Date.now() - startTime, 'success');
+      this.recordMetric({
+        providerId: active.id,
+        model: response.model || request.model,
+        isStream: false,
+        promptTokens: response.usage?.prompt_tokens || 0,
+        completionTokens: response.usage?.completion_tokens || 0,
+        latencyMs: Date.now() - startTime,
+        status: 'success',
+      });
       return response;
     } catch (err: unknown) {
-      this.log(`Primary provider "${active.id}" failed: ${err instanceof Error ? err.message : String(err)}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      this.log(`Primary provider "${active.id}" failed: ${msg}`);
+      this.recordMetric({
+        providerId: active.id,
+        model: request.model,
+        isStream: false,
+        promptTokens: 0,
+        completionTokens: 0,
+        latencyMs: 0,
+        status: 'error',
+        errorMessage: msg,
+      });
     }
 
     // Try fallback providers
@@ -225,10 +247,29 @@ export class ProviderManager implements vscode.Disposable {
         this.log(`Trying fallback provider: ${fallback.name}`);
         const startTime = Date.now();
         const response = await fallback.chat(request);
-        this.recordMetric(fallback, request, response, Date.now() - startTime, 'success');
+        this.recordMetric({
+          providerId: fallback.id,
+          model: response.model || request.model,
+          isStream: false,
+          promptTokens: response.usage?.prompt_tokens || 0,
+          completionTokens: response.usage?.completion_tokens || 0,
+          latencyMs: Date.now() - startTime,
+          status: 'success',
+        });
         return response;
       } catch (err: unknown) {
-        this.log(`Fallback provider "${fallback.id}" also failed: ${err instanceof Error ? err.message : String(err)}`);
+        const msg = err instanceof Error ? err.message : String(err);
+        this.log(`Fallback provider "${fallback.id}" also failed: ${msg}`);
+        this.recordMetric({
+          providerId: fallback.id,
+          model: request.model,
+          isStream: false,
+          promptTokens: 0,
+          completionTokens: 0,
+          latencyMs: 0,
+          status: 'error',
+          errorMessage: msg,
+        });
       }
     }
 
@@ -358,27 +399,34 @@ export class ProviderManager implements vscode.Disposable {
     }
   }
 
-  private recordMetric(
-    provider: ILLMProvider,
-    request: ChatCompletionRequest,
-    response: ChatCompletionResponse,
-    latencyMs: number,
-    status: 'success' | 'error'
-  ): void {
+  /**
+   * Record telemetry metric for a request.
+   */
+  public recordMetric(data: {
+    providerId: string;
+    model: string;
+    isStream: boolean;
+    promptTokens: number;
+    completionTokens: number;
+    latencyMs: number;
+    status: 'success' | 'error';
+    errorMessage?: string;
+  }): void {
     const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
     if (!config.get<boolean>('telemetry.enabled', true)) {return;}
 
     const metric: RequestMetric = {
       id: `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       timestamp: new Date().toISOString(),
-      providerId: provider.id,
-      model: response.model || request.model,
-      isStream: request.stream || false,
-      promptTokens: response.usage?.prompt_tokens || 0,
-      completionTokens: response.usage?.completion_tokens || 0,
-      totalTokens: response.usage?.total_tokens || 0,
-      latencyMs,
-      status,
+      providerId: data.providerId,
+      model: data.model,
+      isStream: data.isStream,
+      promptTokens: data.promptTokens,
+      completionTokens: data.completionTokens,
+      totalTokens: data.promptTokens + data.completionTokens,
+      latencyMs: data.latencyMs,
+      status: data.status,
+      errorMessage: data.errorMessage,
     };
 
     this.metrics.push(metric);
@@ -387,6 +435,27 @@ export class ProviderManager implements vscode.Disposable {
     if (this.metrics.length > 1000) {
       this.metrics = this.metrics.slice(-1000);
     }
+
+    this._onDidChangeMetrics.fire(metric);
+  }
+
+  /**
+   * Clear all recorded metrics.
+   */
+  public clearMetrics(): void {
+    this.metrics = [];
+    this._onDidChangeMetrics.fire({
+      id: 'clear',
+      timestamp: new Date().toISOString(),
+      providerId: 'system',
+      model: 'system',
+      isStream: false,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      latencyMs: 0,
+      status: 'success',
+    });
   }
 
   private log(message: string): void {
@@ -459,6 +528,7 @@ export class ProviderManager implements vscode.Disposable {
   public dispose(): void {
     this._onDidChangeProvider.dispose();
     this._onDidChangeHealth.dispose();
+    this._onDidChangeMetrics.dispose();
     for (const d of this.disposables) {
       d.dispose();
     }
