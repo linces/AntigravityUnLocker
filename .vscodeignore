@@ -2,6 +2,12 @@
 .git/
 .gitignore
 .agents/
+.env
+*.env
+*.vsix
+implementation_plan.md
+task.md
+walkthrough.md
 src/
 test/
 docs/

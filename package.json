@@ -4,6 +4,7 @@
   "description": "Universal multi-provider AI assistant for VS Code & Antigravity IDE — Code completion, chat, agent workflows, MCP, and tool calling powered by any OpenAI-compatible backend.",
   "version": "0.1.0",
   "publisher": "linces",
+  "icon": "resources/icons/ag-icon.png",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -257,7 +258,7 @@
     "build": "node esbuild.config.mjs",
     "watch": "node esbuild.config.mjs --watch",
     "lint": "eslint src --ext ts",
-    "test": "node ./test/runTest.js",
+    "test": "node ./test/runUnitTests.mjs",
     "package": "npx @vscode/vsce package --no-dependencies"
   },
   "devDependencies": {
