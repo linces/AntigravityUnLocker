@@ -259,7 +259,7 @@
     "watch": "node esbuild.config.mjs --watch",
     "lint": "eslint src --ext ts",
     "test": "node ./test/runUnitTests.mjs",
-    "package": "npx @vscode/vsce package --no-dependencies"
+    "package": "npx @vscode/vsce package --no-dependencies --allow-star-activation"
   },
   "devDependencies": {
     "@types/vscode": "^1.85.0",
