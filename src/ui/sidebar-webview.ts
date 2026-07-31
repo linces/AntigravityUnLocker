@@ -635,21 +635,22 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
   function esc(s){
     if(!s) return '';
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\\n').join('<br>');
   }
 
   function md(s){
     if(!s) return '';
     // Code blocks
-    s = s.replace(/\x60\x60\x60(\\w*)\\n([\\s\\S]*?)\x60\x60\x60/g, function(_,lang,code){
-      return '<pre><code>' + code.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</code><br><button class=\"cbtn\">Apply to Editor</button></pre>';
+    s = s.replace(/\x60\x60\x60([\s\S]*?)\x60\x60\x60/g, function(_, code){
+      var cleanCode = code.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      return '<pre><code>' + cleanCode + '</code><br><button class="cbtn">Apply to Editor</button></pre>';
     });
     // Inline code
     s = s.replace(/\x60([^\x60]+)\x60/g, '<code>$1</code>');
     // Bold
-    s = s.replace(/\\*\\*(.+?)\\*\\*/g, '<b>$1</b>');
+    s = s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
     // Newlines
-    s = s.replace(/\\n/g, '<br>');
+    s = s.split('\\n').join('<br>');
     return s;
   }
 
