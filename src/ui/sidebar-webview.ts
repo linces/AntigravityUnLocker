@@ -471,7 +471,13 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   private getScript(): string {
     return `
 (function(){
-  var vsc = acquireVsCodeApi();
+  var vsc;
+  try {
+    vsc = acquireVsCodeApi();
+  } catch (e) {
+    console.error('[AG AI Webview] Failed to acquire VS Code API:', e);
+  }
+
   var streamEl = null;
 
   // ─── Elements ──────────────────────────────────────
@@ -483,56 +489,101 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   var keyIn = document.getElementById('keyIn');
   var agentCb = document.getElementById('agentCb');
 
-  // ─── Buttons ───────────────────────────────────────
   var isUpdatingUI = false;
 
-  document.getElementById('btnSend').addEventListener('click', doSend);
-  document.getElementById('btnClear').addEventListener('click', function(){ vsc.postMessage({type:'clear'}); });
-  document.getElementById('btnDash').addEventListener('click', function(){ vsc.postMessage({type:'dashboard'}); });
-  document.getElementById('btnSaveKey').addEventListener('click', function(){
-    if(keyIn.value){ vsc.postMessage({type:'saveKey', id:selProv.value, key:keyIn.value}); keyIn.value=''; }
-  });
-  selProv.addEventListener('change', function(){
-    if(!isUpdatingUI) vsc.postMessage({type:'switchProvider', id:selProv.value});
-  });
-  selModel.addEventListener('change', function(){
-    if(!isUpdatingUI && selModel.value) vsc.postMessage({type:'switchModel', model:selModel.value});
-  });
-
-  // ─── Chips ─────────────────────────────────────────
-  document.getElementById('chips').addEventListener('click', function(e){
+  // ─── Global Event Delegation ───────────────────────
+  document.addEventListener('click', function(e){
     var t = e.target;
-    if(t && t.getAttribute('data-c')){ inp.value = t.getAttribute('data-c'); inp.focus(); }
-  });
+    if(!t) return;
 
-  // ─── Code Apply delegation ─────────────────────────
-  chat.addEventListener('click', function(e){
-    if(e.target && e.target.classList.contains('cbtn')){
-      var pre = e.target.closest('pre');
-      if(pre){ var c = pre.querySelector('code'); if(c) vsc.postMessage({type:'apply', code:c.innerText}); }
+    var btnDash = t.id === 'btnDash' ? t : t.closest('#btnDash');
+    if(btnDash){
+      if(vsc) vsc.postMessage({type:'dashboard'});
+      return;
+    }
+
+    var btnClear = t.id === 'btnClear' ? t : t.closest('#btnClear');
+    if(btnClear){
+      if(vsc) vsc.postMessage({type:'clear'});
+      return;
+    }
+
+    var btnSend = t.id === 'btnSend' ? t : t.closest('#btnSend');
+    if(btnSend){
+      doSend();
+      return;
+    }
+
+    var btnSaveKey = t.id === 'btnSaveKey' ? t : t.closest('#btnSaveKey');
+    if(btnSaveKey){
+      if(keyIn && keyIn.value && selProv && vsc){
+        vsc.postMessage({type:'saveKey', id:selProv.value, key:keyIn.value});
+        keyIn.value = '';
+      }
+      return;
+    }
+
+    if(t.classList && t.classList.contains('chip')){
+      var c = t.getAttribute('data-c');
+      if(c && inp){ inp.value = c; inp.focus(); }
+      return;
+    }
+
+    if(t.classList && t.classList.contains('cbtn')){
+      var pre = t.closest('pre');
+      if(pre){
+        var code = pre.querySelector('code');
+        if(code && vsc) vsc.postMessage({type:'apply', code:code.innerText});
+      }
+      return;
     }
   });
 
-  // ─── Keyboard ──────────────────────────────────────
-  inp.addEventListener('keydown', function(e){
-    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); doSend(); }
-  });
+  // ─── Dropdown Listeners ─────────────────────────────
+  if(selProv){
+    selProv.addEventListener('change', function(){
+      if(!isUpdatingUI && vsc) vsc.postMessage({type:'switchProvider', id:selProv.value});
+    });
+  }
 
-  // ─── Send ──────────────────────────────────────────
+  if(selModel){
+    selModel.addEventListener('change', function(){
+      if(!isUpdatingUI && selModel.value && vsc) vsc.postMessage({type:'switchModel', model:selModel.value});
+    });
+  }
+
+  // ─── Keyboard ──────────────────────────────────────
+  if(inp){
+    inp.addEventListener('keydown', function(e){
+      if(e.key === 'Enter' && !e.shiftKey){
+        e.preventDefault();
+        doSend();
+      }
+    });
+  }
+
+  // ─── Send Function ─────────────────────────────────
   function doSend(){
+    if(!inp) return;
     var text = inp.value.trim();
     if(!text) return;
+
     addMsg('user', text);
     streamEl = addMsg('assistant', '⏳ Thinking...');
     inp.value = '';
 
-    if(agentCb.checked){
+    if(!vsc){
+      if(streamEl) streamEl.innerHTML = '❌ Error: VS Code API not connected.';
+      return;
+    }
+
+    if(agentCb && agentCb.checked){
       vsc.postMessage({type:'agent', text:text});
     } else {
       var slash = null;
-      if(text.charAt(0)==='/'){
+      if(text.charAt(0) === '/'){
         var sp = text.indexOf(' ');
-        if(sp>0) slash = text.substring(1, sp);
+        if(sp > 0) slash = text.substring(1, sp);
       }
       vsc.postMessage({type:'chat', text:text, slash:slash});
     }
@@ -546,52 +597,55 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     if(m.type === 'state'){
       isUpdatingUI = true;
       try {
-        // Update provider dropdown
-        selProv.innerHTML = '';
-        m.providers.forEach(function(p){
-          var o = document.createElement('option');
-          o.value = p.id;
-          o.textContent = (p.id === m.activeId ? '⭐ ':'') + p.name;
-          selProv.appendChild(o);
-        });
-        selProv.value = m.activeId;
-
-        // Update model dropdown
-        selModel.innerHTML = '';
-        var curModel = m.active ? m.active.model : '';
-        if(m.models && m.models.length > 0){
-          var foundActive = false;
-          m.models.forEach(function(mdl){
+        if(selProv){
+          selProv.innerHTML = '';
+          m.providers.forEach(function(p){
             var o = document.createElement('option');
-            o.value = mdl;
-            o.textContent = mdl;
-            if(mdl === curModel) foundActive = true;
-            selModel.appendChild(o);
+            o.value = p.id;
+            o.textContent = (p.id === m.activeId ? '⭐ ':'') + p.name;
+            selProv.appendChild(o);
           });
-          if(curModel && !foundActive){
+          selProv.value = m.activeId;
+        }
+
+        if(selModel){
+          selModel.innerHTML = '';
+          var curModel = m.active ? m.active.model : '';
+          if(m.models && m.models.length > 0){
+            var foundActive = false;
+            m.models.forEach(function(mdl){
+              var o = document.createElement('option');
+              o.value = mdl;
+              o.textContent = mdl;
+              if(mdl === curModel) foundActive = true;
+              selModel.appendChild(o);
+            });
+            if(curModel && !foundActive){
+              var o = document.createElement('option');
+              o.value = curModel;
+              o.textContent = curModel;
+              selModel.insertBefore(o, selModel.firstChild);
+            }
+            if(curModel) selModel.value = curModel;
+            selModel.style.display = 'block';
+          } else if(curModel){
             var o = document.createElement('option');
             o.value = curModel;
             o.textContent = curModel;
-            selModel.insertBefore(o, selModel.firstChild);
+            selModel.appendChild(o);
+            selModel.value = curModel;
+            selModel.style.display = 'block';
+          } else {
+            selModel.style.display = 'none';
           }
-          if(curModel) selModel.value = curModel;
-          selModel.style.display = 'block';
-        } else if(curModel){
-          var o = document.createElement('option');
-          o.value = curModel;
-          o.textContent = curModel;
-          selModel.appendChild(o);
-          selModel.value = curModel;
-          selModel.style.display = 'block';
-        } else {
-          selModel.style.display = 'none';
         }
 
-        // Show/hide key bar
-        if(m.active && !m.active.hasKey && m.active.url.indexOf('localhost')<0){
-          keybar.style.display = 'flex';
-        } else {
-          keybar.style.display = 'none';
+        if(keybar){
+          if(m.active && !m.active.hasKey && m.active.url.indexOf('localhost') < 0){
+            keybar.style.display = 'flex';
+          } else {
+            keybar.style.display = 'none';
+          }
         }
       } finally {
         isUpdatingUI = false;
@@ -599,7 +653,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     }
     else if(m.type === 'chunk'){
       if(streamEl){
-        if(streamEl.innerHTML.indexOf('Thinking')>=0) streamEl.innerHTML = '';
+        if(streamEl.innerHTML.indexOf('Thinking') >= 0) streamEl.innerHTML = '';
         streamEl.innerHTML += esc(m.text);
         bot();
       }
@@ -612,10 +666,13 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       }
     }
     else if(m.type === 'error'){
-      if(streamEl){ streamEl.innerHTML = '<b style=\"color:#f44\">Error:</b> ' + esc(m.text); streamEl = null; }
+      if(streamEl){
+        streamEl.innerHTML = '<b style="color:#f44">Error:</b> ' + esc(m.text);
+        streamEl = null;
+      }
     }
     else if(m.type === 'cleared'){
-      chat.innerHTML = '';
+      if(chat) chat.innerHTML = '';
     }
   });
 
@@ -624,13 +681,13 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     var d = document.createElement('div');
     d.className = 'msg ' + role;
     d.innerHTML = md(text);
-    chat.appendChild(d);
+    if(chat) chat.appendChild(d);
     bot();
     return d;
   }
 
   function bot(){
-    chat.scrollTop = chat.scrollHeight;
+    if(chat) chat.scrollTop = chat.scrollHeight;
   }
 
   function esc(s){
@@ -640,22 +697,17 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
   function md(s){
     if(!s) return '';
-    // Code blocks
     s = s.replace(/\x60\x60\x60([\s\S]*?)\x60\x60\x60/g, function(_, code){
       var cleanCode = code.replace(/</g,'&lt;').replace(/>/g,'&gt;');
       return '<pre><code>' + cleanCode + '</code><br><button class="cbtn">Apply to Editor</button></pre>';
     });
-    // Inline code
     s = s.replace(/\x60([^\x60]+)\x60/g, '<code>$1</code>');
-    // Bold
     s = s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
-    // Newlines
     s = s.split('\\n').join('<br>');
     return s;
   }
 
-  // Signal ready
-  vsc.postMessage({type:'ready'});
+  if(vsc) vsc.postMessage({type:'ready'});
 })();
 `;
   }
