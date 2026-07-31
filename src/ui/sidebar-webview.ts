@@ -608,6 +608,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     var text = inputEl.value.trim();
     if(!text) return;
 
+    console.log('[AG Webview] doSend called:', text);
     addMsg('user', text);
     streamEl = addMsg('assistant', '⏳ Thinking...');
     inputEl.value = '';
@@ -741,21 +742,22 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
   function esc(s){
     if(!s) return '';
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\\n').join('<br>');
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\\\\n').join('<br>');
   }
 
   function md(s){
     if(!s) return '';
-    s = s.replace(/\x60\x60\x60([\s\S]*?)\x60\x60\x60/g, function(_, code){
+    s = s.replace(new RegExp('\\\\x60\\\\x60\\\\x60([\\\\s\\\\S]*?)\\\\x60\\\\x60\\\\x60', 'g'), function(_, code){
       var cleanCode = code.replace(/</g,'&lt;').replace(/>/g,'&gt;');
       return '<pre><code>' + cleanCode + '</code><br><button class="cbtn">Apply to Editor</button></pre>';
     });
-    s = s.replace(/\x60([^\x60]+)\x60/g, '<code>$1</code>');
-    s = s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
-    s = s.split('\\n').join('<br>');
+    s = s.replace(new RegExp('\\\\x60([^\\\\x60]+)\\\\x60', 'g'), '<code>$1</code>');
+    s = s.replace(new RegExp('\\\\*\\\\*(.+?)\\\\*\\\\*', 'g'), '<b>$1</b>');
+    s = s.split('\\\\n').join('<br>');
     return s;
   }
 
+  console.log('[AG Webview] Initialized successfully!');
   if(vsc) vsc.postMessage({type:'ready'});
 })();
 `;
