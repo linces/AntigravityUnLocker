@@ -526,6 +526,8 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   document.addEventListener('click', function(e){
     var t = e.target;
     if(!t) return;
+    if(t.nodeType === 3) t = t.parentElement;
+    if(!t || typeof t.closest !== 'function') return;
 
     var btnDash = t.id === 'btnDash' ? t : t.closest('#btnDash');
     if(btnDash){
@@ -558,16 +560,19 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
     var btnSaveKey = t.id === 'btnSaveKey' ? t : t.closest('#btnSaveKey');
     if(btnSaveKey){
-      if(keyIn && keyIn.value && selProv && vsc){
-        vsc.postMessage({type:'saveKey', id:selProv.value, key:keyIn.value});
-        keyIn.value = '';
+      var kIn = document.getElementById('keyIn');
+      var sPr = document.getElementById('selProv');
+      if(kIn && kIn.value && sPr && vsc){
+        vsc.postMessage({type:'saveKey', id:sPr.value, key:kIn.value});
+        kIn.value = '';
       }
       return;
     }
 
     if(t.classList && t.classList.contains('chip')){
       var c = t.getAttribute('data-c');
-      if(c && inp){ inp.value = c; inp.focus(); }
+      var inputEl = document.getElementById('inp');
+      if(c && inputEl){ inputEl.value = c; inputEl.focus(); }
       return;
     }
 
@@ -595,24 +600,23 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   }
 
   // ─── Keyboard ──────────────────────────────────────
-  if(inp){
-    inp.addEventListener('keydown', function(e){
-      if(e.key === 'Enter' && !e.shiftKey){
-        e.preventDefault();
-        doSend();
-      }
-    });
-  }
+  document.addEventListener('keydown', function(e){
+    if(e.target && e.target.id === 'inp' && e.key === 'Enter' && !e.shiftKey){
+      e.preventDefault();
+      doSend();
+    }
+  });
 
   // ─── Send Function ─────────────────────────────────
   function doSend(){
-    if(!inp) return;
-    var text = inp.value.trim();
+    var inputEl = document.getElementById('inp');
+    if(!inputEl) return;
+    var text = inputEl.value.trim();
     if(!text) return;
 
     addMsg('user', text);
     streamEl = addMsg('assistant', '⏳ Thinking...');
-    inp.value = '';
+    inputEl.value = '';
 
     if(!vsc){
       if(streamEl) streamEl.innerHTML = '❌ Error: VS Code API not connected.';
@@ -625,7 +629,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       var slash = null;
       if(text.charAt(0) === '/'){
         var sp = text.indexOf(' ');
-        if(sp > 0) slash = text.substring(1, sp);
+        slash = sp > 0 ? text.substring(1, sp) : text.substring(1);
       }
       vsc.postMessage({type:'chat', text:text, slash:slash});
     }
