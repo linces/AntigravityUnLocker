@@ -22,6 +22,7 @@
 
 ### 🤖 Multi-Provider AI Chat (`@ag` & Kimi/Cursor Sidebar)
 - Native chat participant integrated into VS Code's chat panel and custom Sidebar Webview (`ag-sidebar`)
+- Modern Chat-First UI — Chat history occupies the full upper body area, with Provider/Model selectors, slash command chips, and key management integrated into the bottom footer
 - Dynamic Provider & Model Switcher — switch active AI provider and select specific model per provider with real-time sync across Sidebar, Status Bar, QuickPick, and Dashboard
 - Slash commands: `/explain`, `/refactor`, `/test`, `/fix`, `/docs`, `/review`
 - Context-aware with `#file` and `#selection` references
@@ -92,4 +93,4 @@ MIT — See [LICENSE](./LICENSE)
 
 ---
 
-**Versão:** 0.1.1 | **Última Revisão:** 2026-07-31 18:19:00
+**Versão:** 0.1.1 | **Última Revisão:** 2026-07-31 18:22:00

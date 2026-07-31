@@ -392,19 +392,13 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       }
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body { font-family: var(--vscode-font-family, sans-serif); font-size: 13px; color: var(--fg); background: var(--bg); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-      .hdr { padding: 10px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
-      .hdr-row { display: flex; align-items: center; justify-content: space-between; }
-      .brand { font-weight: 700; font-size: 13px; color: #fff; }
-      .badge { font-size: 9px; padding: 2px 5px; border-radius: 8px; background: rgba(76,175,80,.2); color: #4caf50; margin-left: 6px; }
+      .hdr { padding: 8px 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+      .hdr-row { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+      .brand { font-weight: 700; font-size: 12px; color: #fff; display: flex; align-items: center; gap: 4px; }
+      .badge { font-size: 9px; padding: 2px 5px; border-radius: 8px; background: rgba(76,175,80,.2); color: #4caf50; }
       .hdr-btns { display: flex; gap: 4px; }
       .ibtn { background: transparent; border: 1px solid var(--border); color: var(--fg); padding: 3px 7px; border-radius: 3px; cursor: pointer; font-size: 12px; }
       .ibtn:hover { background: rgba(255,255,255,.1); }
-      select { width: 100%; background: var(--input-bg); color: var(--input-fg); border: 1px solid var(--border); padding: 5px; border-radius: 3px; font-size: 12px; }
-      .keybar { display: none; gap: 4px; margin-top: 4px; }
-      .keybar input { flex: 1; background: var(--input-bg); color: var(--input-fg); border: 1px solid var(--border); padding: 3px 6px; border-radius: 3px; font-size: 11px; }
-      .chips { display: flex; gap: 3px; padding: 5px 10px; border-bottom: 1px solid var(--border); overflow-x: auto; background: rgba(0,0,0,.15); }
-      .chip { white-space: nowrap; background: rgba(255,255,255,.05); border: 1px solid var(--border); color: var(--fg); padding: 2px 7px; border-radius: 10px; font-size: 11px; cursor: pointer; }
-      .chip:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
       #chat { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
       .msg { padding: 8px 10px; border-radius: 6px; line-height: 1.45; font-size: 12px; word-wrap: break-word; animation: fi .15s ease; }
       @keyframes fi { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
@@ -414,7 +408,14 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       code { font-family: var(--vscode-editor-font-family, monospace); font-size: 11px; }
       .cbtn { background: #222; border: 1px solid #444; color: #ccc; padding: 2px 6px; border-radius: 3px; font-size: 10px; cursor: pointer; margin-top: 4px; display: inline-block; }
       .cbtn:hover { background: var(--accent); color: #fff; }
-      .foot { padding: 10px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
+      .foot { padding: 8px 10px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; background: var(--bg); flex-shrink: 0; }
+      .chips { display: flex; gap: 3px; padding-bottom: 2px; overflow-x: auto; }
+      .chip { white-space: nowrap; background: rgba(255,255,255,.05); border: 1px solid var(--border); color: var(--fg); padding: 2px 7px; border-radius: 10px; font-size: 11px; cursor: pointer; }
+      .chip:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+      .prov-row { display: flex; gap: 4px; }
+      .prov-row select { flex: 1; min-width: 0; background: var(--input-bg); color: var(--input-fg); border: 1px solid var(--border); padding: 4px 6px; border-radius: 4px; font-size: 11px; text-overflow: ellipsis; }
+      .keybar { display: none; gap: 4px; }
+      .keybar input { flex: 1; background: var(--input-bg); color: var(--input-fg); border: 1px solid var(--border); padding: 3px 6px; border-radius: 3px; font-size: 11px; }
       .irow { display: flex; gap: 5px; }
       textarea { flex: 1; background: var(--input-bg); color: var(--input-fg); border: 1px solid var(--border); border-radius: 5px; padding: 7px; font-size: 12px; resize: none; height: 54px; font-family: inherit; outline: none; }
       textarea:focus { border-color: var(--accent); }
@@ -430,30 +431,32 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     <div class="hdr-row">
       <span class="brand">🤖 AG UNIVERSAL AI <span class="badge">ONLINE</span></span>
       <div class="hdr-btns">
-        <button class="ibtn" id="btnClear" title="Clear">🧹</button>
+        <button class="ibtn" id="btnClear" title="Clear Chat">🧹</button>
         <button class="ibtn" id="btnDash" title="Dashboard">📊</button>
       </div>
     </div>
-    <select id="selProv">${optionsHtml}</select>
-    <select id="selModel" style="margin-top: 4px; display: none;"></select>
+  </div>
+  <div id="chat">
+    <div class="msg assistant">👋 Welcome to <b>AG Universal AI</b>! Pick a provider below and start coding.</div>
+  </div>
+  <div class="foot">
+    <div class="chips" id="chips">
+      <span class="chip" data-c="/explain ">/explain</span>
+      <span class="chip" data-c="/refactor ">/refactor</span>
+      <span class="chip" data-c="/test ">/test</span>
+      <span class="chip" data-c="/fix ">/fix</span>
+      <span class="chip" data-c="/docs ">/docs</span>
+      <span class="chip" data-c="/review ">/review</span>
+      <span class="chip" data-c="🤖 ">🤖 Agent</span>
+    </div>
+    <div class="prov-row">
+      <select id="selProv">${optionsHtml}</select>
+      <select id="selModel" style="display: none;"></select>
+    </div>
     <div class="keybar" id="keybar">
       <input type="password" id="keyIn" placeholder="Paste API Key..." />
       <button class="ibtn" id="btnSaveKey">💾</button>
     </div>
-  </div>
-  <div class="chips" id="chips">
-    <span class="chip" data-c="/explain ">/explain</span>
-    <span class="chip" data-c="/refactor ">/refactor</span>
-    <span class="chip" data-c="/test ">/test</span>
-    <span class="chip" data-c="/fix ">/fix</span>
-    <span class="chip" data-c="/docs ">/docs</span>
-    <span class="chip" data-c="/review ">/review</span>
-    <span class="chip" data-c="🤖 ">🤖 Agent</span>
-  </div>
-  <div id="chat">
-    <div class="msg assistant">👋 Welcome to <b>AG Universal AI</b>! Pick a provider above and start coding.</div>
-  </div>
-  <div class="foot">
     <div class="irow">
       <textarea id="inp" placeholder="Ask AG AI..."></textarea>
       <button id="btnSend" class="sendbtn">Send</button>
