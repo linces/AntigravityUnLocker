@@ -55,6 +55,7 @@ export class ProviderManager implements vscode.Disposable {
   private envKeys = new Map<string, string>();
 
   private isUpdatingConfig = false;
+  private lastConfigUpdateTime = 0;
 
   private readonly _onDidChangeProvider = new vscode.EventEmitter<ProviderChangeEvent>();
   public readonly onDidChangeProvider = this._onDidChangeProvider.event;

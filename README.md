@@ -93,4 +93,4 @@ MIT — See [LICENSE](./LICENSE)
 
 ---
 
-**Versão:** 0.1.2 | **Última Revisão:** 2026-07-31 22:25:00
+**Versão:** 0.1.3 | **Última Revisão:** 2026-07-31 20:01:00
