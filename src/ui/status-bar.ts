@@ -55,13 +55,13 @@ export class AGStatusBar implements vscode.Disposable {
     }
 
     // Determine status icon
-    const icon = '$(hubot)';
+    const icon = '$(robot)';
 
     // Truncate model name for display
     const modelName = this.truncateModel(provider.config.model);
     const providerLabel = this.getShortLabel(provider.id);
 
-    this.statusBarItem.text = `${icon} ${providerLabel}: ${modelName}`;
+    this.statusBarItem.text = `${icon} AG AI: ${providerLabel} (${modelName})`;
     this.statusBarItem.backgroundColor = undefined;
     this.statusBarItem.tooltip = new vscode.MarkdownString(
       `**AG Universal AI**\n\n` +

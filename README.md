@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Platform-VS%20Code%20%7C%20Antigravity%20IDE-blue?style=for-the-badge&logo=visualstudiocode" alt="Platform" />
   <img src="https://img.shields.io/badge/Providers-11%2B-purple?style=for-the-badge&logo=openai" alt="Providers" />
-  <img src="https://img.shields.io/badge/Version-0.1.2-green?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-0.1.3-green?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-brightgreen?style=for-the-badge" alt="License" />
 </p>
 
@@ -20,11 +20,10 @@
 
 ## ✨ Features
 
-### 🤖 Multi-Provider AI Chat (`@ag` & Kimi/Cursor Sidebar)
+### 🤖 Multi-Provider AI Chat (`@ag` & Qodo / Cursor Style Sidebar)
 - Native chat participant integrated into VS Code's chat panel and custom Sidebar Webview (`ag-sidebar`)
-- Modern Chat-First UI — Chat history occupies the full upper body area, with Provider/Model selectors, slash command chips, Send/Clear/Dashboard action buttons, and key management integrated into the bottom footer
-- Robust webview script escaping with proper string literal delimiters ensuring high performance and instant execution of all webview action buttons (Send, Dashboard, Clear, Code Apply)
-- Dynamic Provider & Model Switcher — switch active AI provider and select specific model per provider with real-time sync across Sidebar, Status Bar, QuickPick, and Dashboard
+- Qodo & Cursor Style Integrated Input Card — Sleek input box with embedded `+ Agent` mode pill, `⚡ Model / Provider` selector pill, API key status, slash command chips, and `Send ⬆` pill button
+- Dynamic Provider & Model Switcher — switch active AI provider and select specific model per provider with real-time sync across Sidebar, Status Bar (`$(robot) AG AI: Provider (Model)`), QuickPick, and Dashboard
 - Slash commands: `/explain`, `/refactor`, `/test`, `/fix`, `/docs`, `/review`
 - Context-aware with `#file` and `#selection` references
 - Real-time streaming responses with fallback provider chain

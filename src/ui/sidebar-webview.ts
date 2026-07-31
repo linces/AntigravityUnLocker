@@ -383,45 +383,67 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   private getCss(): string {
     return `
       :root {
-        --bg: var(--vscode-sideBar-background, #1e1e1e);
-        --fg: var(--vscode-sideBar-foreground, #ccc);
-        --border: var(--vscode-widget-border, #333);
+        --bg: var(--vscode-sideBar-background, #18181a);
+        --fg: var(--vscode-sideBar-foreground, #cccccc);
+        --border: var(--vscode-widget-border, rgba(255, 255, 255, 0.08));
+        --card-bg: var(--vscode-input-background, #222225);
+        --card-border: rgba(255, 255, 255, 0.12);
         --accent: var(--vscode-button-background, #007acc);
-        --input-bg: var(--vscode-input-background, #252526);
-        --input-fg: var(--vscode-input-foreground, #ccc);
+        --accent-hover: var(--vscode-button-hoverBackground, #1177bb);
+        --input-fg: var(--vscode-input-foreground, #dddddd);
+        --pill-bg: rgba(255, 255, 255, 0.06);
+        --pill-hover: rgba(255, 255, 255, 0.12);
+        --pill-active: #04395e;
+        --pill-active-border: #007acc;
       }
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family: var(--vscode-font-family, sans-serif); font-size: 13px; color: var(--fg); background: var(--bg); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-      .hdr { padding: 8px 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+      body { font-family: var(--vscode-font-family, system-ui, sans-serif); font-size: 12px; color: var(--fg); background: var(--bg); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+      .hdr { padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; background: var(--bg); }
       .hdr-row { display: flex; align-items: center; justify-content: space-between; width: 100%; }
-      .brand { font-weight: 700; font-size: 12px; color: #fff; display: flex; align-items: center; gap: 4px; }
-      .badge { font-size: 9px; padding: 2px 5px; border-radius: 8px; background: rgba(76,175,80,.2); color: #4caf50; }
+      .brand { font-weight: 700; font-size: 11px; letter-spacing: 0.5px; color: #ffffff; display: flex; align-items: center; gap: 6px; }
+      .badge { font-size: 8px; padding: 2px 6px; border-radius: 10px; background: rgba(76,175,80,.2); color: #4caf50; font-weight: 700; }
       .hdr-btns { display: flex; gap: 4px; }
-      .ibtn { background: transparent; border: 1px solid var(--border); color: var(--fg); padding: 3px 7px; border-radius: 3px; cursor: pointer; font-size: 12px; }
+      .ibtn { background: transparent; border: 1px solid var(--border); color: var(--fg); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: background 0.15s ease; }
       .ibtn:hover { background: rgba(255,255,255,.1); }
-      #chat { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
-      .msg { padding: 8px 10px; border-radius: 6px; line-height: 1.45; font-size: 12px; word-wrap: break-word; animation: fi .15s ease; }
+
+      #chat { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+      .msg { padding: 10px 12px; border-radius: 8px; line-height: 1.45; font-size: 12px; word-wrap: break-word; animation: fi .15s ease; }
       @keyframes fi { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
-      .msg.user { background: rgba(0,122,204,.15); border: 1px solid rgba(0,122,204,.3); align-self: flex-end; max-width: 85%; }
-      .msg.assistant { background: rgba(255,255,255,.04); border: 1px solid var(--border); align-self: flex-start; max-width: 95%; }
-      pre { background: #0d0d0d; border: 1px solid #2a2a2a; border-radius: 5px; padding: 8px; margin: 6px 0; overflow-x: auto; }
+      .msg.user { background: rgba(0,122,204,.18); border: 1px solid rgba(0,122,204,.35); align-self: flex-end; max-width: 88%; border-bottom-right-radius: 2px; }
+      .msg.assistant { background: rgba(255,255,255,.04); border: 1px solid var(--border); align-self: flex-start; max-width: 96%; border-bottom-left-radius: 2px; }
+      pre { background: #0d0d0d; border: 1px solid #2a2a2a; border-radius: 6px; padding: 10px; margin: 8px 0; overflow-x: auto; }
       code { font-family: var(--vscode-editor-font-family, monospace); font-size: 11px; }
-      .cbtn { background: #222; border: 1px solid #444; color: #ccc; padding: 2px 6px; border-radius: 3px; font-size: 10px; cursor: pointer; margin-top: 4px; display: inline-block; }
+      .cbtn { background: #222; border: 1px solid #444; color: #ccc; padding: 3px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; margin-top: 6px; display: inline-block; }
       .cbtn:hover { background: var(--accent); color: #fff; }
-      .foot { padding: 8px 10px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; background: var(--bg); flex-shrink: 0; }
-      .chips { display: flex; gap: 3px; padding-bottom: 2px; overflow-x: auto; }
-      .chip { white-space: nowrap; background: rgba(255,255,255,.05); border: 1px solid var(--border); color: var(--fg); padding: 2px 7px; border-radius: 10px; font-size: 11px; cursor: pointer; }
-      .chip:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
-      .prov-row { display: flex; gap: 4px; }
-      .prov-row select { flex: 1; min-width: 0; background: var(--input-bg); color: var(--input-fg); border: 1px solid var(--border); padding: 4px 6px; border-radius: 4px; font-size: 11px; text-overflow: ellipsis; }
-      .keybar { display: none; gap: 4px; }
-      .keybar input { flex: 1; background: var(--input-bg); color: var(--input-fg); border: 1px solid var(--border); padding: 3px 6px; border-radius: 3px; font-size: 11px; }
-      .irow { display: flex; gap: 5px; }
-      textarea { flex: 1; background: var(--input-bg); color: var(--input-fg); border: 1px solid var(--border); border-radius: 5px; padding: 7px; font-size: 12px; resize: none; height: 54px; font-family: inherit; outline: none; }
-      textarea:focus { border-color: var(--accent); }
-      .sendbtn { background: var(--accent); color: #fff; border: none; border-radius: 5px; padding: 0 12px; cursor: pointer; font-weight: 600; }
-      .sendbtn:hover { opacity: .85; }
-      .agtgl { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #999; }
+
+      .input-card { margin: 8px 10px 10px 10px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; box-shadow: 0 4px 16px rgba(0,0,0,0.25); transition: border-color 0.15s ease; }
+      .input-card:focus-within { border-color: var(--accent); }
+
+      .chips { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+      .chips::-webkit-scrollbar { display: none; }
+      .chip { white-space: nowrap; background: var(--pill-bg); border: 1px solid var(--border); color: var(--fg); padding: 2px 7px; border-radius: 12px; font-size: 10px; cursor: pointer; font-weight: 500; transition: all 0.15s ease; }
+      .chip:hover { background: var(--accent); color: #ffffff; border-color: var(--accent); }
+
+      textarea { width: 100%; background: transparent; color: var(--input-fg); border: none; font-size: 12px; resize: none; min-height: 48px; max-height: 140px; font-family: inherit; outline: none; line-height: 1.4; }
+
+      .card-toolbar { display: flex; align-items: center; justify-content: space-between; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.06); gap: 6px; }
+      .tb-left { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+      .tb-left::-webkit-scrollbar { display: none; }
+
+      .pill { display: inline-flex; align-items: center; gap: 4px; background: var(--pill-bg); border: 1px solid var(--border); color: var(--fg); padding: 3px 8px; border-radius: 14px; font-size: 11px; cursor: pointer; user-select: none; transition: all 0.15s ease; white-space: nowrap; }
+      .pill:hover { background: var(--pill-hover); border-color: rgba(255,255,255,0.2); }
+      .pill.active { background: var(--pill-active); border-color: var(--pill-active-border); color: #ffffff; font-weight: 600; }
+
+      .pill-select { display: inline-flex; align-items: center; gap: 4px; background: var(--pill-bg); border: 1px solid var(--border); padding: 2px 8px; border-radius: 14px; font-size: 11px; position: relative; max-width: 170px; }
+      .pill-select:hover { background: var(--pill-hover); border-color: rgba(255,255,255,0.2); }
+      .pill-select select { background: transparent; color: var(--fg); border: none; font-size: 11px; outline: none; cursor: pointer; width: 100%; text-overflow: ellipsis; }
+
+      .keybar { display: none; align-items: center; gap: 4px; background: rgba(255,193,7,0.1); border: 1px solid rgba(255,193,7,0.3); padding: 2px 6px; border-radius: 12px; }
+      .keybar input { background: transparent; border: none; color: #fff; font-size: 10px; outline: none; width: 90px; }
+
+      .send-pill { background: var(--accent); color: #ffffff; border: none; border-radius: 14px; padding: 4px 12px; cursor: pointer; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; transition: background 0.15s ease; flex-shrink: 0; }
+      .send-pill:hover { background: var(--accent-hover); }
     `;
   }
 
@@ -436,10 +458,12 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       </div>
     </div>
   </div>
+
   <div id="chat">
-    <div class="msg assistant">👋 Welcome to <b>AG Universal AI</b>! Pick a provider below and start coding.</div>
+    <div class="msg assistant">👋 Welcome to <b>AG Universal AI</b>! Describe what to build or ask AI.</div>
   </div>
-  <div class="foot">
+
+  <div class="input-card">
     <div class="chips" id="chips">
       <span class="chip" data-c="/explain ">/explain</span>
       <span class="chip" data-c="/refactor ">/refactor</span>
@@ -447,23 +471,28 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       <span class="chip" data-c="/fix ">/fix</span>
       <span class="chip" data-c="/docs ">/docs</span>
       <span class="chip" data-c="/review ">/review</span>
-      <span class="chip" data-c="🤖 ">🤖 Agent</span>
     </div>
-    <div class="prov-row">
-      <select id="selProv">${optionsHtml}</select>
-      <select id="selModel" style="display: none;"></select>
-    </div>
-    <div class="keybar" id="keybar">
-      <input type="password" id="keyIn" placeholder="Paste API Key..." />
-      <button class="ibtn" id="btnSaveKey">💾</button>
-    </div>
-    <div class="irow">
-      <textarea id="inp" placeholder="Ask AG AI..."></textarea>
-      <button id="btnSend" class="sendbtn">Send</button>
-    </div>
-    <div class="agtgl">
-      <input type="checkbox" id="agentCb" />
-      <label for="agentCb">Agent Mode (uses tools)</label>
+
+    <textarea id="inp" placeholder="Describe what to build..."></textarea>
+
+    <div class="card-toolbar">
+      <div class="tb-left">
+        <div class="pill" id="pillAgent" title="Toggle Agent Mode (uses workspace tools)">
+          <span>🤖 Agent</span>
+        </div>
+        <div class="pill-select" title="Active AI Provider">
+          <span>⚡</span>
+          <select id="selProv">${optionsHtml}</select>
+        </div>
+        <div class="pill-select" id="modelSelectWrap" style="display: none;" title="Active Model">
+          <select id="selModel"></select>
+        </div>
+        <div class="keybar" id="keybar">
+          <input type="password" id="keyIn" placeholder="API Key..." />
+          <span id="btnSaveKey" style="cursor:pointer;" title="Save Key">💾</span>
+        </div>
+      </div>
+      <button id="btnSend" class="send-pill">Send ⬆</button>
     </div>
   </div>`;
   }
@@ -479,15 +508,17 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   }
 
   var streamEl = null;
+  var isAgentMode = false;
 
   // ─── Elements ──────────────────────────────────────
   var inp = document.getElementById('inp');
   var chat = document.getElementById('chat');
   var selProv = document.getElementById('selProv');
   var selModel = document.getElementById('selModel');
+  var modelSelectWrap = document.getElementById('modelSelectWrap');
   var keybar = document.getElementById('keybar');
   var keyIn = document.getElementById('keyIn');
-  var agentCb = document.getElementById('agentCb');
+  var pillAgent = document.getElementById('pillAgent');
 
   var isUpdatingUI = false;
 
@@ -511,6 +542,17 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     var btnSend = t.id === 'btnSend' ? t : t.closest('#btnSend');
     if(btnSend){
       doSend();
+      return;
+    }
+
+    var agentPill = t.id === 'pillAgent' ? t : t.closest('#pillAgent');
+    if(agentPill){
+      isAgentMode = !isAgentMode;
+      if(isAgentMode){
+        agentPill.classList.add('active');
+      } else {
+        agentPill.classList.remove('active');
+      }
       return;
     }
 
@@ -577,7 +619,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       return;
     }
 
-    if(agentCb && agentCb.checked){
+    if(isAgentMode){
       vsc.postMessage({type:'agent', text:text});
     } else {
       var slash = null;
@@ -627,22 +669,22 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
               selModel.insertBefore(o, selModel.firstChild);
             }
             if(curModel) selModel.value = curModel;
-            selModel.style.display = 'block';
+            if(modelSelectWrap) modelSelectWrap.style.display = 'inline-flex';
           } else if(curModel){
             var o = document.createElement('option');
             o.value = curModel;
             o.textContent = curModel;
             selModel.appendChild(o);
             selModel.value = curModel;
-            selModel.style.display = 'block';
+            if(modelSelectWrap) modelSelectWrap.style.display = 'inline-flex';
           } else {
-            selModel.style.display = 'none';
+            if(modelSelectWrap) modelSelectWrap.style.display = 'none';
           }
         }
 
         if(keybar){
           if(m.active && !m.active.hasKey && m.active.url.indexOf('localhost') < 0){
-            keybar.style.display = 'flex';
+            keybar.style.display = 'inline-flex';
           } else {
             keybar.style.display = 'none';
           }
