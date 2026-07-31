@@ -166,8 +166,18 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         status: 'success',
       });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.log(`Provider ${provider.id} failed: ${msg}`);
+      const rawMsg = err instanceof Error ? err.message : String(err);
+      this.log(`Provider ${provider.id} failed: ${rawMsg}`);
+
+      // Format clean, actionable user diagnostic message
+      let formattedMsg = rawMsg;
+      if (rawMsg.includes('401') || rawMsg.toLowerCase().includes('unauthorized') || rawMsg.toLowerCase().includes('api key')) {
+        formattedMsg = `🔑 **Authentication Failed**: Invalid or missing API key for **${provider.name}**.\n\nPlease enter a valid API key in the yellow key input bar below and click 💾, or run command \`AG AI: Set API Key for Provider\`.`;
+      } else if (rawMsg.includes('ECONNREFUSED') || rawMsg.toLowerCase().includes('fetch failed')) {
+        formattedMsg = `🔌 **Connection Refused**: Could not reach **${provider.name}** at \`${provider.config.baseUrl}\`.\n\nMake sure the local server (e.g. Ollama / LM Studio) is running and accessible on your machine.`;
+      } else if (rawMsg.includes('404') || rawMsg.toLowerCase().includes('not found')) {
+        formattedMsg = `❓ **Model Not Found**: The model \`${provider.config.model}\` was not recognized by **${provider.name}**.\n\nSelect a different model using the model dropdown below.`;
+      }
 
       const latencyMs = Date.now() - startTime;
       this.providerManager.recordMetric({
@@ -178,7 +188,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         completionTokens: 0,
         latencyMs,
         status: 'error',
-        errorMessage: msg,
+        errorMessage: rawMsg,
       });
 
       // Fallback
@@ -210,7 +220,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
           });
         } catch (e2: unknown) {
           const m2 = e2 instanceof Error ? e2.message : String(e2);
-          full = `❌ ${provider.name}: ${msg}\n❌ ${fb.name}: ${m2}`;
+          full = `❌ ${provider.name}: ${formattedMsg}\n❌ ${fb.name}: ${m2}`;
           this.providerManager.recordMetric({
             providerId: fb.id,
             model: fb.config.model,
@@ -223,7 +233,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
           });
         }
       } else {
-        full = `❌ ${provider.name}: ${msg}`;
+        full = `❌ ${provider.name}: ${formattedMsg}`;
       }
     }
 
@@ -511,6 +521,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   }
 
   var streamEl = null;
+  var currentStreamText = '';
   var isAgentMode = false;
 
   function getChat(){ return document.getElementById('chat'); }
@@ -613,6 +624,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
     console.log('[AG Webview] doSend called:', text);
     addMsg('user', text);
+    currentStreamText = '';
     streamEl = addMsg('assistant', '⏳ Thinking...');
     inputEl.value = '';
 
@@ -701,27 +713,32 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     }
     else if(m.type === 'chunk'){
       if(streamEl){
-        if(streamEl.innerHTML.indexOf('Thinking') >= 0) streamEl.innerHTML = '';
-        streamEl.innerHTML += esc(m.text);
+        currentStreamText += (m.text || '');
+        streamEl.innerHTML = md(currentStreamText);
         bot();
       }
     }
     else if(m.type === 'done'){
       if(streamEl){
-        streamEl.innerHTML = md(m.text);
+        var finalText = (m.text || currentStreamText);
+        streamEl.innerHTML = md(finalText);
         streamEl = null;
+        currentStreamText = '';
         bot();
       }
     }
     else if(m.type === 'error'){
       if(streamEl){
-        streamEl.innerHTML = '<b style="color:#f44">Error:</b> ' + esc(m.text);
+        streamEl.innerHTML = '<div style="color:#ff5555;font-weight:bold;">❌ Error: ' + esc(m.text) + '</div>';
         streamEl = null;
+        currentStreamText = '';
       }
     }
     else if(m.type === 'cleared'){
       var chatEl = getChat();
       if(chatEl) chatEl.innerHTML = '';
+      streamEl = null;
+      currentStreamText = '';
     }
   });
 
@@ -745,19 +762,36 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
   function esc(s){
     if(!s) return '';
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/\n/g,'<br>');
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
   }
 
   function md(s){
     if(!s) return '';
-    s = s.replace(/\`\`\`(\w*)\n?([\s\S]*?)\`\`\`/g, function(_, lang, code){
-      var cleanCode = code.replace(/</g,'&lt;').replace(/>/g,'&gt;');
-      return '<pre><code>' + cleanCode + '</code><br><button class="cbtn">Apply to Editor</button></pre>';
+    var codeBlocks = [];
+    var text = s.replace(/\`\`\`(\w*)\n?([\s\S]*?)\`\`\`/g, function(_, lang, code){
+      var id = '___CODE_BLOCK_' + codeBlocks.length + '___';
+      var cleanCode = esc(code.trim());
+      var blockHtml = '<pre><div class="code-hdr"><span>' + (lang || 'code') + '</span><button class="cbtn">Apply to Editor</button></div><code>' + cleanCode + '</code></pre>';
+      codeBlocks.push(blockHtml);
+      return id;
     });
-    s = s.replace(/\`([^\`]+)\`/g, '<code>$1</code>');
-    s = s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
-    s = s.replace(/\n/g, '<br>');
-    return s;
+
+    text = esc(text);
+
+    text = text.replace(/\`([^\`]+)\`/g, '<code>$1</code>');
+    text = text.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    text = text.replace(/\*([^*]+)\*/g, '<i>$1</i>');
+    text = text.replace(/^### (.*$)/gim, '<h4 style="margin:4px 0">$1</h4>');
+    text = text.replace(/^## (.*$)/gim, '<h3 style="margin:6px 0">$1</h3>');
+    text = text.replace(/^# (.*$)/gim, '<h2 style="margin:8px 0">$1</h2>');
+    text = text.replace(/^\s*[-*]\s+(.*$)/gim, '• $1');
+    text = text.replace(/\n/g, '<br>');
+
+    for (var i = 0; i < codeBlocks.length; i++) {
+      text = text.replace('___CODE_BLOCK_' + i + '___', codeBlocks[i]);
+    }
+
+    return text;
   }
 
   console.log('[AG Webview] Initialized successfully!');
