@@ -40,6 +40,11 @@ export class OpenAIAdapter implements ILLMProvider {
     this.apiKey = apiKey;
   }
 
+  public updateModel(model: string): void {
+    this.model = model;
+    this.config.model = model;
+  }
+
   public capabilities(): ProviderCapabilities {
     return {
       supportsStreaming: true,

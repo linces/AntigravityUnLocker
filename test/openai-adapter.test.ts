@@ -19,4 +19,18 @@ describe('OpenAI Adapter', () => {
     assert.strictEqual(caps.supportsStreaming, true);
     assert.strictEqual(caps.supportsTools, true);
   });
+
+  it('should update active model when updateModel is called', () => {
+    const adapter = new OpenAIAdapter({
+      id: 'groq',
+      name: 'Groq',
+      baseUrl: 'https://api.groq.com/openai/v1',
+      model: 'llama-3.3-70b-versatile',
+      timeoutMs: 30000,
+    });
+
+    assert.strictEqual(adapter.config.model, 'llama-3.3-70b-versatile');
+    adapter.updateModel('llama-3.1-8b-instant');
+    assert.strictEqual(adapter.config.model, 'llama-3.1-8b-instant');
+  });
 });

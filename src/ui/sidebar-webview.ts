@@ -63,12 +63,18 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
             break;
           case 'switchProvider':
             this.providerManager.setActiveProvider(msg.id);
-            this.postStateUpdate();
+            await this.postStateUpdate();
+            break;
+          case 'switchModel':
+            if (msg.model && this.providerManager.getActiveProviderId()) {
+              this.providerManager.setModel(this.providerManager.getActiveProviderId()!, msg.model);
+              await this.postStateUpdate();
+            }
             break;
           case 'saveKey':
             await this.providerManager.setApiKey(msg.id, msg.key.trim());
             vscode.window.showInformationMessage(`API Key saved for ${msg.id}`);
-            this.postStateUpdate();
+            await this.postStateUpdate();
             break;
           case 'chat':
             await this.handleChat(msg.text, msg.slash);
@@ -269,12 +275,26 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  private postStateUpdate(): void {
+  private async postStateUpdate(): Promise<void> {
     const ap = this.providerManager.getActiveProvider();
+    let models: string[] = [];
+    if (ap) {
+      try {
+        const modelInfos = await this.providerManager.listModels(ap.id);
+        models = modelInfos.map((m) => m.id);
+      } catch {
+        models = [];
+      }
+      if (ap.config.model && !models.includes(ap.config.model)) {
+        models.unshift(ap.config.model);
+      }
+    }
+
     this.post({
       type: 'state',
       activeId: this.providerManager.getActiveProviderId() || 'groq',
       active: ap ? { id: ap.id, name: ap.name, model: ap.config.model, url: ap.config.baseUrl, hasKey: !!ap.config.apiKey } : null,
+      models,
       providers: getAllPresets().map(p => ({ id: p.id, name: p.name, local: p.isLocal, needsKey: p.requiresApiKey })),
     });
   }
@@ -383,6 +403,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       </div>
     </div>
     <select id="selProv">${optionsHtml}</select>
+    <select id="selModel" style="margin-top: 4px; display: none;"></select>
     <div class="keybar" id="keybar">
       <input type="password" id="keyIn" placeholder="Paste API Key..." />
       <button class="ibtn" id="btnSaveKey">💾</button>
@@ -422,6 +443,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   var inp = document.getElementById('inp');
   var chat = document.getElementById('chat');
   var selProv = document.getElementById('selProv');
+  var selModel = document.getElementById('selModel');
   var keybar = document.getElementById('keybar');
   var keyIn = document.getElementById('keyIn');
   var agentCb = document.getElementById('agentCb');
@@ -434,6 +456,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     if(keyIn.value){ vsc.postMessage({type:'saveKey', id:selProv.value, key:keyIn.value}); keyIn.value=''; }
   });
   selProv.addEventListener('change', function(){ vsc.postMessage({type:'switchProvider', id:selProv.value}); });
+  selModel.addEventListener('change', function(){ if(selModel.value) vsc.postMessage({type:'switchModel', model:selModel.value}); });
 
   // ─── Chips ─────────────────────────────────────────
   document.getElementById('chips').addEventListener('click', function(e){
@@ -480,7 +503,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     if(!m || !m.type) return;
 
     if(m.type === 'state'){
-      // Update dropdown
+      // Update provider dropdown
       selProv.innerHTML = '';
       m.providers.forEach(function(p){
         var o = document.createElement('option');
@@ -489,6 +512,29 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         if(p.id === m.activeId) o.selected = true;
         selProv.appendChild(o);
       });
+
+      // Update model dropdown
+      selModel.innerHTML = '';
+      if(m.models && m.models.length > 0){
+        m.models.forEach(function(mdl){
+          var o = document.createElement('option');
+          o.value = mdl;
+          o.textContent = mdl;
+          if(m.active && m.active.model === mdl) o.selected = true;
+          selModel.appendChild(o);
+        });
+        selModel.style.display = 'block';
+      } else if(m.active && m.active.model){
+        var o = document.createElement('option');
+        o.value = m.active.model;
+        o.textContent = m.active.model;
+        o.selected = true;
+        selModel.appendChild(o);
+        selModel.style.display = 'block';
+      } else {
+        selModel.style.display = 'none';
+      }
+
       // Show/hide key bar
       if(m.active && !m.active.hasKey && m.active.url.indexOf('localhost')<0){
         keybar.style.display = 'flex';

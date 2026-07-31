@@ -139,9 +139,17 @@ export class ProviderManager implements vscode.Disposable {
     const previousId = this.activeProviderId;
     this.activeProviderId = id;
 
-    // Persist to settings
+    // Check for saved model preference for this provider
     const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
+    const userOverrides = config.get<Record<string, { model?: string }>>('providers', {});
+    const savedModel = userOverrides[id]?.model;
+    if (savedModel && provider instanceof OpenAIAdapter) {
+      provider.updateModel(savedModel);
+    }
+
+    // Persist to settings
     config.update('activeProvider', id, vscode.ConfigurationTarget.Global);
+    config.update('activeModel', provider.config.model, vscode.ConfigurationTarget.Global);
 
     this._onDidChangeProvider.fire({
       previousId,
@@ -149,7 +157,51 @@ export class ProviderManager implements vscode.Disposable {
       provider,
     });
 
-    this.log(`Active provider switched: ${previousId} → ${id} (${provider.name})`);
+    this.log(`Active provider switched: ${previousId} → ${id} (${provider.name}, model: ${provider.config.model})`);
+  }
+
+  /**
+   * Set active model for a provider and persist settings.
+   */
+  public setModel(providerId: string, model: string): void {
+    const provider = this.providers.get(providerId);
+    if (!provider) {
+      this.log(`Provider "${providerId}" not found for setting model.`);
+      return;
+    }
+
+    if (provider instanceof OpenAIAdapter) {
+      provider.updateModel(model);
+    } else {
+      provider.config.model = model;
+    }
+
+    const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
+    if (providerId === this.activeProviderId) {
+      config.update('activeModel', model, vscode.ConfigurationTarget.Global);
+    }
+
+    const userOverrides = config.get<Record<string, { baseUrl?: string; model?: string; timeoutMs?: number }>>(
+      'providers',
+      {}
+    );
+    const currentOverride = userOverrides[providerId] || {};
+    config.update(
+      'providers',
+      {
+        ...userOverrides,
+        [providerId]: { ...currentOverride, model },
+      },
+      vscode.ConfigurationTarget.Global
+    );
+
+    this._onDidChangeProvider.fire({
+      previousId: this.activeProviderId,
+      newId: providerId,
+      provider,
+    });
+
+    this.log(`Model for provider "${providerId}" updated to: ${model}`);
   }
 
   /**
@@ -390,12 +442,52 @@ export class ProviderManager implements vscode.Disposable {
   }
 
   private handleConfigChange(): void {
-    // Re-read active provider
     const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
     const newActiveId = config.get<string>('activeProvider', 'ollama-local');
+    const activeModelSetting = config.get<string>('activeModel');
+    const userOverrides = config.get<Record<string, { baseUrl?: string; model?: string; timeoutMs?: number }>>(
+      'providers',
+      {}
+    );
 
+    let changed = false;
+
+    // 1. Sync provider model overrides
+    for (const [pId, p] of this.providers.entries()) {
+      const overrideModel = userOverrides[pId]?.model;
+      if (overrideModel && overrideModel !== p.config.model) {
+        if (p instanceof OpenAIAdapter) {
+          p.updateModel(overrideModel);
+        } else {
+          p.config.model = overrideModel;
+        }
+        changed = true;
+      }
+    }
+
+    // 2. Check active provider change
     if (newActiveId !== this.activeProviderId && this.providers.has(newActiveId)) {
-      this.setActiveProvider(newActiveId);
+      this.activeProviderId = newActiveId;
+      changed = true;
+    }
+
+    // 3. Sync active provider model setting
+    const activeProv = this.getActiveProvider();
+    if (activeProv && activeModelSetting && activeModelSetting !== activeProv.config.model) {
+      if (activeProv instanceof OpenAIAdapter) {
+        activeProv.updateModel(activeModelSetting);
+      } else {
+        activeProv.config.model = activeModelSetting;
+      }
+      changed = true;
+    }
+
+    if (changed && activeProv) {
+      this._onDidChangeProvider.fire({
+        previousId: this.activeProviderId,
+        newId: this.activeProviderId || newActiveId,
+        provider: activeProv,
+      });
     }
   }
 

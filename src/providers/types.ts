@@ -137,6 +137,7 @@ export interface ILLMProvider {
   health(): Promise<HealthStatus>;
   capabilities(): ProviderCapabilities;
   listModels?(): Promise<ModelInfo[]>;
+  updateModel?(model: string): void;
 }
 
 // ─── Telemetry ──────────────────────────────────────────────────────────────

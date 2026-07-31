@@ -99,9 +99,8 @@ export async function showModelPicker(providerManager: ProviderManager): Promise
 
     quickPick.onDidAccept(() => {
       const selected = quickPick.selectedItems[0];
-      if (selected) {
-        const config = vscode.workspace.getConfiguration('ag-universal-ai');
-        config.update('activeModel', selected.label, vscode.ConfigurationTarget.Global);
+      if (selected && activeProvider) {
+        providerManager.setModel(activeProvider.id, selected.label);
         vscode.window.showInformationMessage(`AG AI: Model set to ${selected.label}`);
       }
       quickPick.dispose();
