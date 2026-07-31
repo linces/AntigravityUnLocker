@@ -131,6 +131,9 @@ export class ProviderManager implements vscode.Disposable {
   /**
    * Set the active provider by ID.
    */
+  /**
+   * Set the active provider by ID.
+   */
   public async setActiveProvider(id: string): Promise<void> {
     const provider = this.providers.get(id);
     if (!provider) {
@@ -141,22 +144,38 @@ export class ProviderManager implements vscode.Disposable {
     const previousId = this.activeProviderId;
     this.activeProviderId = id;
 
-    // Check for saved model preference for this provider
+    // Check for saved model preference for this provider or fallback to preset default
     const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
     const userOverrides = config.get<Record<string, { model?: string }>>('providers', {});
     const savedModel = userOverrides[id]?.model;
-    if (savedModel && provider instanceof OpenAIAdapter) {
-      provider.updateModel(savedModel);
+    if (savedModel) {
+      if (provider instanceof OpenAIAdapter) {
+        provider.updateModel(savedModel);
+      } else {
+        provider.config.model = savedModel;
+      }
+    } else {
+      const preset = getPreset(id);
+      if (preset?.defaultModel) {
+        if (provider instanceof OpenAIAdapter) {
+          provider.updateModel(preset.defaultModel);
+        } else {
+          provider.config.model = preset.defaultModel;
+        }
+      }
     }
 
     this.isUpdatingConfig = true;
+    this.lastConfigUpdateTime = Date.now();
     try {
       await config.update('activeProvider', id, vscode.ConfigurationTarget.Global);
       await config.update('activeModel', provider.config.model, vscode.ConfigurationTarget.Global);
     } catch (err) {
       this.log(`Error persisting active provider settings: ${err}`);
     } finally {
-      this.isUpdatingConfig = false;
+      setTimeout(() => {
+        this.isUpdatingConfig = false;
+      }, 500);
     }
 
     this._onDidChangeProvider.fire({
@@ -185,6 +204,7 @@ export class ProviderManager implements vscode.Disposable {
     }
 
     this.isUpdatingConfig = true;
+    this.lastConfigUpdateTime = Date.now();
     try {
       const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
       if (providerId === this.activeProviderId) {
@@ -207,7 +227,9 @@ export class ProviderManager implements vscode.Disposable {
     } catch (err) {
       this.log(`Error persisting model settings: ${err}`);
     } finally {
-      this.isUpdatingConfig = false;
+      setTimeout(() => {
+        this.isUpdatingConfig = false;
+      }, 500);
     }
 
     this._onDidChangeProvider.fire({
@@ -457,18 +479,18 @@ export class ProviderManager implements vscode.Disposable {
   }
 
   private handleConfigChange(): void {
-    if (this.isUpdatingConfig) {
+    if (this.isUpdatingConfig || Date.now() - this.lastConfigUpdateTime < 500) {
       return;
     }
     const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
     const newActiveId = config.get<string>('activeProvider', 'ollama-local');
-    const activeModelSetting = config.get<string>('activeModel');
     const userOverrides = config.get<Record<string, { baseUrl?: string; model?: string; timeoutMs?: number }>>(
       'providers',
       {}
     );
 
     let changed = false;
+    const previousId = this.activeProviderId;
 
     // 1. Sync provider model overrides
     for (const [pId, p] of this.providers.entries()) {
@@ -487,22 +509,25 @@ export class ProviderManager implements vscode.Disposable {
     if (newActiveId !== this.activeProviderId && this.providers.has(newActiveId)) {
       this.activeProviderId = newActiveId;
       changed = true;
+      // Ensure model for newly active provider is correctly populated
+      const activeP = this.providers.get(newActiveId);
+      if (activeP) {
+        const overrideModel = userOverrides[newActiveId]?.model;
+        const preset = getPreset(newActiveId);
+        const targetModel = overrideModel || preset?.defaultModel || activeP.config.model;
+        if (activeP instanceof OpenAIAdapter) {
+          activeP.updateModel(targetModel);
+        } else {
+          activeP.config.model = targetModel;
+        }
+      }
     }
 
-    // 3. Sync active provider model setting
     const activeProv = this.getActiveProvider();
-    if (activeProv && activeModelSetting && activeModelSetting !== activeProv.config.model) {
-      if (activeProv instanceof OpenAIAdapter) {
-        activeProv.updateModel(activeModelSetting);
-      } else {
-        activeProv.config.model = activeModelSetting;
-      }
-      changed = true;
-    }
 
     if (changed && activeProv) {
       this._onDidChangeProvider.fire({
-        previousId: this.activeProviderId,
+        previousId,
         newId: this.activeProviderId || newActiveId,
         provider: activeProv,
       });

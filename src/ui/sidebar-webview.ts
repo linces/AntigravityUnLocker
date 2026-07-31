@@ -279,27 +279,55 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
+  private stateSeq = 0;
+
   private async postStateUpdate(): Promise<void> {
+    const currentSeq = ++this.stateSeq;
     const ap = this.providerManager.getActiveProvider();
+    const activeId = this.providerManager.getActiveProviderId() || 'ollama-local';
+    const presets = getAllPresets().map(p => ({
+      id: p.id,
+      name: p.name + (p.isLocal ? ' (Local)' : ''),
+      local: p.isLocal,
+      needsKey: p.requiresApiKey,
+    }));
+
+    // 1. Post immediate state update (optimistic UI response)
+    const initialModels = ap?.config.model ? [ap.config.model] : [];
+    this.post({
+      type: 'state',
+      activeId,
+      active: ap ? { id: ap.id, name: ap.name, model: ap.config.model, url: ap.config.baseUrl, hasKey: !!ap.config.apiKey } : null,
+      models: initialModels,
+      providers: presets,
+    });
+
+    if (!ap) { return; }
+
+    // 2. Fetch full model list asynchronously
     let models: string[] = [];
-    if (ap) {
-      try {
-        const modelInfos = await this.providerManager.listModels(ap.id);
-        models = modelInfos.map((m) => m.id);
-      } catch {
-        models = [];
-      }
-      if (ap.config.model && !models.includes(ap.config.model)) {
-        models.unshift(ap.config.model);
-      }
+    try {
+      const modelInfos = await this.providerManager.listModels(ap.id);
+      models = modelInfos.map((m) => m.id);
+    } catch {
+      models = [];
+    }
+
+    // 3. Stale check: Drop if a newer state update was triggered
+    if (currentSeq !== this.stateSeq) {
+      return;
+    }
+
+    if (ap.config.model && !models.includes(ap.config.model)) {
+      models.unshift(ap.config.model);
     }
 
     this.post({
       type: 'state',
-      activeId: this.providerManager.getActiveProviderId() || 'ollama-local',
-      active: ap ? { id: ap.id, name: ap.name, model: ap.config.model, url: ap.config.baseUrl, hasKey: !!ap.config.apiKey } : null,
+      activeId,
+      active: { id: ap.id, name: ap.name, model: ap.config.model, url: ap.config.baseUrl, hasKey: !!ap.config.apiKey },
       models,
-      providers: getAllPresets().map(p => ({ id: p.id, name: p.name + (p.isLocal ? ' (Local)' : ''), local: p.isLocal, needsKey: p.requiresApiKey })),
+      providers: presets,
     });
   }
 
@@ -453,14 +481,20 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   var agentCb = document.getElementById('agentCb');
 
   // ─── Buttons ───────────────────────────────────────
+  var isUpdatingUI = false;
+
   document.getElementById('btnSend').addEventListener('click', doSend);
   document.getElementById('btnClear').addEventListener('click', function(){ vsc.postMessage({type:'clear'}); });
   document.getElementById('btnDash').addEventListener('click', function(){ vsc.postMessage({type:'dashboard'}); });
   document.getElementById('btnSaveKey').addEventListener('click', function(){
     if(keyIn.value){ vsc.postMessage({type:'saveKey', id:selProv.value, key:keyIn.value}); keyIn.value=''; }
   });
-  selProv.addEventListener('change', function(){ vsc.postMessage({type:'switchProvider', id:selProv.value}); });
-  selModel.addEventListener('change', function(){ if(selModel.value) vsc.postMessage({type:'switchModel', model:selModel.value}); });
+  selProv.addEventListener('change', function(){
+    if(!isUpdatingUI) vsc.postMessage({type:'switchProvider', id:selProv.value});
+  });
+  selModel.addEventListener('change', function(){
+    if(!isUpdatingUI && selModel.value) vsc.postMessage({type:'switchModel', model:selModel.value});
+  });
 
   // ─── Chips ─────────────────────────────────────────
   document.getElementById('chips').addEventListener('click', function(e){
@@ -507,43 +541,57 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     if(!m || !m.type) return;
 
     if(m.type === 'state'){
-      // Update provider dropdown
-      selProv.innerHTML = '';
-      m.providers.forEach(function(p){
-        var o = document.createElement('option');
-        o.value = p.id;
-        o.textContent = (p.id === m.activeId ? '⭐ ':'') + p.name;
-        if(p.id === m.activeId) o.selected = true;
-        selProv.appendChild(o);
-      });
-
-      // Update model dropdown
-      selModel.innerHTML = '';
-      if(m.models && m.models.length > 0){
-        m.models.forEach(function(mdl){
+      isUpdatingUI = true;
+      try {
+        // Update provider dropdown
+        selProv.innerHTML = '';
+        m.providers.forEach(function(p){
           var o = document.createElement('option');
-          o.value = mdl;
-          o.textContent = mdl;
-          if(m.active && m.active.model === mdl) o.selected = true;
-          selModel.appendChild(o);
+          o.value = p.id;
+          o.textContent = (p.id === m.activeId ? '⭐ ':'') + p.name;
+          selProv.appendChild(o);
         });
-        selModel.style.display = 'block';
-      } else if(m.active && m.active.model){
-        var o = document.createElement('option');
-        o.value = m.active.model;
-        o.textContent = m.active.model;
-        o.selected = true;
-        selModel.appendChild(o);
-        selModel.style.display = 'block';
-      } else {
-        selModel.style.display = 'none';
-      }
+        selProv.value = m.activeId;
 
-      // Show/hide key bar
-      if(m.active && !m.active.hasKey && m.active.url.indexOf('localhost')<0){
-        keybar.style.display = 'flex';
-      } else {
-        keybar.style.display = 'none';
+        // Update model dropdown
+        selModel.innerHTML = '';
+        var curModel = m.active ? m.active.model : '';
+        if(m.models && m.models.length > 0){
+          var foundActive = false;
+          m.models.forEach(function(mdl){
+            var o = document.createElement('option');
+            o.value = mdl;
+            o.textContent = mdl;
+            if(mdl === curModel) foundActive = true;
+            selModel.appendChild(o);
+          });
+          if(curModel && !foundActive){
+            var o = document.createElement('option');
+            o.value = curModel;
+            o.textContent = curModel;
+            selModel.insertBefore(o, selModel.firstChild);
+          }
+          if(curModel) selModel.value = curModel;
+          selModel.style.display = 'block';
+        } else if(curModel){
+          var o = document.createElement('option');
+          o.value = curModel;
+          o.textContent = curModel;
+          selModel.appendChild(o);
+          selModel.value = curModel;
+          selModel.style.display = 'block';
+        } else {
+          selModel.style.display = 'none';
+        }
+
+        // Show/hide key bar
+        if(m.active && !m.active.hasKey && m.active.url.indexOf('localhost')<0){
+          keybar.style.display = 'flex';
+        } else {
+          keybar.style.display = 'none';
+        }
+      } finally {
+        isUpdatingUI = false;
       }
     }
     else if(m.type === 'chunk'){

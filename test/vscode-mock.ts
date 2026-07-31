@@ -1,8 +1,24 @@
 // Lightweight mock for VS Code API in headless Node unit tests
+export const ConfigurationTarget = {
+  Global: 1,
+  Workspace: 2,
+  WorkspaceFolder: 3,
+};
+
+const mockConfigStore: Record<string, any> = {};
+
 export const workspace = {
-  getConfiguration: () => ({
-    get: (key: string, defaultValue?: any) => defaultValue,
+  getConfiguration: (section?: string) => ({
+    get: (key: string, defaultValue?: any) => {
+      const fullKey = section ? `${section}.${key}` : key;
+      return mockConfigStore[fullKey] !== undefined ? mockConfigStore[fullKey] : defaultValue;
+    },
+    update: async (key: string, value: any) => {
+      const fullKey = section ? `${section}.${key}` : key;
+      mockConfigStore[fullKey] = value;
+    },
   }),
+  onDidChangeConfiguration: () => ({ dispose: () => {} }),
   workspaceFolders: [
     {
       uri: { fsPath: '/mock/workspace', scheme: 'file', toString: () => 'file:///mock/workspace' },
