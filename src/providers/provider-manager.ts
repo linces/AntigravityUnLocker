@@ -54,6 +54,8 @@ export class ProviderManager implements vscode.Disposable {
   private metrics: RequestMetric[] = [];
   private envKeys = new Map<string, string>();
 
+  private isUpdatingConfig = false;
+
   private readonly _onDidChangeProvider = new vscode.EventEmitter<ProviderChangeEvent>();
   public readonly onDidChangeProvider = this._onDidChangeProvider.event;
 
@@ -102,10 +104,10 @@ export class ProviderManager implements vscode.Disposable {
     const activeId = config.get<string>('activeProvider', 'ollama-local');
 
     if (this.providers.has(activeId)) {
-      this.setActiveProvider(activeId);
+      await this.setActiveProvider(activeId);
     } else if (this.providers.size > 0) {
       const firstId = this.providers.keys().next().value as string;
-      this.setActiveProvider(firstId);
+      await this.setActiveProvider(firstId);
     }
 
     this.log(`Provider Manager initialized. ${this.providers.size} providers loaded. Active: ${this.activeProviderId}`);
@@ -129,7 +131,7 @@ export class ProviderManager implements vscode.Disposable {
   /**
    * Set the active provider by ID.
    */
-  public setActiveProvider(id: string): void {
+  public async setActiveProvider(id: string): Promise<void> {
     const provider = this.providers.get(id);
     if (!provider) {
       this.log(`Provider "${id}" not found. Available: ${[...this.providers.keys()].join(', ')}`);
@@ -147,9 +149,15 @@ export class ProviderManager implements vscode.Disposable {
       provider.updateModel(savedModel);
     }
 
-    // Persist to settings
-    config.update('activeProvider', id, vscode.ConfigurationTarget.Global);
-    config.update('activeModel', provider.config.model, vscode.ConfigurationTarget.Global);
+    this.isUpdatingConfig = true;
+    try {
+      await config.update('activeProvider', id, vscode.ConfigurationTarget.Global);
+      await config.update('activeModel', provider.config.model, vscode.ConfigurationTarget.Global);
+    } catch (err) {
+      this.log(`Error persisting active provider settings: ${err}`);
+    } finally {
+      this.isUpdatingConfig = false;
+    }
 
     this._onDidChangeProvider.fire({
       previousId,
@@ -163,7 +171,7 @@ export class ProviderManager implements vscode.Disposable {
   /**
    * Set active model for a provider and persist settings.
    */
-  public setModel(providerId: string, model: string): void {
+  public async setModel(providerId: string, model: string): Promise<void> {
     const provider = this.providers.get(providerId);
     if (!provider) {
       this.log(`Provider "${providerId}" not found for setting model.`);
@@ -176,24 +184,31 @@ export class ProviderManager implements vscode.Disposable {
       provider.config.model = model;
     }
 
-    const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
-    if (providerId === this.activeProviderId) {
-      config.update('activeModel', model, vscode.ConfigurationTarget.Global);
-    }
+    this.isUpdatingConfig = true;
+    try {
+      const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
+      if (providerId === this.activeProviderId) {
+        await config.update('activeModel', model, vscode.ConfigurationTarget.Global);
+      }
 
-    const userOverrides = config.get<Record<string, { baseUrl?: string; model?: string; timeoutMs?: number }>>(
-      'providers',
-      {}
-    );
-    const currentOverride = userOverrides[providerId] || {};
-    config.update(
-      'providers',
-      {
-        ...userOverrides,
-        [providerId]: { ...currentOverride, model },
-      },
-      vscode.ConfigurationTarget.Global
-    );
+      const userOverrides = config.get<Record<string, { baseUrl?: string; model?: string; timeoutMs?: number }>>(
+        'providers',
+        {}
+      );
+      const currentOverride = userOverrides[providerId] || {};
+      await config.update(
+        'providers',
+        {
+          ...userOverrides,
+          [providerId]: { ...currentOverride, model },
+        },
+        vscode.ConfigurationTarget.Global
+      );
+    } catch (err) {
+      this.log(`Error persisting model settings: ${err}`);
+    } finally {
+      this.isUpdatingConfig = false;
+    }
 
     this._onDidChangeProvider.fire({
       previousId: this.activeProviderId,
@@ -442,6 +457,9 @@ export class ProviderManager implements vscode.Disposable {
   }
 
   private handleConfigChange(): void {
+    if (this.isUpdatingConfig) {
+      return;
+    }
     const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
     const newActiveId = config.get<string>('activeProvider', 'ollama-local');
     const activeModelSetting = config.get<string>('activeModel');

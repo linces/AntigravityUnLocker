@@ -24,7 +24,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
   // ─── Local Providers (Free, Offline) ────────────────────────────────────
   {
     id: 'ollama-local',
-    name: 'Ollama (Local)',
+    name: 'Ollama',
     description: '100% offline local inference. Free, private, no API key needed.',
     baseUrl: 'http://localhost:11434',
     model: 'qwen2.5-coder:14b',
@@ -35,7 +35,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
   },
   {
     id: 'lmstudio-local',
-    name: 'LM Studio (Local)',
+    name: 'LM Studio',
     description: 'Local GGUF model server. Free, private, no API key needed.',
     baseUrl: 'http://localhost:1234/v1',
     model: 'local-model',
@@ -85,10 +85,10 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
   {
     id: 'dashscope-qwen',
     name: 'DashScope / Alibaba (Qwen)',
-    description: 'Qwen 3.8 (2.4T MoE) and Qwen 2.5 Coder models.',
+    description: 'Qwen Max, Qwen Plus, and Qwen 2.5 Coder models.',
     baseUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
-    model: 'qwen3.8-max-preview',
-    defaultModel: 'qwen3.8-max-preview',
+    model: 'qwen-max',
+    defaultModel: 'qwen-max',
     timeoutMs: 120000,
     isLocal: false,
     requiresApiKey: true,
@@ -96,11 +96,11 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
   },
   {
     id: 'moonshot-kimi',
-    name: 'Moonshot AI (Kimi K3)',
-    description: 'Kimi K3 with 1M token context window. Deep reasoning.',
+    name: 'Moonshot AI (Kimi)',
+    description: 'Moonshot / Kimi with long context window and deep reasoning.',
     baseUrl: 'https://api.moonshot.ai/v1',
-    model: 'kimi-k3',
-    defaultModel: 'kimi-k3',
+    model: 'moonshot-v1-8k',
+    defaultModel: 'moonshot-v1-8k',
     timeoutMs: 120000,
     isLocal: false,
     requiresApiKey: true,

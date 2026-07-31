@@ -38,6 +38,7 @@ export class OpenAIAdapter implements ILLMProvider {
 
   public updateApiKey(apiKey: string): void {
     this.apiKey = apiKey;
+    this.config.apiKey = apiKey;
   }
 
   public updateModel(model: string): void {

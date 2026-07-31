@@ -52,7 +52,7 @@ export async function showProviderPicker(providerManager: ProviderManager): Prom
   }
 
   if (selectedId) {
-    providerManager.setActiveProvider(selectedId);
+    await providerManager.setActiveProvider(selectedId);
     vscode.window.showInformationMessage(`AG AI: Switched to ${selected.label.replace(/\$\([^)]+\)\s*/, '').trim()}`);
   }
 }
@@ -97,10 +97,10 @@ export async function showModelPicker(providerManager: ProviderManager): Promise
     quickPick.busy = false;
     quickPick.placeholder = 'Select a model';
 
-    quickPick.onDidAccept(() => {
+    quickPick.onDidAccept(async () => {
       const selected = quickPick.selectedItems[0];
       if (selected && activeProvider) {
-        providerManager.setModel(activeProvider.id, selected.label);
+        await providerManager.setModel(activeProvider.id, selected.label);
         vscode.window.showInformationMessage(`AG AI: Model set to ${selected.label}`);
       }
       quickPick.dispose();

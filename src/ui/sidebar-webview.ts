@@ -62,13 +62,11 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
             this.postStateUpdate();
             break;
           case 'switchProvider':
-            this.providerManager.setActiveProvider(msg.id);
-            await this.postStateUpdate();
+            await this.providerManager.setActiveProvider(msg.id);
             break;
           case 'switchModel':
             if (msg.model && this.providerManager.getActiveProviderId()) {
-              this.providerManager.setModel(this.providerManager.getActiveProviderId()!, msg.model);
-              await this.postStateUpdate();
+              await this.providerManager.setModel(this.providerManager.getActiveProviderId()!, msg.model);
             }
             break;
           case 'saveKey':
@@ -184,8 +182,14 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       });
 
       // Fallback
-      const fbId = provider.id !== 'groq' ? 'groq' : 'ollama-local';
-      const fb = this.providerManager.getProvider(fbId);
+      const config = vscode.workspace.getConfiguration('ag-universal-ai');
+      const fallbackList = config.get<string[]>('fallbackProviders', []);
+      let fbId = fallbackList.find(id => id !== provider.id && this.providerManager.getProvider(id));
+      if (!fbId && provider.id !== 'ollama-local' && this.providerManager.getProvider('ollama-local')) {
+        fbId = 'ollama-local';
+      }
+
+      const fb = fbId ? this.providerManager.getProvider(fbId) : undefined;
       if (fb) {
         this.log(`Falling back to ${fb.name}`);
         this.post({ type: 'chunk', text: `\n⚠️ ${provider.name} failed. Trying ${fb.name}...\n\n` });
@@ -292,10 +296,10 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
     this.post({
       type: 'state',
-      activeId: this.providerManager.getActiveProviderId() || 'groq',
+      activeId: this.providerManager.getActiveProviderId() || 'ollama-local',
       active: ap ? { id: ap.id, name: ap.name, model: ap.config.model, url: ap.config.baseUrl, hasKey: !!ap.config.apiKey } : null,
       models,
-      providers: getAllPresets().map(p => ({ id: p.id, name: p.name, local: p.isLocal, needsKey: p.requiresApiKey })),
+      providers: getAllPresets().map(p => ({ id: p.id, name: p.name + (p.isLocal ? ' (Local)' : ''), local: p.isLocal, needsKey: p.requiresApiKey })),
     });
   }
 
@@ -508,7 +512,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       m.providers.forEach(function(p){
         var o = document.createElement('option');
         o.value = p.id;
-        o.textContent = (p.id === m.activeId ? '⭐ ':'') + p.name + (p.local ? ' (Local)':'');
+        o.textContent = (p.id === m.activeId ? '⭐ ':'') + p.name;
         if(p.id === m.activeId) o.selected = true;
         selProv.appendChild(o);
       });
@@ -580,7 +584,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
   function esc(s){
     if(!s) return '';
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\\n/g,'<br>');
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
   }
 
   function md(s){
