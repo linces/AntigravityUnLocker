@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Platform-VS%20Code%20%7C%20Antigravity%20IDE-blue?style=for-the-badge&logo=visualstudiocode" alt="Platform" />
   <img src="https://img.shields.io/badge/Providers-11%2B-purple?style=for-the-badge&logo=openai" alt="Providers" />
-  <img src="https://img.shields.io/badge/Version-0.2.0-green?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-0.3.0-green?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-brightgreen?style=for-the-badge" alt="License" />
 </p>
 
@@ -51,6 +51,10 @@
 
 ### ⚙️ Model Context Protocol (MCP) & Plan-Then-Act Agent
 - Embedded MCP Server over JSON-RPC 2.0 (`tools/list`, `tools/call`, `resources/list`) exposing workspace resources and `[dev]` Transversal Domain SSOT data
+- Direct File Attachments (`📎` button + Drag & Drop) with removable file pills
+- Clipboard Screenshot Capture via `Ctrl + V` with Base64 preview & Multimodal AI Payload
+- Interactive Large File Links with line navigation in active VS Code editor (`#L40`)
+- Emoji Picker Popover (`😀`) & Markdown Shortcode Parser (`:rocket:`, `:bug:`, `:fire:`)
 - Autonomous Agent Engine with Self-Correction Harness (auto-reflection on tool errors & diagnostics)
 - Precise Substring Code Edit Tools (`ag_replaceInFile`, `ag_multiReplaceInFile`) avoiding full file rewrites
 - Agent Stepper Widget rendering step-by-step plan execution (⏳ Pending, 🔄 In Progress, ✅ Completed, ❌ Failed)

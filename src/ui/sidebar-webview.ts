@@ -75,11 +75,66 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
             await this.postStateUpdate();
             break;
           case 'chat':
-            await this.handleChat(msg.text, msg.slash);
+            await this.handleChat(msg.text, msg.slash, msg.images);
             break;
           case 'agent':
             await this.handleAgent(msg.text);
             break;
+          case 'pickFile': {
+            const uris = await vscode.window.showOpenDialog({
+              canSelectMany: true,
+              openLabel: 'Attach File to AG AI',
+            });
+            if (uris) {
+              for (const uri of uris) {
+                try {
+                  const doc = await vscode.workspace.openTextDocument(uri);
+                  const rel = vscode.workspace.asRelativePath(uri);
+                  this.post({
+                    type: 'fileAttached',
+                    name: rel,
+                    path: uri.fsPath,
+                    content: doc.getText(),
+                  });
+                } catch (e) {
+                  this.log(`Error reading attached file ${uri.fsPath}: ${e}`);
+                }
+              }
+            }
+            break;
+          }
+          case 'openFile': {
+            try {
+              let filePath = msg.path;
+              let line = 0;
+              const match = filePath.match(/#L(\d+)(?:-L\d+)?$/);
+              if (match) {
+                line = parseInt(match[1], 10);
+                filePath = filePath.replace(/#L\d+(?:-L\d+)?$/, '');
+              }
+              const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri;
+              let uri: vscode.Uri;
+              if (filePath.startsWith('file:///')) {
+                uri = vscode.Uri.parse(filePath);
+              } else if (filePath.includes(':\\') || filePath.startsWith('/')) {
+                uri = vscode.Uri.file(filePath);
+              } else if (workspaceFolder) {
+                uri = vscode.Uri.joinPath(workspaceFolder, filePath);
+              } else {
+                uri = vscode.Uri.file(filePath);
+              }
+              const doc = await vscode.workspace.openTextDocument(uri);
+              const editor = await vscode.window.showTextDocument(doc, { preview: true });
+              if (line > 0) {
+                const pos = new vscode.Position(line - 1, 0);
+                editor.selection = new vscode.Selection(pos, pos);
+                editor.revealRange(new vscode.Range(pos, pos));
+              }
+            } catch (err) {
+              this.log(`Error opening file ${msg.path}: ${err}`);
+            }
+            break;
+          }
           case 'clear':
             this.chatHistory = [];
             this.post({ type: 'cleared' });
@@ -104,8 +159,15 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
   // ── Chat Handler ──────────────────────────────────────────────────────────
 
-  private async handleChat(text: string, slash?: string): Promise<void> {
-    this.chatHistory.push({ role: 'user', content: text });
+  private async handleChat(text: string, slash?: string, images?: string[]): Promise<void> {
+    let userContent: any = text;
+    if (images && images.length > 0) {
+      userContent = [
+        { type: 'text', text },
+        ...images.map(img => ({ type: 'image_url', image_url: { url: img } }))
+      ];
+    }
+    this.chatHistory.push({ role: 'user', content: userContent });
 
     const provider = this.providerManager.getActiveProvider();
     if (!provider) {
@@ -459,6 +521,21 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
       .send-pill { background: var(--accent); color: #ffffff; border: none; border-radius: 14px; padding: 4px 12px; cursor: pointer; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; transition: background 0.15s ease; flex-shrink: 0; }
       .send-pill:hover { background: var(--accent-hover); }
+
+      .attachment-bar { display: flex; gap: 6px; flex-wrap: wrap; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+      .file-pill { display: inline-flex; align-items: center; gap: 4px; background: rgba(0,122,204,0.2); border: 1px solid rgba(0,122,204,0.4); color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 11px; }
+      .file-pill-remove { cursor: pointer; color: #aaa; margin-left: 2px; }
+      .file-pill-remove:hover { color: #ff5555; }
+      .img-thumb-preview { position: relative; display: inline-block; width: 44px; height: 44px; border-radius: 6px; overflow: hidden; border: 1px solid var(--accent); }
+      .img-thumb-preview img { width: 100%; height: 100%; object-fit: cover; }
+      .img-thumb-remove { position: absolute; top: 1px; right: 1px; background: rgba(0,0,0,0.7); color: #fff; border-radius: 50%; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; font-size: 9px; cursor: pointer; }
+
+      .emoji-picker-popover { position: absolute; bottom: 55px; left: 10px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.4); z-index: 100; width: 220px; }
+      .emoji-picker-hdr { font-size: 10px; color: #888; margin-bottom: 6px; font-weight: bold; }
+      .emoji-picker-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; max-height: 120px; overflow-y: auto; }
+      .emoji-btn { background: transparent; border: none; font-size: 16px; cursor: pointer; border-radius: 4px; padding: 2px; text-align: center; }
+      .emoji-btn:hover { background: rgba(255,255,255,0.1); }
+      a.file-link { color: var(--accent); text-decoration: underline; cursor: pointer; }
     `;
   }
 
@@ -488,10 +565,16 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       <span class="chip" data-c="/review ">/review</span>
     </div>
 
+    <div id="attachmentBar" class="attachment-bar" style="display: none;"></div>
+
     <textarea id="inp" placeholder="Describe what to build..."></textarea>
+
+    <div id="emojiPicker" class="emoji-picker-popover" style="display: none;"></div>
 
     <div class="card-toolbar">
       <div class="tb-left">
+        <button type="button" class="ibtn" id="btnAttachFile" title="Attach File (📎)">📎</button>
+        <button type="button" class="ibtn" id="btnEmoji" title="Insert Emoji (😀)">😀</button>
         <div class="pill" id="pillAgent" title="Toggle Agent Mode (uses workspace tools)">
           <span>🤖 Agent</span>
         </div>
@@ -526,6 +609,9 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   var currentStreamText = '';
   var isAgentMode = false;
 
+  var attachedFiles = [];
+  var attachedImages = [];
+
   function getChat(){ return document.getElementById('chat'); }
   function getInp(){ return document.getElementById('inp'); }
   function getSelProv(){ return document.getElementById('selProv'); }
@@ -533,6 +619,44 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   function getKeyIn(){ return document.getElementById('keyIn'); }
 
   var isUpdatingUI = false;
+
+  function renderAttachments(){
+    var bar = document.getElementById('attachmentBar');
+    if(!bar) return;
+    bar.innerHTML = '';
+    if(attachedFiles.length === 0 && attachedImages.length === 0){
+      bar.style.display = 'none';
+      return;
+    }
+    bar.style.display = 'flex';
+    attachedFiles.forEach(function(f, idx){
+      var d = document.createElement('div');
+      d.className = 'file-pill';
+      d.innerHTML = '📎 ' + esc(f.name) + ' <span class="file-pill-remove" data-idx="' + idx + '">✖</span>';
+      bar.appendChild(d);
+    });
+    attachedImages.forEach(function(imgUrl, idx){
+      var d = document.createElement('div');
+      d.className = 'img-thumb-preview';
+      d.innerHTML = '<img src="' + imgUrl + '"/><div class="img-thumb-remove" data-idx="' + idx + '">✖</div>';
+      bar.appendChild(d);
+    });
+  }
+
+  var barEl = document.getElementById('attachmentBar');
+  if(barEl){
+    barEl.addEventListener('click', function(e){
+      if(e.target.classList.contains('file-pill-remove')){
+        var idx = parseInt(e.target.getAttribute('data-idx'), 10);
+        attachedFiles.splice(idx, 1);
+        renderAttachments();
+      } else if(e.target.classList.contains('img-thumb-remove')){
+        var idx = parseInt(e.target.getAttribute('data-idx'), 10);
+        attachedImages.splice(idx, 1);
+        renderAttachments();
+      }
+    });
+  }
 
   // ─── Global Event Delegation ───────────────────────
   document.addEventListener('click', function(e){
@@ -556,6 +680,27 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     var btnSend = t.id === 'btnSend' ? t : t.closest('#btnSend');
     if(btnSend){
       doSend();
+      return;
+    }
+
+    var btnAttachFile = t.id === 'btnAttachFile' ? t : t.closest('#btnAttachFile');
+    if(btnAttachFile){
+      if(vsc) vsc.postMessage({type:'pickFile'});
+      return;
+    }
+
+    var btnEmoji = t.id === 'btnEmoji' ? t : t.closest('#btnEmoji');
+    var emojiPicker = document.getElementById('emojiPicker');
+    if(btnEmoji && emojiPicker){
+      emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
+      return;
+    }
+
+    var fileLink = t.tagName === 'A' && t.classList.contains('file-link') ? t : t.closest('a.file-link');
+    if(fileLink){
+      e.preventDefault();
+      var fp = fileLink.getAttribute('data-path');
+      if(fp && vsc) vsc.postMessage({type:'openFile', path:fp});
       return;
     }
 
@@ -598,6 +743,81 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     }
   });
 
+  // ─── Clipboard Paste Handler (Ctrl+V Screenshots) ───
+  document.addEventListener('paste', function(e){
+    if(!e.clipboardData || !e.clipboardData.items) return;
+    var items = e.clipboardData.items;
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        var blob = items[i].getAsFile();
+        if(blob){
+          var reader = new FileReader();
+          reader.onload = function(evt) {
+            attachedImages.push(evt.target.result);
+            renderAttachments();
+          };
+          reader.readAsDataURL(blob);
+          e.preventDefault();
+        }
+      }
+    }
+  });
+
+  // ─── Drag & Drop Handlers ──────────────────────────
+  window.addEventListener('dragover', function(e){ e.preventDefault(); });
+  window.addEventListener('drop', function(e){
+    e.preventDefault();
+    if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0){
+      for(var i = 0; i < e.dataTransfer.files.length; i++){
+        var file = e.dataTransfer.files[i];
+        if(file.type.indexOf('image') !== -1){
+          var reader = new FileReader();
+          reader.onload = function(evt){
+            attachedImages.push(evt.target.result);
+            renderAttachments();
+          };
+          reader.readAsDataURL(file);
+        } else {
+          var reader = new FileReader();
+          reader.onload = (function(f){
+            return function(evt){
+              attachedFiles.push({ name: f.name, path: f.name, content: evt.target.result });
+              renderAttachments();
+            };
+          })(file);
+          reader.readAsText(file);
+        }
+      }
+    }
+  });
+
+  // ─── Emoji Picker Popover Setup ────────────────────
+  var emojiPicker = document.getElementById('emojiPicker');
+  var emojis = ['🚀','⚡','🐛','🔧','🤖','💡','🧪','📦','🎨','🎯','🔒','💻','⚙️','📝','🔥','👍','👎','🎉','❤️','😄','🤔','🙌','👏','👀','💯','🙏'];
+  if(emojiPicker){
+    var gridHtml = '<div class="emoji-picker-hdr">Select Emoji</div><div class="emoji-picker-grid">';
+    emojis.forEach(function(em){
+      gridHtml += '<button type="button" class="emoji-btn" data-em="' + em + '">' + em + '</button>';
+    });
+    gridHtml += '</div>';
+    emojiPicker.innerHTML = gridHtml;
+
+    emojiPicker.addEventListener('click', function(e){
+      if(e.target.classList.contains('emoji-btn')){
+        var em = e.target.getAttribute('data-em');
+        var inputEl = getInp();
+        if(inputEl){
+          var start = inputEl.selectionStart || inputEl.value.length;
+          var end = inputEl.selectionEnd || inputEl.value.length;
+          inputEl.value = inputEl.value.substring(0, start) + em + inputEl.value.substring(end);
+          inputEl.focus();
+          inputEl.selectionStart = inputEl.selectionEnd = start + em.length;
+        }
+        emojiPicker.style.display = 'none';
+      }
+    });
+  }
+
   // ─── Dropdown Listeners ─────────────────────────────
   document.addEventListener('change', function(e){
     var t = e.target;
@@ -630,10 +850,15 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     var inputEl = getInp();
     if(!inputEl) return;
     var text = inputEl.value.trim();
-    if(!text) return;
+    if(attachedFiles.length > 0){
+      var bt = String.fromCharCode(96) + String.fromCharCode(96) + String.fromCharCode(96);
+      attachedFiles.forEach(function(f){
+        fullText += '\n\n[Attached File: ' + f.name + ']\n' + bt + '\n' + f.content + '\n' + bt;
+      });
+    }
 
-    console.log('[AG Webview] doSend called:', text);
-    addMsg('user', text);
+    console.log('[AG Webview] doSend called:', fullText);
+    addMsg('user', fullText);
     currentStreamText = '';
     streamEl = addMsg('assistant', '⏳ Thinking...');
     inputEl.value = '';
@@ -644,16 +869,23 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       return;
     }
 
-    if(isAgentMode){
-      vsc.postMessage({type:'agent', text:text});
-    } else {
-      var slash = null;
+    var payload = { type: isAgentMode ? 'agent' : 'chat', text: fullText };
+    if(attachedImages.length > 0){
+      payload.images = attachedImages.slice();
+    }
+
+    if(!isAgentMode){
       if(text.charAt(0) === '/'){
         var sp = text.indexOf(' ');
-        slash = sp > 0 ? text.substring(1, sp) : text.substring(1);
+        payload.slash = sp > 0 ? text.substring(1, sp) : text.substring(1);
       }
-      vsc.postMessage({type:'chat', text:text, slash:slash});
     }
+
+    vsc.postMessage(payload);
+
+    attachedFiles = [];
+    attachedImages = [];
+    renderAttachments();
   }
 
   // ─── Incoming Messages ─────────────────────────────
@@ -661,7 +893,11 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     var m = ev.data;
     if(!m || !m.type) return;
 
-    if(m.type === 'state'){
+    if(m.type === 'fileAttached'){
+      attachedFiles.push({ name: m.name, path: m.path, content: m.content });
+      renderAttachments();
+    }
+    else if(m.type === 'state'){
       isUpdatingUI = true;
       try {
         var sProv = getSelProv();
@@ -804,6 +1040,21 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     text = text.replace(new RegExp('^# (.*$)', 'gm'), '<h2 style="margin:8px 0">$1</h2>');
     text = text.replace(new RegExp('^[-*] (.*$)', 'gm'), '• $1');
     text = text.replace(new RegExp('^(?:⏳|🔄|✅|❌) (.*$)', 'gm'), '<div class="stepper-step">$1</div>');
+
+    text = text.replace(new RegExp(':rocket:', 'g'), '🚀');
+    text = text.replace(new RegExp(':bug:', 'g'), '🐛');
+    text = text.replace(new RegExp(':fire:', 'g'), '🔥');
+    text = text.replace(new RegExp(':check:', 'g'), '✅');
+    text = text.replace(new RegExp(':warning:', 'g'), '⚠️');
+    text = text.replace(new RegExp(':zap:', 'g'), '⚡');
+    text = text.replace(new RegExp(':bulb:', 'g'), '💡');
+    text = text.replace(new RegExp(':robot:', 'g'), '🤖');
+    text = text.replace(new RegExp(':package:', 'g'), '📦');
+    text = text.replace(new RegExp(':smile:', 'g'), '😄');
+    text = text.replace(new RegExp(':thumbsup:', 'g'), '👍');
+
+    text = text.replace(new RegExp('(file:///[^\\s<]+|\\b(?:[a-zA-Z]:\\\\\\\\|src\\/|docs\\/)[^\\s<]+)', 'g'), '<a href="#" class="file-link" data-path="$1">$1</a>');
+
     text = text.split(String.fromCharCode(10)).join('<br>');
 
     for (var i = 0; i < codeBlocks.length; i++) {
