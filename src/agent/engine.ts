@@ -153,19 +153,30 @@ export class AgentEngine implements vscode.Disposable {
 
           const result = await this.toolRegistry.executeTool(toolName, toolArgs);
 
+          const isErrorResult = result.startsWith('Error') || result.includes('SyntaxError') || result.includes('TS2339');
+
+          // Self-Correction Harness: inject reflection guidance on error
+          const formattedResult = isErrorResult
+            ? `[Self-Correction Harness Notice: Tool execution failed]\n${result}\n\nPlease analyze the root cause of this error, review your file context or parameters, and call the appropriate tool to fix the issue.`
+            : result;
+
           // Add tool result to conversation
           messages.push({
             role: 'tool',
-            content: result,
+            content: formattedResult,
             tool_call_id: toolCall.id,
           });
 
           toolCallLog.push({ name: toolName, args: toolArgs, result });
 
           if (stream) {
-            // Show truncated result
-            const preview = result.length > 200 ? result.substring(0, 200) + '...' : result;
-            stream.markdown(`> ✅ ${preview}\n\n`);
+            // Show result
+            if (isErrorResult) {
+              stream.markdown(`> ⚠️ **Error:** ${result.length > 200 ? result.substring(0, 200) + '...' : result}\n> 💡 *Self-Correction Harness activated. Retrying with diagnostic reflection...*\n\n`);
+            } else {
+              const preview = result.length > 200 ? result.substring(0, 200) + '...' : result;
+              stream.markdown(`> ✅ ${preview}\n\n`);
+            }
           }
         }
 
@@ -205,7 +216,7 @@ export class AgentEngine implements vscode.Disposable {
   // ─── Private ──────────────────────────────────────────────────────────────
 
   private isDestructive(toolName: string): boolean {
-    return ['ag_writeFile', 'ag_runCommand'].includes(toolName);
+    return ['ag_writeFile', 'ag_replaceInFile', 'ag_multiReplaceInFile', 'ag_runCommand'].includes(toolName);
   }
 
   private async confirmAction(

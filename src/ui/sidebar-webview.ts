@@ -426,8 +426,10 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       .msg.user { background: rgba(0,122,204,.18); border: 1px solid rgba(0,122,204,.35); align-self: flex-end; max-width: 88%; border-bottom-right-radius: 2px; }
       .msg.assistant { background: rgba(255,255,255,.04); border: 1px solid var(--border); align-self: flex-start; max-width: 96%; border-bottom-left-radius: 2px; }
       pre { background: #0d0d0d; border: 1px solid #2a2a2a; border-radius: 6px; padding: 10px; margin: 8px 0; overflow-x: auto; }
+      .code-hdr { display: flex; justify-content: space-between; align-items: center; background: #1e1e1e; padding: 4px 8px; border-top-left-radius: 6px; border-top-right-radius: 6px; font-size: 10px; color: #aaa; border-bottom: 1px solid #2a2a2a; font-family: monospace; }
+      .stepper-step { background: rgba(0,122,204,0.1); border-left: 3px solid var(--accent); padding: 4px 8px; margin: 4px 0; border-radius: 4px; font-size: 11px; }
       code { font-family: var(--vscode-editor-font-family, monospace); font-size: 11px; }
-      .cbtn { background: #222; border: 1px solid #444; color: #ccc; padding: 3px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; margin-top: 6px; display: inline-block; }
+      .cbtn { background: #222; border: 1px solid #444; color: #ccc; padding: 3px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; display: inline-block; }
       .cbtn:hover { background: var(--accent); color: #fff; }
 
       .input-card { margin: 8px 10px 10px 10px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; box-shadow: 0 4px 16px rgba(0,0,0,0.25); transition: border-color 0.15s ease; }
@@ -801,6 +803,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     text = text.replace(new RegExp('^## (.*$)', 'gm'), '<h3 style="margin:6px 0">$1</h3>');
     text = text.replace(new RegExp('^# (.*$)', 'gm'), '<h2 style="margin:8px 0">$1</h2>');
     text = text.replace(new RegExp('^[-*] (.*$)', 'gm'), '• $1');
+    text = text.replace(new RegExp('^(?:⏳|🔄|✅|❌) (.*$)', 'gm'), '<div class="stepper-step">$1</div>');
     text = text.split(String.fromCharCode(10)).join('<br>');
 
     for (var i = 0; i < codeBlocks.length; i++) {

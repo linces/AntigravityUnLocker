@@ -26,6 +26,24 @@ export async function getMCPResources(): Promise<MCPResource[]> {
       description: 'Overview of workspace structure and active settings',
       mimeType: 'application/json',
     },
+    {
+      uri: 'domain://dev/projects_registry',
+      name: '[dev] Transversal Domain — Project Registry (SSOT)',
+      description: 'Single Source of Truth mapping all projects, paths, stacks, and domain bindings',
+      mimeType: 'text/yaml',
+    },
+    {
+      uri: 'domain://dev/health_report',
+      name: '[dev] Transversal Domain — Health Report',
+      description: 'Latest Domain Evolution Engine health metrics and scores across all domains',
+      mimeType: 'text/markdown',
+    },
+    {
+      uri: 'domain://dev/knowledge/vscode_extension_resilience',
+      name: '[dev] Knowledge Base — VS Code Extension Resilience & Telemetry',
+      description: 'Architectural specifications, gotchas, and resilience patterns for VS Code extensions',
+      mimeType: 'text/markdown',
+    },
   ];
 
   try {

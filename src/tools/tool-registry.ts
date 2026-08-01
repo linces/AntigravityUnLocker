@@ -8,6 +8,7 @@
 
 import * as vscode from 'vscode';
 import { FileTools } from './file-tools';
+import { EditTools, ReplacementChunk } from './edit-tools';
 import { TerminalTools } from './terminal-tools';
 import { WorkspaceTools } from './workspace-tools';
 
@@ -16,12 +17,14 @@ export class ToolRegistry implements vscode.Disposable {
   private outputChannel: vscode.OutputChannel;
 
   public readonly fileTools: FileTools;
+  public readonly editTools: EditTools;
   public readonly terminalTools: TerminalTools;
   public readonly workspaceTools: WorkspaceTools;
 
   constructor(outputChannel: vscode.OutputChannel) {
     this.outputChannel = outputChannel;
     this.fileTools = new FileTools(outputChannel);
+    this.editTools = new EditTools(outputChannel);
     this.terminalTools = new TerminalTools(outputChannel);
     this.workspaceTools = new WorkspaceTools(outputChannel);
   }
@@ -90,6 +93,62 @@ export class ToolRegistry implements vscode.Disposable {
               },
             },
             required: ['path', 'content'],
+          },
+        },
+      },
+      {
+        type: 'function' as const,
+        function: {
+          name: 'ag_replaceInFile',
+          description:
+            'Precise code edit tool. Replace a specific unique code block in a file with new replacement code.',
+          parameters: {
+            type: 'object',
+            properties: {
+              path: {
+                type: 'string',
+                description: 'Relative path to the file from workspace root.',
+              },
+              targetContent: {
+                type: 'string',
+                description: 'Exact text substring to find and replace. Must match target file uniquely.',
+              },
+              replacementContent: {
+                type: 'string',
+                description: 'Exact text replacement string.',
+              },
+            },
+            required: ['path', 'targetContent', 'replacementContent'],
+          },
+        },
+      },
+      {
+        type: 'function' as const,
+        function: {
+          name: 'ag_multiReplaceInFile',
+          description:
+            'Apply multiple non-contiguous substring code block replacements in a single file.',
+          parameters: {
+            type: 'object',
+            properties: {
+              path: {
+                type: 'string',
+                description: 'Relative path to the file from workspace root.',
+              },
+              replacements: {
+                type: 'array',
+                description: 'Array of replacement objects with targetContent and replacementContent.',
+                items: {
+                  type: 'object',
+                  properties: {
+                    targetContent: { type: 'string', description: 'Exact target text to find.' },
+                    replacementContent: { type: 'string', description: 'Replacement text.' },
+                  },
+                  required: ['targetContent', 'replacementContent'],
+                },
+              },
+            },
+            required: ['path', 'replacements'],
           },
         },
       },
@@ -225,6 +284,19 @@ export class ToolRegistry implements vscode.Disposable {
           return await this.fileTools.writeFile(
             args.path as string,
             args.content as string
+          );
+
+        case 'ag_replaceInFile':
+          return await this.editTools.replaceInFile(
+            args.path as string,
+            args.targetContent as string,
+            args.replacementContent as string
+          );
+
+        case 'ag_multiReplaceInFile':
+          return await this.editTools.multiReplaceInFile(
+            args.path as string,
+            args.replacements as ReplacementChunk[]
           );
 
         case 'ag_listFiles':

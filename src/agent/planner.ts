@@ -44,7 +44,7 @@ Respond strictly in JSON format matching this schema:
     {
       "id": 1,
       "description": "Clear action step",
-      "toolName": "ag_readFile | ag_writeFile | ag_runCommand | ag_searchWorkspace | ag_listFiles",
+      "toolName": "ag_readFile | ag_writeFile | ag_replaceInFile | ag_multiReplaceInFile | ag_runCommand | ag_searchWorkspace | ag_listFiles",
       "expectedOutcome": "What this step accomplishes"
     }
   ]
