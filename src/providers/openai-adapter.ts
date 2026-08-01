@@ -258,7 +258,7 @@ export class OpenAIAdapter implements ILLMProvider {
   ): Record<string, unknown> {
     const payload: Record<string, unknown> = {
       model: request.model || this.model,
-      messages: request.messages,
+      messages: this.normalizeMessages(request.messages),
       temperature: request.temperature ?? 0.7,
       stream,
     };
@@ -280,6 +280,36 @@ export class OpenAIAdapter implements ILLMProvider {
     }
 
     return payload;
+  }
+
+  private normalizeMessages(
+    messages: Array<any>
+  ): Array<Record<string, unknown>> {
+    const isVisionSupported = this.isVisionCapable();
+
+    return messages.map((m) => {
+      if (Array.isArray(m.content)) {
+        if (!isVisionSupported) {
+          // Provider/Model does not support vision payload array — flatten to string
+          const textPart = m.content.find((c: any) => c && c.type === 'text')?.text || '';
+          const imgCount = m.content.filter((c: any) => c && c.type === 'image_url').length;
+          const imgNote = imgCount > 0 ? `\n\n[Attached Screenshot/Image (${imgCount} image(s))]` : '';
+          return { ...m, content: textPart + imgNote };
+        }
+      }
+      return { ...m };
+    });
+  }
+
+  private isVisionCapable(): boolean {
+    const currentModel = (this.model || '').toLowerCase();
+    if (this.id === 'openai') {
+      return currentModel.includes('gpt-4') || currentModel.includes('o1') || currentModel.includes('vision');
+    }
+    if (this.id === 'openrouter') {
+      return currentModel.includes('vision') || currentModel.includes('claude-3') || currentModel.includes('gemini') || currentModel.includes('vl');
+    }
+    return currentModel.includes('vision') || currentModel.includes('vl');
   }
 
   private defaultModelInfo(): ModelInfo {
