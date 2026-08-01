@@ -777,8 +777,15 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   function md(s){
     if(!s) return '';
     var codeBlocks = [];
-    var text = s.replace(/\`\`\`(\w*)\n?([\s\S]*?)\`\`\`/g, function(_, lang, code){
+    var text = s.replace(/\`\`\`([\s\S]*?)\`\`\`/g, function(_, block){
       var id = '___CODE_BLOCK_' + codeBlocks.length + '___';
+      var firstNewline = block.indexOf(String.fromCharCode(10));
+      var lang = '';
+      var code = block;
+      if (firstNewline > 0 && firstNewline < 20 && !block.substring(0, firstNewline).includes(' ')) {
+        lang = block.substring(0, firstNewline).trim();
+        code = block.substring(firstNewline + 1);
+      }
       var cleanCode = esc(code.trim());
       var blockHtml = '<pre><div class="code-hdr"><span>' + (lang || 'code') + '</span><button class="cbtn">Apply to Editor</button></div><code>' + cleanCode + '</code></pre>';
       codeBlocks.push(blockHtml);
@@ -788,13 +795,13 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     text = esc(text);
 
     text = text.replace(/\`([^\`]+)\`/g, '<code>$1</code>');
-    text = text.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
-    text = text.replace(/\*([^*]+)\*/g, '<i>$1</i>');
-    text = text.replace(/^### (.*$)/gim, '<h4 style="margin:4px 0">$1</h4>');
-    text = text.replace(/^## (.*$)/gim, '<h3 style="margin:6px 0">$1</h3>');
-    text = text.replace(/^# (.*$)/gim, '<h2 style="margin:8px 0">$1</h2>');
-    text = text.replace(/^\s*[-*]\s+(.*$)/gim, '• $1');
-    text = text.replace(/\n/g, '<br>');
+    text = text.replace(new RegExp('[*][*](.+?)[*][*]', 'g'), '<b>$1</b>');
+    text = text.replace(new RegExp('[*]([^*]+)[*]', 'g'), '<i>$1</i>');
+    text = text.replace(new RegExp('^### (.*$)', 'gm'), '<h4 style="margin:4px 0">$1</h4>');
+    text = text.replace(new RegExp('^## (.*$)', 'gm'), '<h3 style="margin:6px 0">$1</h3>');
+    text = text.replace(new RegExp('^# (.*$)', 'gm'), '<h2 style="margin:8px 0">$1</h2>');
+    text = text.replace(new RegExp('^[-*] (.*$)', 'gm'), '• $1');
+    text = text.split(String.fromCharCode(10)).join('<br>');
 
     for (var i = 0; i < codeBlocks.length; i++) {
       text = text.replace('___CODE_BLOCK_' + i + '___', codeBlocks[i]);
