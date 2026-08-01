@@ -249,6 +249,11 @@
           "id": "ag-universal-ai.sidebarView",
           "name": "AG Universal AI Assistant",
           "icon": "resources/icons/ag-sidebar.svg"
+        },
+        {
+          "id": "ag-universal-ai.treeView",
+          "name": "Providers & Telemetry",
+          "icon": "resources/icons/ag-sidebar.svg"
         }
       ]
     }

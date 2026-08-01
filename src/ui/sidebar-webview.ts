@@ -384,7 +384,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
     return '<!DOCTYPE html>\n<html lang="en">\n<head>\n' +
       '<meta charset="UTF-8">\n' +
-      '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src ' + csp + ' \'unsafe-inline\'; script-src \'nonce-' + nonce + '\';">\n' +
+      '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; img-src ' + csp + ' https: data:; font-src ' + csp + ' https: data:; style-src ' + csp + ' \'unsafe-inline\'; script-src \'nonce-' + nonce + '\';">\n' +
       '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
       '<style>\n' + this.getCss() + '\n</style>\n' +
       '</head>\n<body>\n' +
@@ -607,7 +607,15 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     }
   });
 
-  // ─── Keyboard ──────────────────────────────────────
+  // ─── Keyboard & Auto-Resize ────────────────────────
+  document.addEventListener('input', function(e){
+    var t = e.target;
+    if(t && t.id === 'inp'){
+      t.style.height = 'auto';
+      t.style.height = Math.min(t.scrollHeight, 140) + 'px';
+    }
+  });
+
   document.addEventListener('keydown', function(e){
     if(e.target && e.target.id === 'inp' && e.key === 'Enter' && !e.shiftKey){
       e.preventDefault();
@@ -627,6 +635,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     currentStreamText = '';
     streamEl = addMsg('assistant', '⏳ Thinking...');
     inputEl.value = '';
+    inputEl.style.height = 'auto';
 
     if(!vsc){
       if(streamEl) streamEl.innerHTML = '❌ Error: VS Code API not connected.';

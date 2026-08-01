@@ -59,26 +59,49 @@ export class OpenAIAdapter implements ILLMProvider {
     const url = `${this.baseUrl}/chat/completions`;
     const payload = this.buildPayload(request, false);
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    let lastError: Error | undefined;
+    const maxRetries = 2;
 
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: this.buildHeaders(),
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      if (attempt > 0) {
+        await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
       }
 
-      return (await response.json()) as ChatCompletionResponse;
-    } finally {
-      clearTimeout(timer);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: this.buildHeaders(),
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          const isTransient = [429, 502, 503, 504].includes(response.status);
+          const err = new Error(`HTTP ${response.status}: ${errorText}`);
+          if (isTransient && attempt < maxRetries) {
+            lastError = err;
+            continue;
+          }
+          throw err;
+        }
+
+        return (await response.json()) as ChatCompletionResponse;
+      } catch (err: unknown) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        if (attempt < maxRetries && lastError.message.includes('fetch failed')) {
+          continue;
+        }
+        throw lastError;
+      } finally {
+        clearTimeout(timer);
+      }
     }
+
+    throw lastError || new Error('Request failed after retries.');
   }
 
   public async *stream(

@@ -95,6 +95,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
   log('Primary Sidebar Webview registered (Kimi/Cursor/Cline style)');
 
+  // ─── 9b. Tree View Sidebar (Providers & Telemetry) ────────────────────
+  const treeDataProvider = new AGTreeDataProvider(providerManager);
+  context.subscriptions.push(
+    treeDataProvider,
+    vscode.window.registerTreeDataProvider('ag-universal-ai.treeView', treeDataProvider)
+  );
+  log('Tree View Sidebar registered (Providers & Telemetry)');
+
   // ─── 10. Status Bar ─────────────────────────────────────────────────────
   const statusBar = new AGStatusBar(providerManager);
   context.subscriptions.push(statusBar);
