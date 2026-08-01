@@ -850,10 +850,14 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     var inputEl = getInp();
     if(!inputEl) return;
     var text = inputEl.value.trim();
+    if(!text && attachedFiles.length === 0 && attachedImages.length === 0) return;
+
+    var nl = String.fromCharCode(10);
+    var fullText = text;
     if(attachedFiles.length > 0){
       var bt = String.fromCharCode(96) + String.fromCharCode(96) + String.fromCharCode(96);
       attachedFiles.forEach(function(f){
-        fullText += '\n\n[Attached File: ' + f.name + ']\n' + bt + '\n' + f.content + '\n' + bt;
+        fullText += nl + nl + '[Attached File: ' + f.name + ']' + nl + bt + nl + f.content + nl + bt;
       });
     }
 
