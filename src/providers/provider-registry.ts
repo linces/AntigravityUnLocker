@@ -154,6 +154,18 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     requiresApiKey: true,
     keyProcurementUrl: 'https://fireworks.ai/account/api-keys',
   },
+  {
+    id: 'nvidia',
+    name: 'NVIDIA NIM',
+    description: 'NVIDIA NIM microservices: Llama 3.3 70B, Nemotron 70B, DeepSeek R1 & Qwen 2.5 Coder.',
+    baseUrl: 'https://integrate.api.nvidia.com/v1',
+    model: 'meta/llama-3.3-70b-instruct',
+    defaultModel: 'meta/llama-3.3-70b-instruct',
+    timeoutMs: 120000,
+    isLocal: false,
+    requiresApiKey: true,
+    keyProcurementUrl: 'https://build.nvidia.com',
+  },
 ] as const;
 
 /**

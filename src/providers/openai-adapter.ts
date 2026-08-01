@@ -218,12 +218,12 @@ export class OpenAIAdapter implements ILLMProvider {
       });
 
       if (!response.ok) {
-        return [this.defaultModelInfo()];
+        return this.getFallbackModels();
       }
 
       const data = (await response.json()) as { data?: Array<{ id: string }> };
       if (!data.data || !Array.isArray(data.data)) {
-        return [this.defaultModelInfo()];
+        return this.getFallbackModels();
       }
 
       return data.data.map((m) => ({
@@ -236,7 +236,7 @@ export class OpenAIAdapter implements ILLMProvider {
         supportsVision: false,
       }));
     } catch {
-      return [this.defaultModelInfo()];
+      return this.getFallbackModels();
     }
   }
 
@@ -322,5 +322,27 @@ export class OpenAIAdapter implements ILLMProvider {
       supportsTools: true,
       supportsVision: false,
     };
+  }
+
+  private getFallbackModels(): ModelInfo[] {
+    if (this.id === 'nvidia') {
+      const models = [
+        'meta/llama-3.3-70b-instruct',
+        'nvidia/llama-3.1-nemotron-70b-instruct',
+        'deepseek-ai/deepseek-r1',
+        'qwen/qwen2.5-coder-32b-instruct',
+        'mistralai/mistral-large-2-instruct',
+      ];
+      return models.map((m) => ({
+        id: m,
+        name: m,
+        vendor: this.id,
+        maxInputTokens: 128000,
+        maxOutputTokens: 4096,
+        supportsTools: true,
+        supportsVision: false,
+      }));
+    }
+    return [this.defaultModelInfo()];
   }
 }

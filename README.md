@@ -36,6 +36,7 @@
 | **LM Studio** | 🏠 Local | GGUF models, free, offline |
 | **OpenAI** | ☁️ Cloud | GPT-4o, o1, o3-mini |
 | **Groq** | ☁️ Cloud | Ultra-fast LPU inference |
+| **NVIDIA NIM** | ☁️ Cloud | Llama-3.3-70b, Nemotron-70b, DeepSeek-R1 |
 | **OpenRouter** | ☁️ Cloud | Multi-model routing, free models available |
 | **DashScope** | ☁️ Cloud | Qwen 3.8 (2.4T MoE), Qwen 2.5 Coder |
 | **Moonshot AI** | ☁️ Cloud | Kimi K3, 1M token context |

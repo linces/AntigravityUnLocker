@@ -42,6 +42,7 @@ const ENV_KEY_MAP: Record<string, string> = {
   'siliconflow': 'SILICONFLOW_API_KEY',
   'together-ai': 'TOGETHER_API_KEY',
   'fireworks-ai': 'FIREWORKS_API_KEY',
+  'nvidia': 'NVIDIA_API_KEY',
   'custom': 'CUSTOM_API_KEY',
 };
 

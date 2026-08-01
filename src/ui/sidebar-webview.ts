@@ -184,9 +184,36 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       const rel = vscode.workspace.asRelativePath(ed.document.uri);
       const sel = ed.document.getText(ed.selection);
       if (sel.trim()) {
-        ctx = `\nFile: ${rel} (selection):\n\`\`\`${ed.document.languageId}\n${sel}\n\`\`\``;
-      } else if (ed.document.getText().length < 4000) {
-        ctx = `\nFile: ${rel}:\n\`\`\`${ed.document.languageId}\n${ed.document.getText()}\n\`\`\``;
+        ctx += `\nFile: ${rel} (selection):\n\`\`\`${ed.document.languageId}\n${sel}\n\`\`\``;
+      } else if (ed.document.getText().length < 20000) {
+        ctx += `\nFile: ${rel}:\n\`\`\`${ed.document.languageId}\n${ed.document.getText()}\n\`\`\``;
+      }
+    }
+
+    // Auto-detect folder / workspace analysis request or @workspace mention
+    const lowerText = text.toLowerCase();
+    const isWorkspaceRequest =
+      lowerText.includes('@workspace') ||
+      lowerText.includes('folder') ||
+      lowerText.includes('pasta') ||
+      lowerText.includes('projeto') ||
+      lowerText.includes('diretório') ||
+      lowerText.includes('diretorio') ||
+      lowerText.includes('estrutura');
+
+    if (isWorkspaceRequest) {
+      try {
+        const files = await vscode.workspace.findFiles(
+          '**/*',
+          '**/{node_modules,.git,dist,build,.vs,.vscode,vendor,out,coverage}/**',
+          100
+        );
+        const relPaths = files.map((f) => vscode.workspace.asRelativePath(f)).sort();
+        const wsName = vscode.workspace.workspaceFolders?.[0]?.name || 'Workspace';
+        ctx += `\n\n[Active Workspace Directory Structure (${wsName}) - ${relPaths.length} files]:\n` +
+          relPaths.map((p) => `- ${p}`).join('\n');
+      } catch (e) {
+        this.log(`Error scanning workspace structure: ${e}`);
       }
     }
 
@@ -557,6 +584,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
   <div class="input-card">
     <div class="chips" id="chips">
+      <span class="chip" data-c="@workspace ">@workspace</span>
       <span class="chip" data-c="/explain ">/explain</span>
       <span class="chip" data-c="/refactor ">/refactor</span>
       <span class="chip" data-c="/test ">/test</span>
