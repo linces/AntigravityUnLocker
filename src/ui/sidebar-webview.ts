@@ -7,25 +7,26 @@
 
 import * as vscode from 'vscode';
 import type { ProviderManager } from '../providers/provider-manager';
-import type { ToolRegistry } from '../tools/tool-registry';
-import type { AgentEngine } from '../agent/engine';
+import type { SessionManager } from '../chat/session-manager';
 import { getAllPresets } from '../providers/provider-registry';
 import { buildSystemPrompt, buildSlashCommandPrompt } from '../chat/prompt-builder';
 
 export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vscode.Disposable {
   private view?: vscode.WebviewView;
   private disposables: vscode.Disposable[] = [];
-  private chatHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
 
   constructor(
     private readonly extensionUri: vscode.Uri,
     private readonly providerManager: ProviderManager,
+    private readonly sessionManager: SessionManager,
     private readonly toolRegistry: ToolRegistry,
     private readonly agentEngine: AgentEngine,
     private readonly outputChannel: vscode.OutputChannel
   ) {
     this.disposables.push(
-      this.providerManager.onDidChangeProvider(() => this.postStateUpdate())
+      this.providerManager.onDidChangeProvider(() => this.postStateUpdate()),
+      this.sessionManager.onDidChangeSession(() => this.postStateUpdate()),
+      this.sessionManager.onDidChangeSessionList(() => this.postStateUpdate())
     );
   }
 
@@ -135,8 +136,19 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
             }
             break;
           }
+          case 'switchSession':
+            if (msg.id) {
+              await this.sessionManager.setActiveSession(msg.id);
+            }
+            break;
+          case 'newSession':
+            this.sessionManager.createSession('New Chat', this.providerManager.getActiveProviderId());
+            break;
+          case 'deleteSession':
+            await this.sessionManager.deleteSession(msg.id || this.sessionManager.getActiveSession().id);
+            break;
           case 'clear':
-            this.chatHistory = [];
+            await this.sessionManager.clearActiveMessages();
             this.post({ type: 'cleared' });
             break;
           case 'dashboard':
@@ -167,9 +179,15 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         ...images.map(img => ({ type: 'image_url', image_url: { url: img } }))
       ];
     }
-    this.chatHistory.push({ role: 'user', content: userContent });
+    const activeProvider = this.providerManager.getActiveProvider();
+    await this.sessionManager.addMessage(
+      'user',
+      userContent,
+      activeProvider?.id,
+      activeProvider?.config.model
+    );
 
-    const provider = this.providerManager.getActiveProvider();
+    const provider = activeProvider;
     if (!provider) {
       this.post({ type: 'done', text: '⚠️ No provider active. Select one from the dropdown.' });
       return;
@@ -217,9 +235,12 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       }
     }
 
+    const activeSession = this.sessionManager.getActiveSession();
+    const sessionHistory = activeSession.messages;
+
     const msgs = [
       { role: 'system' as const, content: sysPrompt },
-      ...this.chatHistory.slice(-6).map(m => ({ role: m.role, content: m.content })),
+      ...sessionHistory.slice(-6).map(m => ({ role: m.role as any, content: m.content as any })),
     ];
     if (ctx) { msgs[msgs.length - 1].content += ctx; }
 
@@ -326,9 +347,13 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       }
     }
 
-    if (full) { this.chatHistory.push({ role: 'assistant', content: full }); }
-    if (this.chatHistory.length > 50) {
-      this.chatHistory = this.chatHistory.slice(-50);
+    if (full) {
+      await this.sessionManager.addMessage(
+        'assistant',
+        full,
+        provider.id,
+        provider.config.model
+      );
     }
     this.post({ type: 'done', text: full });
   }
@@ -394,11 +419,21 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       needsKey: p.requiresApiKey,
     }));
 
+    const activeSession = this.sessionManager.getActiveSession();
+    const sessions = this.sessionManager.getSessions().map(s => ({
+      id: s.id,
+      title: s.title,
+      messageCount: s.messages.length,
+    }));
+
     // 1. Post immediate state update (optimistic UI response)
     const initialModels = ap?.config.model ? [ap.config.model] : [];
     this.post({
       type: 'state',
       activeId,
+      activeSessionId: activeSession.id,
+      sessions,
+      history: activeSession.messages,
       active: ap ? { id: ap.id, name: ap.name, model: ap.config.model, url: ap.config.baseUrl, hasKey: !!ap.config.apiKey } : null,
       models: initialModels,
       providers: presets,
@@ -570,9 +605,16 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     return `
   <div class="hdr">
     <div class="hdr-row">
-      <span class="brand">🤖 AG UNIVERSAL AI <span class="badge">ONLINE</span></span>
+      <span class="brand">🤖 AG AI</span>
+      <div class="session-bar" style="display: flex; align-items: center; gap: 4px; flex: 1; max-width: 170px; margin: 0 4px;">
+        <select id="selSession" class="hdr-select" title="Switch Chat Session" style="background: var(--card-bg); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; font-size: 11px; padding: 2px 4px; width: 100%; text-overflow: ellipsis; outline: none; cursor: pointer;">
+          <option value="">Loading sessions...</option>
+        </select>
+        <button class="ibtn" id="btnNewSession" title="New Chat Session (➕)">➕</button>
+        <button class="ibtn" id="btnDelSession" title="Delete Session (🗑️)">🗑️</button>
+      </div>
       <div class="hdr-btns">
-        <button class="ibtn" id="btnClear" title="Clear Chat">🧹</button>
+        <button class="ibtn" id="btnClear" title="Clear Messages">🧹</button>
         <button class="ibtn" id="btnDash" title="Dashboard">📊</button>
       </div>
     </div>
@@ -702,6 +744,18 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     var btnClear = t.id === 'btnClear' ? t : t.closest('#btnClear');
     if(btnClear){
       if(vsc) vsc.postMessage({type:'clear'});
+      return;
+    }
+
+    var btnNewSession = t.id === 'btnNewSession' ? t : t.closest('#btnNewSession');
+    if(btnNewSession){
+      if(vsc) vsc.postMessage({type:'newSession'});
+      return;
+    }
+
+    var btnDelSession = t.id === 'btnDelSession' ? t : t.closest('#btnDelSession');
+    if(btnDelSession){
+      if(vsc) vsc.postMessage({type:'deleteSession'});
       return;
     }
 
@@ -854,6 +908,8 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       vsc.postMessage({type:'switchProvider', id:t.value});
     } else if(t.id === 'selModel' && t.value){
       vsc.postMessage({type:'switchModel', model:t.value});
+    } else if(t.id === 'selSession' && t.value){
+      vsc.postMessage({type:'switchSession', id:t.value});
     }
   });
 
@@ -932,6 +988,35 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     else if(m.type === 'state'){
       isUpdatingUI = true;
       try {
+        var sSession = document.getElementById('selSession');
+        if(sSession && m.sessions){
+          sSession.innerHTML = '';
+          m.sessions.forEach(function(s){
+            var o = document.createElement('option');
+            o.value = s.id;
+            o.textContent = s.title + (s.messageCount ? ' (' + s.messageCount + ')' : '');
+            sSession.appendChild(o);
+          });
+          if(m.activeSessionId) sSession.value = m.activeSessionId;
+        }
+
+        if(m.history && Array.isArray(m.history)){
+          var chatEl = getChat();
+          if(chatEl){
+            chatEl.innerHTML = '';
+            if(m.history.length === 0){
+              addMsg('assistant', '👋 Welcome to <b>AG Universal AI</b>! Describe what to build or ask AI.');
+            } else {
+              m.history.forEach(function(item){
+                var contentStr = typeof item.content === 'string'
+                  ? item.content
+                  : (Array.isArray(item.content) ? item.content.map(function(c){ return c.text || ''; }).join(' ') : String(item.content));
+                addMsg(item.role, contentStr);
+              });
+            }
+          }
+        }
+
         var sProv = getSelProv();
         if(sProv){
           sProv.innerHTML = '';

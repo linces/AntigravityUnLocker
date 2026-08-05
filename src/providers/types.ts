@@ -163,3 +163,24 @@ export type ProviderChangeEvent = {
   newId: string;
   provider: ILLMProvider;
 };
+
+// ─── Session Management ─────────────────────────────────────────────────────
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  providerId?: string;
+  model?: string;
+  messages: Array<{
+    role: 'user' | 'assistant' | 'system';
+    content: string | ContentPart[];
+  }>;
+}
+
+export interface SessionState {
+  activeSessionId: string | undefined;
+  sessions: ChatSession[];
+}
+

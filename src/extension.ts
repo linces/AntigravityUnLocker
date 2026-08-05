@@ -28,6 +28,8 @@ import {
   showHealthCheck,
 } from './ui/quick-pick';
 
+import { SessionManager } from './chat/session-manager';
+
 let outputChannel: vscode.OutputChannel;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
@@ -78,10 +80,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(chatParticipant);
   chatParticipant.register();
 
+  // ─── 8.5. Session Manager ───────────────────────────────────────────────
+  const sessionManager = new SessionManager(context.workspaceState);
+  context.subscriptions.push(sessionManager);
+  log('Chat Session Manager activated');
+
   // ─── 9. Primary Sidebar Webview (Kimi Code / Cursor style) ──────────────
   const sidebarWebviewProvider = new AGSidebarWebviewProvider(
     context.extensionUri,
     providerManager,
+    sessionManager,
     toolRegistry,
     agentEngine,
     outputChannel

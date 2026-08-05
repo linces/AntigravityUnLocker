@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Platform-VS%20Code%20%7C%20Antigravity%20IDE-blue?style=for-the-badge&logo=visualstudiocode" alt="Platform" />
   <img src="https://img.shields.io/badge/Providers-12%2B-purple?style=for-the-badge&logo=openai" alt="Providers" />
-  <img src="https://img.shields.io/badge/Version-0.3.1-green?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-0.4.0-green?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-brightgreen?style=for-the-badge" alt="License" />
 </p>
 
@@ -20,7 +20,8 @@
 
 ## ✨ Features
 
-### 🤖 Multi-Provider AI Chat (`@ag` & Qodo / Cursor Style Sidebar)
+### 🤖 Multi-Provider AI Chat & Session Persistence (`@ag` & Qodo / Cursor Style Sidebar)
+- **Chat Session Persistence**: Multi-session chat history persisted in VS Code `workspaceState`. Create new sessions (`➕`), switch between past chats (`📜 History`), auto-name sessions from initial prompt, and delete sessions (`🗑️`).
 - Native chat participant integrated into VS Code's chat panel and custom Sidebar Webview (`ag-sidebar`)
 - Qodo & Cursor Style Integrated Input Card — Sleek input box with embedded `+ Agent` mode pill, `⚡ Model / Provider` selector pill, API key status, slash command chips, and `Send ⬆` pill button
 - Dynamic Provider & Model Switcher — switch active AI provider and select specific model per provider with real-time sync across Sidebar, Status Bar (`$(robot) AG AI: Provider (Model)`), QuickPick, and Dashboard
@@ -101,5 +102,5 @@ MIT — See [LICENSE](./LICENSE)
 
 ---
 
-**Versão:** 0.3.1 | **Última Revisão:** 2026-08-05 18:44:00
+**Versão:** 0.4.0 | **Última Revisão:** 2026-08-05 20:52:00
 
