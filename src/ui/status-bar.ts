@@ -87,6 +87,7 @@ export class AGStatusBar implements vscode.Disposable {
       'siliconflow': 'SiliconFlow',
       'together-ai': 'Together',
       'fireworks-ai': 'Fireworks',
+      'zai-glm': 'Z.ai',
       'custom': 'Custom',
     };
     return shortNames[id] || id;

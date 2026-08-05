@@ -43,6 +43,7 @@ const ENV_KEY_MAP: Record<string, string> = {
   'together-ai': 'TOGETHER_API_KEY',
   'fireworks-ai': 'FIREWORKS_API_KEY',
   'nvidia': 'NVIDIA_API_KEY',
+  'zai-glm': 'ZAI_API_KEY',
   'custom': 'CUSTOM_API_KEY',
 };
 

@@ -166,7 +166,20 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     requiresApiKey: true,
     keyProcurementUrl: 'https://build.nvidia.com',
   },
+  {
+    id: 'zai-glm',
+    name: 'Z.ai (GLM)',
+    description: 'Z.ai / Zhipu AI GLM-5.2 flagship open-source model with 1M context window.',
+    baseUrl: 'https://api.z.ai/api/coding/paas/v4',
+    model: 'glm-5.2',
+    defaultModel: 'glm-5.2',
+    timeoutMs: 120000,
+    isLocal: false,
+    requiresApiKey: true,
+    keyProcurementUrl: 'https://z.ai/manage-apikey/apikey-list',
+  },
 ] as const;
+
 
 /**
  * Get a provider preset by ID.

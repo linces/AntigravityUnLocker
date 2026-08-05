@@ -3,7 +3,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Platform-VS%20Code%20%7C%20Antigravity%20IDE-blue?style=for-the-badge&logo=visualstudiocode" alt="Platform" />
-  <img src="https://img.shields.io/badge/Providers-11%2B-purple?style=for-the-badge&logo=openai" alt="Providers" />
+  <img src="https://img.shields.io/badge/Providers-12%2B-purple?style=for-the-badge&logo=openai" alt="Providers" />
   <img src="https://img.shields.io/badge/Version-0.3.0-green?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-brightgreen?style=for-the-badge" alt="License" />
 </p>
@@ -28,7 +28,7 @@
 - Context-aware with `#file` and `#selection` references
 - Real-time streaming responses with fallback provider chain
 
-### 🔌 11+ Supported Providers (2 Local + 9 Cloud)
+### 🔌 12+ Supported Providers (2 Local + 10 Cloud)
 
 | Provider | Type | Key Features |
 | :--- | :--- | :--- |
@@ -44,6 +44,7 @@
 | **SiliconFlow** | ☁️ Cloud | Fast Qwen/DeepSeek hosting |
 | **Together AI** | ☁️ Cloud | Open-source model hosting |
 | **Fireworks AI** | ☁️ Cloud | High-speed function calling |
+| **Z.ai (GLM)** | ☁️ Cloud | GLM-5.2 flagship open-source, 1M context |
 
 ### 📊 Real-Time Telemetry & Interactive Dashboard
 - Event-driven live metrics tracking: Total Requests, Success Rate %, Latency (ms), and Tokens
@@ -100,4 +101,5 @@ MIT — See [LICENSE](./LICENSE)
 
 ---
 
-**Versão:** 0.1.3 | **Última Revisão:** 2026-07-31 20:01:00
+**Versão:** 0.3.0 | **Última Revisão:** 2026-08-05 18:37:00
+

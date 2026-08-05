@@ -26,6 +26,7 @@ AG Universal AI supports any OpenAI-compatible API endpoint through a universal 
 | **SiliconFlow** | `Qwen/Qwen2.5-Coder-32B-Instruct` | `https://api.siliconflow.cn/v1` | [cloud.siliconflow.cn](https://cloud.siliconflow.cn/account/ak) |
 | **Together AI** | `Qwen/Qwen2.5-Coder-32B-Instruct` | `https://api.together.xyz/v1` | [together.xyz](https://api.together.xyz/settings/api-keys) |
 | **Fireworks AI** | `qwen2p5-coder-32b-instruct` | `https://api.fireworks.ai/inference/v1` | [fireworks.ai](https://fireworks.ai/account/api-keys) |
+| **Z.ai (GLM)** | `glm-5.2` | `https://api.z.ai/api/coding/paas/v4` | [z.ai](https://z.ai/manage-apikey/apikey-list) |
 
 ---
 
@@ -67,4 +68,4 @@ interface ILLMProvider {
 
 ---
 
-**Versão:** 3.0.0 | **Última Revisão:** 2026-07-29 19:45:00
+**Versão:** 0.3.0 | **Última Revisão:** 2026-08-05 18:37:00

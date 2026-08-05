@@ -135,6 +135,7 @@
             "siliconflow",
             "together-ai",
             "fireworks-ai",
+            "zai-glm",
             "custom"
           ],
           "enumDescriptions": [
@@ -149,6 +150,7 @@
             "SiliconFlow (Fast Qwen/DeepSeek)",
             "Together AI (Open models)",
             "Fireworks AI (Fast function calling)",
+            "Z.ai / Zhipu AI (GLM-5.2 1M context)",
             "Custom OpenAI-compatible endpoint"
           ]
         },
