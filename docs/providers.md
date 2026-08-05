@@ -68,4 +68,4 @@ interface ILLMProvider {
 
 ---
 
-**Versão:** 0.3.0 | **Última Revisão:** 2026-08-05 18:37:00
+**Versão:** 0.3.1 | **Última Revisão:** 2026-08-05 18:44:00
