@@ -763,16 +763,20 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   private getScript(): string {
     return `
 (function(){
-  function getVsc() {
-    if (window.__agVscApi) return window.__agVscApi;
-    try {
-      if (typeof acquireVsCodeApi === 'function') {
-        window.__agVscApi = acquireVsCodeApi();
-        return window.__agVscApi;
-      }
-    } catch (e) {
-      console.warn('[AG AI Webview] acquireVsCodeApi warning:', e);
+  var vscodeApi = null;
+  try {
+    if (typeof acquireVsCodeApi === 'function') {
+      vscodeApi = acquireVsCodeApi();
     }
+  } catch (err) {
+    console.warn('[AG Webview] acquireVsCodeApi warning:', err);
+  }
+  if (!vscodeApi && window.__agVscApi) {
+    vscodeApi = window.__agVscApi;
+  }
+  window.__agVscApi = vscodeApi;
+
+  function getVsc() {
     return window.__agVscApi || null;
   }
 
@@ -851,6 +855,46 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       }
     });
   }
+
+  // ─── Direct Element Click Binds ────────────────────────
+  function bindClick(id, handler) {
+    var el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        handler(e);
+      });
+    }
+  }
+
+  bindClick('btnDash', function() { var api = getVsc(); if(api) api.postMessage({type:'dashboard'}); });
+  bindClick('btnClear', function() { var api = getVsc(); if(api) api.postMessage({type:'clear'}); });
+  bindClick('btnNewSession', function() { var api = getVsc(); if(api) api.postMessage({type:'newSession'}); });
+  bindClick('btnDelSession', function() { var api = getVsc(); if(api) api.postMessage({type:'deleteSession'}); });
+  bindClick('btnSend', function() { doSend(); });
+  bindClick('btnAttachFile', function() { var api = getVsc(); if(api) api.postMessage({type:'pickFile'}); });
+  bindClick('btnEmoji', function() {
+    var emojiPicker = document.getElementById('emojiPicker');
+    if(emojiPicker) emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
+  });
+  bindClick('pillAgent', function() {
+    var agentPill = document.getElementById('pillAgent');
+    isAgentMode = !isAgentMode;
+    if(agentPill) {
+      if(isAgentMode) agentPill.classList.add('active');
+      else agentPill.classList.remove('active');
+    }
+  });
+  bindClick('btnSaveKey', function() {
+    var kIn = getKeyIn();
+    var sPr = getSelProv();
+    var api = getVsc();
+    if(kIn && kIn.value && sPr && api){
+      api.postMessage({type:'saveKey', id:sPr.value, key:kIn.value});
+      kIn.value = '';
+    }
+  });
 
   // ─── Global Event Delegation ───────────────────────
   document.addEventListener('click', function(e){
@@ -1052,7 +1096,22 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     }
   });
 
-  // ─── Keyboard & Auto-Resize ────────────────────────
+  // ─── Direct Keyboard & Auto-Resize on Textarea ──────
+  var inpEl = getInp();
+  if(inpEl){
+    inpEl.addEventListener('keydown', function(e){
+      if((e.key === 'Enter' || e.keyCode === 13 || e.code === 'Enter') && !e.shiftKey){
+        e.preventDefault();
+        e.stopPropagation();
+        doSend();
+      }
+    });
+    inpEl.addEventListener('input', function(e){
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 140) + 'px';
+    });
+  }
+
   document.addEventListener('input', function(e){
     var t = e.target;
     if(t && t.id === 'inp'){
@@ -1062,7 +1121,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   });
 
   document.addEventListener('keydown', function(e){
-    if(e.target && e.target.id === 'inp' && e.key === 'Enter' && !e.shiftKey){
+    if(e.target && e.target.id === 'inp' && (e.key === 'Enter' || e.keyCode === 13) && !e.shiftKey){
       e.preventDefault();
       doSend();
     }
@@ -1072,11 +1131,8 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   var lastStreamStartTime = 0;
   function doSend(){
     if(streamEl !== null){
-      if(Date.now() - lastStreamStartTime > 6000){
-        console.warn('[AG Webview] Clearing stale stream indicator');
-        if(streamEl){
-          streamEl.innerHTML = md('⚠️ Request timed out or failed to start stream. Please check provider connection or select another model.');
-        }
+      if(Date.now() - lastStreamStartTime > 5000){
+        console.warn('[AG Webview] Resetting stale stream indicator');
         streamEl = null;
       } else {
         return;
@@ -1145,6 +1201,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         if(handshakeTimer) clearInterval(handshakeTimer);
         var st = document.getElementById('agWebviewStatus');
         if(st) st.style.display = 'none';
+        streamEl = null;
 
         isUpdatingUI = true;
         try {
@@ -1160,7 +1217,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
             if(m.activeSessionId) sSession.value = m.activeSessionId;
           }
 
-          if(!streamEl && m.history && Array.isArray(m.history)){
+          if(m.history && Array.isArray(m.history)){
             var chatEl = getChat();
             if(chatEl){
               chatEl.innerHTML = '';

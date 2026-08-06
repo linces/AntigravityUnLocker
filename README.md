@@ -138,4 +138,4 @@ MIT — See [LICENSE](./LICENSE)
 
 ---
 
-**Versão:** 0.4.6 | **Última Revisão:** 2026-08-06 21:03:00
+**Versão:** 0.4.6 | **Última Revisão:** 2026-08-06 22:35:00
