@@ -393,11 +393,17 @@ export class ProviderManager implements vscode.Disposable {
    */
   public async listModels(providerId: string): Promise<ModelInfo[]> {
     const provider = this.providers.get(providerId);
-    if (!provider) {return [];}
-    if (provider.listModels) {
-      return provider.listModels();
+    if (!provider || !provider.listModels) { return []; }
+    try {
+      return await Promise.race([
+        provider.listModels(),
+        new Promise<ModelInfo[]>((_, reject) =>
+          setTimeout(() => reject(new Error('Timeout listing models')), 3000)
+        ),
+      ]);
+    } catch {
+      return [];
     }
-    return [];
   }
 
   /**

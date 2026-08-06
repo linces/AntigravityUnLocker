@@ -65,4 +65,27 @@ Após instalar uma nova versão via CLI, o VS Code exibe um aviso amarelo: `⚠�
 
 ---
 
-**Versão:** 0.4.1 | **Última Revisão:** 2026-08-06 18:51:00
+## 🔴 Incident Postmortem 3: Webview UI Freeze on Session Select (`Loading sessions...`)
+
+### Description of Issue
+No painel da extensão, a lista de sessões de chat exibe permanentemente `<option value="">Loading sessions...</option>` e nenhum clique nos botões ("Send", "Dashboard", "Clear", "New Chat", "Attach File") produz qualquer reação na interface.
+
+### Root Cause Analysis
+1. **Re-aquisição Falha da API do VS Code (`acquireVsCodeApi`)**:
+   Quando a API `acquireVsCodeApi()` é chamada mais de uma vez durante o ciclo de vida do Webview (por exemplo, em re-renderizações ou mounts subsequentes), a plataforma Chromium lança a exceção: `An API instance for this webview has already been acquired.`. O bloco `catch` capturava a exceção deixando a variável `vsc` como `null`.
+2. **Perda de Mensagens IPC por Silenciamento do `vsc`**:
+   Com `vsc` nulo, todas as chamadas `vsc.postMessage({ type: 'ready' })`, `vsc.postMessage({ type: 'chat' })`, etc. eram descartadas silenciosamente sem nenhum erro visível no DOM.
+3. **Deadlock no `listModels()` Assíncrono**:
+   Se a busca de modelos remotos via API cloud (como NVIDIA NIM ou DashScope) sofria atrasos na rede ou travamentos sem timeout, a segunda fase do `postStateUpdate()` não concluía, impedindo a atualização das dropdowns.
+
+### Solução Definitiva & Arquitetura Resiliente (`[dev]`)
+1. **Padrão Singleton para `acquireVsCodeApi`**:
+   Armazenar o objeto da API em `window.__agVscApi` para garantir reutilização segura sem re-invocações de exceção.
+2. **Timeout de 3s Bounded com `Promise.race`**:
+   A chamada `listModels()` no `ProviderManager` agora é delimitada por um timeout estrito de 3000ms. Falhas na busca de modelos remotos **jamais bloqueiam** a renderização de sessões e a reatividade do chat.
+3. **Retries Programados no `resolveWebviewView`**:
+   Disparo de atualizações de estado otimistas nos tempos 0ms, 300ms e 1000ms para eliminar qualquer race condition de montagem de DOM no Webview.
+
+---
+
+**Versão:** 0.4.1 | **Última Revisão:** 2026-08-06 19:00:00

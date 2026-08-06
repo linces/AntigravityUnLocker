@@ -190,8 +190,10 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       }
     });
 
-    // Hydrate immediately on load
+    // Hydrate state immediately and schedule retries to eliminate Webview mounting race conditions
     this.postStateUpdate();
+    setTimeout(() => this.postStateUpdate(), 300);
+    setTimeout(() => this.postStateUpdate(), 1000);
   }
 
   // ── Chat Handler ──────────────────────────────────────────────────────────
@@ -730,11 +732,17 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   private getScript(): string {
     return `
 (function(){
-  var vsc;
+  var vsc = null;
   try {
-    vsc = acquireVsCodeApi();
+    if (window.__agVscApi) {
+      vsc = window.__agVscApi;
+    } else if (typeof acquireVsCodeApi === 'function') {
+      vsc = acquireVsCodeApi();
+      window.__agVscApi = vsc;
+    }
   } catch (e) {
-    console.error('[AG AI Webview] Failed to acquire VS Code API:', e);
+    vsc = window.__agVscApi || null;
+    console.error('[AG AI Webview] acquireVsCodeApi error:', e);
   }
 
   var streamEl = null;
@@ -1004,8 +1012,17 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   });
 
   // ─── Send Function ─────────────────────────────────
+  var lastStreamStartTime = 0;
   function doSend(){
-    if(streamEl !== null) return;
+    if(streamEl !== null){
+      if(Date.now() - lastStreamStartTime > 12000){
+        console.warn('[AG Webview] Clearing stale stream indicator');
+        streamEl = null;
+      } else {
+        return;
+      }
+    }
+    lastStreamStartTime = Date.now();
     var inputEl = getInp();
     if(!inputEl) return;
     var text = inputEl.value.trim();
