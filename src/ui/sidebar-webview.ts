@@ -519,6 +519,9 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     this.post({
       type: 'state',
       activeId,
+      activeSessionId: activeSession.id,
+      sessions,
+      history: activeSession.messages,
       active: { id: ap.id, name: ap.name, model: ap.config.model, url: ap.config.baseUrl, hasKey: !!ap.config.apiKey },
       models,
       providers: presets,
@@ -1069,7 +1072,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
           if(m.activeSessionId) sSession.value = m.activeSessionId;
         }
 
-        if(m.history && Array.isArray(m.history)){
+        if(!streamEl && m.history && Array.isArray(m.history)){
           var chatEl = getChat();
           if(chatEl){
             chatEl.innerHTML = '';
