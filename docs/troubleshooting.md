@@ -44,4 +44,25 @@ Todos os botões da interface Webview ("Send", "Dashboard", "New Chat", "Delete 
 
 ---
 
-**Versão:** 0.4.1 | **Última Revisão:** 2026-08-06 18:45:00
+## 🔴 Incident Postmortem 2: Extension Marked Invalid (`Unable to read package.json`)
+
+### Description of Issue
+Após instalar uma nova versão via CLI, o VS Code exibe um aviso amarelo: `⚠️ Invalid extensions detected` com o erro:
+`Unable to read file '...\linces.ag-universal-ai-0.4.0\package.json' (Error: Unable to resolve nonexistent file...)`
+
+### Root Cause Analysis
+1. **Colisão de Executável no PATH (`code.py` vs `code.cmd`)**:
+   No Windows, se a pasta de scripts do Python 3.11 (`Python311\Lib\code.py`) precede o diretório do VS Code no `PATH`, a execução do comando `code --install-extension file.vsix` executa silenciosamente o módulo Python `code.py`, que encerra com código 0 sem instalar o pacote `.vsix`.
+2. **Corrupção do Registro `.obsolete`**:
+   Ao tentar renomear ou copiar pastas manualmente na tentativa de contornar a falha enquanto o VS Code está aberto, a pasta antiga é marcada como obsoleta em `~/.vscode/extensions/.obsolete`. O VS Code tenta ler o `package.json` da versão obsoleta apagada e bloqueia a extensão como inválida.
+
+### Solução Definitiva & Protocolo de Prevenção (`[dev]`)
+1. **Usar Caminho Absoluto do Executável do VS Code**:
+   Nunca execute apenas `code --install-extension`. Utilize sempre o caminho explícito do binário:
+   `& "$env:LOCALAPPDATA\Programs\Microsoft VS Code\bin\code.cmd" --install-extension file.vsix --force`
+2. **Limpeza do Registro `.obsolete`**:
+   Em caso de corrupção, expurgar registros `linces.ag-universal-ai-*` dos arquivos `%USERPROFILE%\.vscode\extensions\.obsolete` e `extensions.json` antes de re-executar a instalação via `code.cmd`.
+
+---
+
+**Versão:** 0.4.1 | **Última Revisão:** 2026-08-06 18:51:00
