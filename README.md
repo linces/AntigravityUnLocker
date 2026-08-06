@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Platform-VS%20Code%20%7C%20Antigravity%20IDE-blue?style=for-the-badge&logo=visualstudiocode" alt="Platform" />
   <img src="https://img.shields.io/badge/Providers-12%2B-purple?style=for-the-badge&logo=openai" alt="Providers" />
-  <img src="https://img.shields.io/badge/Version-0.4.2-green?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-0.4.3-green?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-brightgreen?style=for-the-badge" alt="License" />
 </p>
 
@@ -138,4 +138,4 @@ MIT — See [LICENSE](./LICENSE)
 
 ---
 
-**Versão:** 0.4.2 | **Última Revisão:** 2026-08-06 19:03:00
+**Versão:** 0.4.3 | **Última Revisão:** 2026-08-06 19:28:00

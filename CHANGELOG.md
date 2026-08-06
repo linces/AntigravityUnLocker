@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.3] - 2026-08-06
+
+### Fixed & Critical Resolution
+- **Eliminated Webview Runtime Syntax Error**: Replaced double-escaped `new RegExp(...)` constructor strings with compile-safe RegExp literals (`/.../g`). Fixed silent runtime `SyntaxError: Invalid escape` in Chromium Webview script that killed `ready` IPC signals and button event listeners.
+
+---
+
 ## [0.4.2] - 2026-08-06
 
 ### Fixed & Enhanced
@@ -51,4 +58,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-**Versão:** 0.4.2 | **Última Revisão:** 2026-08-06 19:03:00
+**Versão:** 0.4.3 | **Última Revisão:** 2026-08-06 19:28:00
