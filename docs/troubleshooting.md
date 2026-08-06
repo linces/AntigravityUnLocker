@@ -44,4 +44,4 @@ Todos os botões da interface Webview ("Send", "Dashboard", "New Chat", "Delete 
 
 ---
 
-**Versão:** 1.0.0 | **Última Revisão:** 2026-08-06 18:37:00
+**Versão:** 0.4.1 | **Última Revisão:** 2026-08-06 18:45:00

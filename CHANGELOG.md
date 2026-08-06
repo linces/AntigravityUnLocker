@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.1] - 2026-08-06
+
+### Fixed & Enhanced
+- **Webview UI Syntax Resilience**: Solved root-level script parsing crash in webview template string generator (`getScript()`). Restored 100% IPC responsiveness for Send, Dashboard, Clear, New Session, and Attach File buttons.
+- **Central Domain Synchronization**: Promoted Webview IPC resilience invariants and Direct MCP Architecture patterns to the central transversal domain hub (`E:\00Dev\agent skills e mais prod`).
+
+---
+
 ## [0.4.0] - 2026-08-06
 
 ### Added
@@ -33,4 +41,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-**Versão:** 0.4.0 | **Última Revisão:** 2026-08-06 18:35:00
+**Versão:** 0.4.1 | **Última Revisão:** 2026-08-06 18:45:00
