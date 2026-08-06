@@ -157,6 +157,29 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
           case 'apply':
             this.applyCode(msg.code);
             break;
+          case 'saveFile': {
+            let targetPath = msg.path;
+            if (!targetPath || !targetPath.trim()) {
+              targetPath = await vscode.window.showInputBox({
+                prompt: 'Enter file path to create in workspace (e.g., "SECURITY_AUDIT_PulsePrice.md")',
+                placeHolder: 'SECURITY_AUDIT_PulsePrice.md',
+              });
+            }
+            if (targetPath) {
+              const result = await this.toolRegistry.fileTools.writeFile(targetPath.trim(), msg.code);
+              vscode.window.showInformationMessage(`AG AI: ${result}`);
+              try {
+                const uri = this.toolRegistry.fileTools.resolveUri(targetPath.trim());
+                if (uri) {
+                  const doc = await vscode.workspace.openTextDocument(uri);
+                  await vscode.window.showTextDocument(doc, { preview: true });
+                }
+              } catch (e) {
+                this.log(`Error opening newly created file: ${e}`);
+              }
+            }
+            break;
+          }
         }
       } catch (err: unknown) {
         const m = err instanceof Error ? err.message : String(err);
@@ -187,6 +210,25 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       activeProvider?.config.model
     );
 
+    // Auto-detect intent to create/generate files or artifacts autonomously
+    const lowerText = text.toLowerCase();
+    const isCreateFileIntent =
+      lowerText.includes('crie um arquivo') ||
+      lowerText.includes('crie o arquivo') ||
+      lowerText.includes('criar arquivo') ||
+      lowerText.includes('crie um artefato') ||
+      lowerText.includes('salve o arquivo') ||
+      lowerText.includes('salve no arquivo') ||
+      lowerText.includes('gerar arquivo') ||
+      lowerText.includes('create file') ||
+      lowerText.includes('write file') ||
+      lowerText.includes('save file');
+
+    if (isCreateFileIntent) {
+      this.log(`Auto-routing file creation request "${text}" to Agent Engine...`);
+      return this.handleAgent(text);
+    }
+
     const provider = activeProvider;
     if (!provider) {
       this.post({ type: 'done', text: '⚠️ No provider active. Select one from the dropdown.' });
@@ -209,7 +251,6 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     }
 
     // Auto-detect folder / workspace analysis request or @workspace mention
-    const lowerText = text.toLowerCase();
     const isWorkspaceRequest =
       lowerText.includes('@workspace') ||
       lowerText.includes('folder') ||
@@ -831,11 +872,23 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       return;
     }
 
-    if(t.classList && t.classList.contains('cbtn')){
+    if(t.classList && (t.classList.contains('cbtn') || t.classList.contains('apply-btn')) && !t.classList.contains('save-btn')){
       var pre = t.closest('pre');
       if(pre){
         var code = pre.querySelector('code');
         if(code && vsc) vsc.postMessage({type:'apply', code:code.innerText});
+      }
+      return;
+    }
+
+    if(t.classList && t.classList.contains('save-btn')){
+      var pre = t.closest('pre');
+      if(pre){
+        var code = pre.querySelector('code');
+        var hdrSpan = pre.querySelector('.code-hdr span');
+        var langOrPath = hdrSpan ? hdrSpan.innerText.trim() : '';
+        var detectedPath = (langOrPath.includes('.') || langOrPath.includes('/') || langOrPath.includes('\\')) ? langOrPath : '';
+        if(code && vsc) vsc.postMessage({type:'saveFile', code:code.innerText, path:detectedPath});
       }
       return;
     }
@@ -1158,7 +1211,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         code = block.substring(firstNewline + 1);
       }
       var cleanCode = esc(code.trim());
-      var blockHtml = '<pre><div class="code-hdr"><span>' + (lang || 'code') + '</span><button class="cbtn">Apply to Editor</button></div><code>' + cleanCode + '</code></pre>';
+      var blockHtml = '<pre><div class="code-hdr"><span>' + (lang || 'code') + '</span><div><button class="cbtn save-btn">Save File 📄</button> <button class="cbtn apply-btn">Apply to Editor</button></div></div><code>' + cleanCode + '</code></pre>';
       codeBlocks.push(blockHtml);
       return id;
     });
