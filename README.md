@@ -128,6 +128,7 @@ Abra a barra lateral de IA e digite `@ag` ou interaja diretamente pelo painel in
 
 - Architecture Blueprint (SSOT): `./docs/architecture.md`
 - Provider Specification: `./docs/providers.md`
+- Troubleshooting & Incident Resolution: `./docs/troubleshooting.md`
 
 ---
 
@@ -137,4 +138,4 @@ MIT — See [LICENSE](./LICENSE)
 
 ---
 
-**Versão:** 0.4.0 | **Última Revisão:** 2026-08-06 18:35:00
+**Versão:** 0.4.0 | **Última Revisão:** 2026-08-06 18:37:00

@@ -1278,40 +1278,6 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     return text;
   }
 
-    text = esc(text);
-
-    text = text.replace(/\`([^\`]+)\`/g, '<code>$1</code>');
-    text = text.replace(new RegExp('[*][*](.+?)[*][*]', 'g'), '<b>$1</b>');
-    text = text.replace(new RegExp('[*]([^*]+)[*]', 'g'), '<i>$1</i>');
-    text = text.replace(new RegExp('^### (.*$)', 'gm'), '<h4 style="margin:4px 0">$1</h4>');
-    text = text.replace(new RegExp('^## (.*$)', 'gm'), '<h3 style="margin:6px 0">$1</h3>');
-    text = text.replace(new RegExp('^# (.*$)', 'gm'), '<h2 style="margin:8px 0">$1</h2>');
-    text = text.replace(new RegExp('^[-*] (.*$)', 'gm'), '• $1');
-    text = text.replace(new RegExp('^(?:⏳|🔄|✅|❌) (.*$)', 'gm'), '<div class="stepper-step">$1</div>');
-
-    text = text.replace(new RegExp(':rocket:', 'g'), '🚀');
-    text = text.replace(new RegExp(':bug:', 'g'), '🐛');
-    text = text.replace(new RegExp(':fire:', 'g'), '🔥');
-    text = text.replace(new RegExp(':check:', 'g'), '✅');
-    text = text.replace(new RegExp(':warning:', 'g'), '⚠️');
-    text = text.replace(new RegExp(':zap:', 'g'), '⚡');
-    text = text.replace(new RegExp(':bulb:', 'g'), '💡');
-    text = text.replace(new RegExp(':robot:', 'g'), '🤖');
-    text = text.replace(new RegExp(':package:', 'g'), '📦');
-    text = text.replace(new RegExp(':smile:', 'g'), '😄');
-    text = text.replace(new RegExp(':thumbsup:', 'g'), '👍');
-
-    text = text.replace(new RegExp('(file:///[^\\s<]+|\\b(?:[a-zA-Z]:\\\\\\\\|src\\/|docs\\/)[^\\s<]+)', 'g'), '<a href="#" class="file-link" data-path="$1">$1</a>');
-
-    text = text.split(String.fromCharCode(10)).join('<br>');
-
-    for (var i = 0; i < codeBlocks.length; i++) {
-      text = text.replace('___CODE_BLOCK_' + i + '___', codeBlocks[i]);
-    }
-
-    return text;
-  }
-
   console.log('[AG Webview] Initialized successfully!');
   if(vsc) vsc.postMessage({type:'ready'});
 })();
