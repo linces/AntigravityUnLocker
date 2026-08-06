@@ -39,3 +39,24 @@ All `.md` documents must end with the clean metadata footer:
 
 ### 3. Continuous Automatic README Synchronization
 Whenever any feature, code adapter, route, backend model, or documentation file is modified or added, `README.md` MUST be updated immediately in the same turn/step.
+
+---
+
+## ⚙️ Protocolo de Release & Correção de Webview (VSIX Deployment Workflow)
+
+### 1. Webview Event Binds & Input Trapping Rule
+- Todos os manipuladores de entrada em Webviews do VS Code (especialmente `<textarea>` e botões da toolbar) devem possuir captura direta (`addEventListener` nos elementos específicos com `e.preventDefault()` e `e.stopPropagation()`) para garantir o acionamento na tecla `Enter` (sem `Shift`) e impedir inserção involuntária de quebra de linha.
+- O objeto de IPC `acquireVsCodeApi()` deve ser capturado exatamente **uma vez** na inicialização do script e mantido em cache seguro (`window.__agVscApi`) para evitar exceções por re-aquisição no ciclo do Webview.
+
+### 2. Ciclo Obrigatório de Release & Atualização de Extensão (VSIX)
+Sempre que uma alteração ou correção em componentes da extensão ou Webview for efetuada:
+1. Incrementar a versão no `package.json` (ex: `0.4.6` ➔ `0.4.7`).
+2. Atualizar badges de versão e rodapé de timestamp no `README.md` (`Continuous Automatic README Synchronization`).
+3. Executar o build completo (`npm run build`).
+4. Empacotar o novo VSIX (`npx @vscode/vsce package --no-dependencies --allow-star-activation`).
+5. Reinstalar a extensão com override (`code --install-extension ag-universal-ai-<versao>.vsix --force`).
+6. Instruir o recarregamento da janela (`Ctrl+Shift+P` ➔ `Developer: Reload Window`).
+
+---
+
+**Versão:** 0.4.7 | **Última Revisão:** 2026-08-06 22:38:00
