@@ -235,6 +235,22 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       }
     }
 
+    // Auto-detect project context files (contexto.md, notas.md, .ag/context.md, context.md, AGENTS.md)
+    try {
+      const contextFiles = await vscode.workspace.findFiles(
+        '{contexto.md,notas.md,.ag/context.md,context.md,AGENTS.md}',
+        '**/node_modules/**',
+        5
+      );
+      for (const fileUri of contextFiles) {
+        const doc = await vscode.workspace.openTextDocument(fileUri);
+        const rel = vscode.workspace.asRelativePath(fileUri);
+        ctx += `\n\n[Project Context File (${rel})]:\n${doc.getText()}`;
+      }
+    } catch (e) {
+      this.log(`Error reading project context files: ${e}`);
+    }
+
     const activeSession = this.sessionManager.getActiveSession();
     const sessionHistory = activeSession.messages;
 
