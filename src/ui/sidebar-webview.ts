@@ -763,21 +763,20 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   private getScript(): string {
     return `
 (function(){
-  var vscodeApi = null;
-  try {
-    if (typeof acquireVsCodeApi === 'function') {
-      vscodeApi = acquireVsCodeApi();
+  var vscodeApi = window.__agVscApi || null;
+  if (!vscodeApi) {
+    try {
+      if (typeof acquireVsCodeApi === 'function') {
+        vscodeApi = acquireVsCodeApi();
+        window.__agVscApi = vscodeApi;
+      }
+    } catch (err) {
+      console.warn('[AG Webview] acquireVsCodeApi warning:', err);
     }
-  } catch (err) {
-    console.warn('[AG Webview] acquireVsCodeApi warning:', err);
   }
-  if (!vscodeApi && window.__agVscApi) {
-    vscodeApi = window.__agVscApi;
-  }
-  window.__agVscApi = vscodeApi;
 
   function getVsc() {
-    return window.__agVscApi || null;
+    return window.__agVscApi || vscodeApi || null;
   }
 
   window.__agPost = function(type, data) {
@@ -856,45 +855,22 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     });
   }
 
-  // ─── Direct Element Click Binds ────────────────────────
-  function bindClick(id, handler) {
-    var el = document.getElementById(id);
-    if (el) {
-      el.addEventListener('click', function(e) {
+  // Direct binds for chips
+  var chipEls = document.querySelectorAll('.chip');
+  for (var cIdx = 0; cIdx < chipEls.length; cIdx++) {
+    (function(chip){
+      chip.addEventListener('click', function(e){
         e.preventDefault();
         e.stopPropagation();
-        handler(e);
+        var c = chip.getAttribute('data-c');
+        var inputEl = getInp();
+        if (c && inputEl) {
+          inputEl.value = c;
+          inputEl.focus();
+        }
       });
-    }
+    })(chipEls[cIdx]);
   }
-
-  bindClick('btnDash', function() { var api = getVsc(); if(api) api.postMessage({type:'dashboard'}); });
-  bindClick('btnClear', function() { var api = getVsc(); if(api) api.postMessage({type:'clear'}); });
-  bindClick('btnNewSession', function() { var api = getVsc(); if(api) api.postMessage({type:'newSession'}); });
-  bindClick('btnDelSession', function() { var api = getVsc(); if(api) api.postMessage({type:'deleteSession'}); });
-  bindClick('btnSend', function() { doSend(); });
-  bindClick('btnAttachFile', function() { var api = getVsc(); if(api) api.postMessage({type:'pickFile'}); });
-  bindClick('btnEmoji', function() {
-    var emojiPicker = document.getElementById('emojiPicker');
-    if(emojiPicker) emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
-  });
-  bindClick('pillAgent', function() {
-    var agentPill = document.getElementById('pillAgent');
-    isAgentMode = !isAgentMode;
-    if(agentPill) {
-      if(isAgentMode) agentPill.classList.add('active');
-      else agentPill.classList.remove('active');
-    }
-  });
-  bindClick('btnSaveKey', function() {
-    var kIn = getKeyIn();
-    var sPr = getSelProv();
-    var api = getVsc();
-    if(kIn && kIn.value && sPr && api){
-      api.postMessage({type:'saveKey', id:sPr.value, key:kIn.value});
-      kIn.value = '';
-    }
-  });
 
   // ─── Global Event Delegation ───────────────────────
   document.addEventListener('click', function(e){
@@ -975,13 +951,6 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         api.postMessage({type:'saveKey', id:sPr.value, key:kIn.value});
         kIn.value = '';
       }
-      return;
-    }
-
-    if(t.classList && t.classList.contains('chip')){
-      var c = t.getAttribute('data-c');
-      var inputEl = getInp();
-      if(c && inputEl){ inputEl.value = c; inputEl.focus(); }
       return;
     }
 
@@ -1112,37 +1081,26 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     });
   }
 
-  document.addEventListener('input', function(e){
-    var t = e.target;
-    if(t && t.id === 'inp'){
-      t.style.height = 'auto';
-      t.style.height = Math.min(t.scrollHeight, 140) + 'px';
-    }
-  });
-
-  document.addEventListener('keydown', function(e){
-    if(e.target && e.target.id === 'inp' && (e.key === 'Enter' || e.keyCode === 13) && !e.shiftKey){
-      e.preventDefault();
-      doSend();
-    }
-  });
-
   // ─── Send Function ─────────────────────────────────
   var lastStreamStartTime = 0;
   function doSend(){
-    if(streamEl !== null){
-      if(Date.now() - lastStreamStartTime > 5000){
-        console.warn('[AG Webview] Resetting stale stream indicator');
-        streamEl = null;
-      } else {
-        return;
-      }
-    }
-    lastStreamStartTime = Date.now();
     var inputEl = getInp();
     if(!inputEl) return;
     var text = inputEl.value.trim();
     if(!text && attachedFiles.length === 0 && attachedImages.length === 0) return;
+
+    if(streamEl !== null && (Date.now() - lastStreamStartTime > 3000)){
+      console.warn('[AG Webview] Resetting stale stream indicator');
+      streamEl = null;
+    }
+    if(streamEl !== null){
+      return;
+    }
+    lastStreamStartTime = Date.now();
+
+    // Immediately clear input box for high responsiveness
+    inputEl.value = '';
+    inputEl.style.height = 'auto';
 
     var nl = String.fromCharCode(10);
     var fullText = text;
@@ -1157,8 +1115,6 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     addMsg('user', fullText);
     currentStreamText = '';
     streamEl = addMsg('assistant', '⏳ Thinking...');
-    inputEl.value = '';
-    inputEl.style.height = 'auto';
 
     var api = getVsc();
     if(!api){
