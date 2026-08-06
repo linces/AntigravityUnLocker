@@ -31,11 +31,14 @@ export class SessionManager implements vscode.Disposable {
    */
   private loadState(): void {
     try {
-      const storedSessions = this.workspaceState.get<ChatSession[]>(STORAGE_KEY, []);
-      this.sessions = Array.isArray(storedSessions) ? storedSessions : [];
+      const storedSessions = this.workspaceState.get<any[]>(STORAGE_KEY, []);
+      if (Array.isArray(storedSessions)) {
+        this.sessions = storedSessions.map((s) => this.sanitizeSession(s));
+      } else {
+        this.sessions = [];
+      }
       this.activeSessionId = this.workspaceState.get<string>(ACTIVE_SESSION_KEY, undefined);
 
-      // Ensure active session exists or create one if list is empty
       if (this.sessions.length === 0) {
         this.createSession('New Chat');
       } else if (!this.activeSessionId || !this.sessions.some((s) => s.id === this.activeSessionId)) {
@@ -45,6 +48,47 @@ export class SessionManager implements vscode.Disposable {
       this.sessions = [];
       this.createSession('New Chat');
     }
+  }
+
+  private sanitizeSession(raw: any): ChatSession {
+    const id = typeof raw.id === 'string' && raw.id ? raw.id : `session_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const title = typeof raw.title === 'string' && raw.title ? raw.title : 'New Chat';
+    const createdAt = typeof raw.createdAt === 'number' ? raw.createdAt : Date.now();
+    const updatedAt = typeof raw.updatedAt === 'number' ? raw.updatedAt : Date.now();
+    const rawMsgs = Array.isArray(raw.messages) ? raw.messages : [];
+
+    const messages = rawMsgs.map((m: any) => {
+      let contentStr: string;
+      if (typeof m.content === 'string') {
+        contentStr = m.content;
+      } else if (Array.isArray(m.content)) {
+        contentStr = m.content
+          .map((c: any) => (typeof c === 'string' ? c : c?.text || ''))
+          .filter(Boolean)
+          .join(' ');
+      } else {
+        contentStr = String(m.content || '');
+      }
+
+      return {
+        id: typeof m.id === 'string' ? m.id : `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        role: (m.role === 'user' || m.role === 'assistant' || m.role === 'system' ? m.role : 'user') as 'user' | 'assistant' | 'system',
+        content: contentStr,
+        timestamp: typeof m.timestamp === 'number' ? m.timestamp : Date.now(),
+        providerId: typeof m.providerId === 'string' ? m.providerId : undefined,
+        model: typeof m.model === 'string' ? m.model : undefined,
+      };
+    });
+
+    return {
+      id,
+      title,
+      createdAt,
+      updatedAt,
+      providerId: typeof raw.providerId === 'string' ? raw.providerId : undefined,
+      model: typeof raw.model === 'string' ? raw.model : undefined,
+      messages,
+    };
   }
 
   /**
@@ -120,17 +164,33 @@ export class SessionManager implements vscode.Disposable {
     model?: string
   ): Promise<ChatSession> {
     const session = this.getActiveSession();
-    session.messages.push({ role, content });
+    let contentStr: string;
+    if (typeof content === 'string') {
+      contentStr = content;
+    } else if (Array.isArray(content)) {
+      contentStr = content
+        .map((c: any) => (typeof c === 'string' ? c : c?.text || ''))
+        .filter(Boolean)
+        .join(' ');
+    } else {
+      contentStr = String(content || '');
+    }
+
+    session.messages.push({
+      id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      role,
+      content: contentStr,
+      timestamp: Date.now(),
+      providerId,
+      model,
+    });
     session.updatedAt = Date.now();
     if (providerId) {session.providerId = providerId;}
     if (model) {session.model = model;}
 
     // Auto-title session based on first user message if title is default
     if (role === 'user' && (session.title === 'New Chat' || session.title.startsWith('New Chat'))) {
-      const userText = typeof content === 'string'
-        ? content
-        : (Array.isArray(content) ? content.map((c: any) => c.text || '').join(' ') : String(content));
-      const cleanText = userText.trim().replace(/^[@/][a-zA-Z0-9_-]+\s*/, '');
+      const cleanText = contentStr.trim().replace(/^[@/][a-zA-Z0-9_-]+\s*/, '');
       if (cleanText.length > 0) {
         session.title = cleanText.length > 32 ? cleanText.substring(0, 30) + '...' : cleanText;
       }

@@ -1003,6 +1003,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
   // ─── Send Function ─────────────────────────────────
   function doSend(){
+    if(streamEl !== null) return;
     var inputEl = getInp();
     if(!inputEl) return;
     var text = inputEl.value.trim();
@@ -1050,131 +1051,132 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
   // ─── Incoming Messages ─────────────────────────────
   window.addEventListener('message', function(ev){
-    var m = ev.data;
-    if(!m || !m.type) return;
+    try {
+      var m = ev.data;
+      if(!m || !m.type) return;
 
-    if(m.type === 'fileAttached'){
-      attachedFiles.push({ name: m.name, path: m.path, content: m.content });
-      renderAttachments();
-    }
-    else if(m.type === 'state'){
-      isUpdatingUI = true;
-      try {
-        var sSession = document.getElementById('selSession');
-        if(sSession && m.sessions){
-          sSession.innerHTML = '';
-          m.sessions.forEach(function(s){
-            var o = document.createElement('option');
-            o.value = s.id;
-            o.textContent = s.title + (s.messageCount ? ' (' + s.messageCount + ')' : '');
-            sSession.appendChild(o);
-          });
-          if(m.activeSessionId) sSession.value = m.activeSessionId;
-        }
+      if(m.type === 'fileAttached'){
+        attachedFiles.push({ name: m.name, path: m.path, content: m.content });
+        renderAttachments();
+      }
+      else if(m.type === 'state'){
+        isUpdatingUI = true;
+        try {
+          var sSession = document.getElementById('selSession');
+          if(sSession && m.sessions && Array.isArray(m.sessions)){
+            sSession.innerHTML = '';
+            m.sessions.forEach(function(s){
+              var o = document.createElement('option');
+              o.value = s.id;
+              o.textContent = (s.title || 'Chat Session') + (s.messageCount ? ' (' + s.messageCount + ')' : '');
+              sSession.appendChild(o);
+            });
+            if(m.activeSessionId) sSession.value = m.activeSessionId;
+          }
 
-        if(!streamEl && m.history && Array.isArray(m.history)){
-          var chatEl = getChat();
-          if(chatEl){
-            chatEl.innerHTML = '';
-            if(m.history.length === 0){
-              addMsg('assistant', '👋 Welcome to <b>AG Universal AI</b>! Describe what to build or ask AI.');
-            } else {
-              m.history.forEach(function(item){
-                var contentStr = typeof item.content === 'string'
-                  ? item.content
-                  : (Array.isArray(item.content) ? item.content.map(function(c){ return c.text || ''; }).join(' ') : String(item.content));
-                addMsg(item.role, contentStr);
-              });
+          if(!streamEl && m.history && Array.isArray(m.history)){
+            var chatEl = getChat();
+            if(chatEl){
+              chatEl.innerHTML = '';
+              if(m.history.length === 0){
+                addMsg('assistant', '👋 Welcome to <b>AG Universal AI</b>! Describe what to build or ask AI.');
+              } else {
+                m.history.forEach(function(item){
+                  addMsg(item.role, item.content);
+                });
+              }
             }
           }
-        }
 
-        var sProv = getSelProv();
-        if(sProv){
-          sProv.innerHTML = '';
-          m.providers.forEach(function(p){
-            var o = document.createElement('option');
-            o.value = p.id;
-            o.textContent = (p.id === m.activeId ? '⭐ ':'') + p.name;
-            sProv.appendChild(o);
-          });
-          sProv.value = m.activeId;
-        }
-
-        var sModel = getSelModel();
-        var modelSelectWrap = document.getElementById('modelSelectWrap');
-        if(sModel){
-          sModel.innerHTML = '';
-          var curModel = m.active ? m.active.model : '';
-          if(m.models && m.models.length > 0){
-            var foundActive = false;
-            m.models.forEach(function(mdl){
+          var sProv = getSelProv();
+          if(sProv && m.providers){
+            sProv.innerHTML = '';
+            m.providers.forEach(function(p){
               var o = document.createElement('option');
-              o.value = mdl;
-              o.textContent = mdl;
-              if(mdl === curModel) foundActive = true;
-              sModel.appendChild(o);
+              o.value = p.id;
+              o.textContent = (p.id === m.activeId ? '⭐ ':'') + p.name;
+              sProv.appendChild(o);
             });
-            if(curModel && !foundActive){
+            sProv.value = m.activeId;
+          }
+
+          var sModel = getSelModel();
+          var modelSelectWrap = document.getElementById('modelSelectWrap');
+          if(sModel){
+            sModel.innerHTML = '';
+            var curModel = m.active ? m.active.model : '';
+            if(m.models && m.models.length > 0){
+              var foundActive = false;
+              m.models.forEach(function(mdl){
+                var o = document.createElement('option');
+                o.value = mdl;
+                o.textContent = mdl;
+                if(mdl === curModel) foundActive = true;
+                sModel.appendChild(o);
+              });
+              if(curModel && !foundActive){
+                var o = document.createElement('option');
+                o.value = curModel;
+                o.textContent = curModel;
+                sModel.insertBefore(o, sModel.firstChild);
+              }
+              if(curModel) sModel.value = curModel;
+              if(modelSelectWrap) modelSelectWrap.style.display = 'inline-flex';
+            } else if(curModel){
               var o = document.createElement('option');
               o.value = curModel;
               o.textContent = curModel;
-              sModel.insertBefore(o, sModel.firstChild);
+              sModel.appendChild(o);
+              sModel.value = curModel;
+              if(modelSelectWrap) modelSelectWrap.style.display = 'inline-flex';
+            } else {
+              if(modelSelectWrap) modelSelectWrap.style.display = 'none';
             }
-            if(curModel) sModel.value = curModel;
-            if(modelSelectWrap) modelSelectWrap.style.display = 'inline-flex';
-          } else if(curModel){
-            var o = document.createElement('option');
-            o.value = curModel;
-            o.textContent = curModel;
-            sModel.appendChild(o);
-            sModel.value = curModel;
-            if(modelSelectWrap) modelSelectWrap.style.display = 'inline-flex';
-          } else {
-            if(modelSelectWrap) modelSelectWrap.style.display = 'none';
           }
-        }
 
-        var kBar = document.getElementById('keybar');
-        if(kBar){
-          if(m.active && !m.active.hasKey && m.active.url && m.active.url.indexOf('localhost') < 0){
-            kBar.style.display = 'inline-flex';
-          } else {
-            kBar.style.display = 'none';
+          var kBar = document.getElementById('keybar');
+          if(kBar){
+            if(m.active && !m.active.hasKey && m.active.url && m.active.url.indexOf('localhost') < 0){
+              kBar.style.display = 'inline-flex';
+            } else {
+              kBar.style.display = 'none';
+            }
           }
+        } finally {
+          isUpdatingUI = false;
         }
-      } finally {
-        isUpdatingUI = false;
       }
-    }
-    else if(m.type === 'chunk'){
-      if(streamEl){
-        currentStreamText += (m.text || '');
-        streamEl.innerHTML = md(currentStreamText);
-        bot();
+      else if(m.type === 'chunk'){
+        if(streamEl){
+          currentStreamText += (m.text || '');
+          streamEl.innerHTML = md(currentStreamText);
+          bot();
+        }
       }
-    }
-    else if(m.type === 'done'){
-      if(streamEl){
-        var finalText = (m.text || currentStreamText);
-        streamEl.innerHTML = md(finalText);
+      else if(m.type === 'done'){
+        if(streamEl){
+          var finalText = (m.text || currentStreamText);
+          streamEl.innerHTML = md(finalText);
+          streamEl = null;
+          currentStreamText = '';
+          bot();
+        }
+      }
+      else if(m.type === 'error'){
+        if(streamEl){
+          streamEl.innerHTML = '<div style="color:#ff5555;font-weight:bold;">❌ Error: ' + esc(m.text) + '</div>';
+          streamEl = null;
+          currentStreamText = '';
+        }
+      }
+      else if(m.type === 'cleared'){
+        var chatEl = getChat();
+        if(chatEl) chatEl.innerHTML = '';
         streamEl = null;
         currentStreamText = '';
-        bot();
       }
-    }
-    else if(m.type === 'error'){
-      if(streamEl){
-        streamEl.innerHTML = '<div style="color:#ff5555;font-weight:bold;">❌ Error: ' + esc(m.text) + '</div>';
-        streamEl = null;
-        currentStreamText = '';
-      }
-    }
-    else if(m.type === 'cleared'){
-      var chatEl = getChat();
-      if(chatEl) chatEl.innerHTML = '';
-      streamEl = null;
-      currentStreamText = '';
+    } catch(err) {
+      console.error('[AG AI Webview Error]', err);
     }
   });
 
@@ -1183,6 +1185,16 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     var chatEl = getChat();
     var d = document.createElement('div');
     d.className = 'msg ' + role;
+    if(typeof text !== 'string'){
+      if(Array.isArray(text)){
+        text = text.map(function(c){
+          if(typeof c === 'string') return c;
+          return (c && typeof c === 'object' && c.text) ? c.text : '';
+        }).join(' ');
+      } else {
+        text = String(text || '');
+      }
+    }
     d.innerHTML = md(text);
     if(chatEl){
       chatEl.appendChild(d);
@@ -1198,11 +1210,22 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
   function esc(s){
     if(!s) return '';
+    if(typeof s !== 'string') s = String(s);
     return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
   }
 
   function md(s){
     if(!s) return '';
+    if(typeof s !== 'string'){
+      if(Array.isArray(s)){
+        s = s.map(function(c){
+          if(typeof c === 'string') return c;
+          return (c && typeof c === 'object' && c.text) ? c.text : '';
+        }).join(' ');
+      } else {
+        s = String(s);
+      }
+    }
     var codeBlocks = [];
     var text = s.replace(/\`\`\`([\s\S]*?)\`\`\`/g, function(_, block){
       var id = '___CODE_BLOCK_' + codeBlocks.length + '___';
@@ -1218,6 +1241,40 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       codeBlocks.push(blockHtml);
       return id;
     });
+
+    text = esc(text);
+
+    text = text.replace(/\`([^\`]+)\`/g, '<code>$1</code>');
+    text = text.replace(new RegExp('[*][*](.+?)[*][*]', 'g'), '<b>$1</b>');
+    text = text.replace(new RegExp('[*]([^*]+)[*]', 'g'), '<i>$1</i>');
+    text = text.replace(new RegExp('^### (.*$)', 'gm'), '<h4 style="margin:4px 0">$1</h4>');
+    text = text.replace(new RegExp('^## (.*$)', 'gm'), '<h3 style="margin:6px 0">$1</h3>');
+    text = text.replace(new RegExp('^# (.*$)', 'gm'), '<h2 style="margin:8px 0">$1</h2>');
+    text = text.replace(new RegExp('^[-*] (.*$)', 'gm'), '• $1');
+    text = text.replace(new RegExp('^(?:⏳|🔄|✅|❌) (.*$)', 'gm'), '<div class="stepper-step">$1</div>');
+
+    text = text.replace(new RegExp(':rocket:', 'g'), '🚀');
+    text = text.replace(new RegExp(':bug:', 'g'), '🐛');
+    text = text.replace(new RegExp(':fire:', 'g'), '🔥');
+    text = text.replace(new RegExp(':check:', 'g'), '✅');
+    text = text.replace(new RegExp(':warning:', 'g'), '⚠️');
+    text = text.replace(new RegExp(':zap:', 'g'), '⚡');
+    text = text.replace(new RegExp(':bulb:', 'g'), '💡');
+    text = text.replace(new RegExp(':robot:', 'g'), '🤖');
+    text = text.replace(new RegExp(':package:', 'g'), '📦');
+    text = text.replace(new RegExp(':smile:', 'g'), '😄');
+    text = text.replace(new RegExp(':thumbsup:', 'g'), '👍');
+
+    text = text.replace(new RegExp('(file:///[^\\s<]+|\\b(?:[a-zA-Z]:\\\\\\\\|src\\/|docs\\/)[^\\s<]+)', 'g'), '<a href="#" class="file-link" data-path="$1">$1</a>');
+
+    text = text.split(String.fromCharCode(10)).join('<br>');
+
+    for (var i = 0; i < codeBlocks.length; i++) {
+      text = text.replace('___CODE_BLOCK_' + i + '___', codeBlocks[i]);
+    }
+
+    return text;
+  }
 
     text = esc(text);
 
