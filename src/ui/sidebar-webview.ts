@@ -572,10 +572,11 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
     return '<!DOCTYPE html>\n<html lang="en">\n<head>\n' +
       '<meta charset="UTF-8">\n' +
-      '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; img-src ' + csp + ' https: data:; font-src ' + csp + ' https: data:; style-src ' + csp + ' \'unsafe-inline\'; script-src \'nonce-' + nonce + '\';">\n' +
+      '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; img-src ' + csp + ' https: data: blob:; font-src ' + csp + ' https: data:; style-src ' + csp + ' \'unsafe-inline\'; script-src ' + csp + ' \'nonce-' + nonce + '\' \'unsafe-inline\' \'unsafe-eval\'; connect-src ' + csp + ' https: http: ws: wss:;">\n' +
       '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
       '<style>\n' + this.getCss() + '\n</style>\n' +
       '</head>\n<body>\n' +
+      '<div id="agWebviewStatus" style="font-size: 10px; color: #ff5555; background: rgba(255,0,0,0.15); padding: 4px 8px; display: none; text-align: center; border-bottom: 1px solid rgba(255,0,0,0.3);"></div>\n' +
       this.getBody(opts) +
       '\n<script nonce="' + nonce + '">\n' + this.getScript() + '\n</script>\n' +
       '</body>\n</html>';
@@ -674,12 +675,12 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         <select id="selSession" class="hdr-select" title="Switch Chat Session" style="background: var(--card-bg); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; font-size: 11px; padding: 2px 4px; width: 100%; text-overflow: ellipsis; outline: none; cursor: pointer;">
           <option value="">Loading sessions...</option>
         </select>
-        <button class="ibtn" id="btnNewSession" title="New Chat Session (➕)">➕</button>
-        <button class="ibtn" id="btnDelSession" title="Delete Session (🗑️)">🗑️</button>
+        <button class="ibtn" id="btnNewSession" title="New Chat Session (➕)" onclick="window.__agPost && window.__agPost('newSession')">➕</button>
+        <button class="ibtn" id="btnDelSession" title="Delete Session (🗑️)" onclick="window.__agPost && window.__agPost('deleteSession')">🗑️</button>
       </div>
       <div class="hdr-btns">
-        <button class="ibtn" id="btnClear" title="Clear Messages">🧹</button>
-        <button class="ibtn" id="btnDash" title="Dashboard">📊</button>
+        <button class="ibtn" id="btnClear" title="Clear Messages" onclick="window.__agPost && window.__agPost('clear')">🧹</button>
+        <button class="ibtn" id="btnDash" title="Dashboard" onclick="window.__agPost && window.__agPost('dashboard')">📊</button>
       </div>
     </div>
   </div>
@@ -707,7 +708,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
     <div class="card-toolbar">
       <div class="tb-left">
-        <button type="button" class="ibtn" id="btnAttachFile" title="Attach File (📎)">📎</button>
+        <button type="button" class="ibtn" id="btnAttachFile" title="Attach File (📎)" onclick="window.__agPost && window.__agPost('pickFile')">📎</button>
         <button type="button" class="ibtn" id="btnEmoji" title="Insert Emoji (😀)">😀</button>
         <div class="pill" id="pillAgent" title="Toggle Agent Mode (uses workspace tools)">
           <span>🤖 Agent</span>
@@ -724,7 +725,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
           <span id="btnSaveKey" style="cursor:pointer;" title="Save Key">💾</span>
         </div>
       </div>
-      <button id="btnSend" class="send-pill">Send ⬆</button>
+      <button id="btnSend" class="send-pill" onclick="window.__agSend && window.__agSend()">Send ⬆</button>
     </div>
   </div>`;
   }
@@ -733,17 +734,41 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     return `
 (function(){
   var vsc = null;
-  try {
-    if (window.__agVscApi) {
-      vsc = window.__agVscApi;
-    } else if (typeof acquireVsCodeApi === 'function') {
-      vsc = acquireVsCodeApi();
-      window.__agVscApi = vsc;
+  function getVsc() {
+    if (window.__agVscApi) return window.__agVscApi;
+    try {
+      if (typeof acquireVsCodeApi === 'function') {
+        window.__agVscApi = acquireVsCodeApi();
+        return window.__agVscApi;
+      }
+    } catch (e) {
+      console.warn('[AG AI Webview] acquireVsCodeApi warning:', e);
     }
-  } catch (e) {
-    vsc = window.__agVscApi || null;
-    console.error('[AG AI Webview] acquireVsCodeApi error:', e);
+    return window.__agVscApi || null;
   }
+  vsc = getVsc();
+
+  window.__agPost = function(type, data) {
+    var api = getVsc();
+    if (api) {
+      var msg = { type: type };
+      if (data) {
+        for (var k in data) { msg[k] = data[k]; }
+      }
+      api.postMessage(msg);
+      console.log('[AG Webview] Sent IPC:', msg);
+    } else {
+      var st = document.getElementById('agWebviewStatus');
+      if (st) {
+        st.style.display = 'block';
+        st.innerHTML = '❌ VS Code API disconnected. Reload window (Ctrl+Shift+P -> Reload Window).';
+      }
+    }
+  };
+
+  window.__agSend = function() {
+    doSend();
+  };
 
   var streamEl = null;
   var currentStreamText = '';

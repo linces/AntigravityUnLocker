@@ -88,4 +88,4 @@ No painel da extensão, a lista de sessões de chat exibe permanentemente `<opti
 
 ---
 
-**Versão:** 0.4.3 | **Última Revisão:** 2026-08-06 19:28:00
+**Versão:** 0.4.4 | **Última Revisão:** 2026-08-06 19:48:00

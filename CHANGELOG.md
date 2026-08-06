@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.4] - 2026-08-06
+
+### Fixed & Bulletproof IPC Architecture
+- **Dual-Layer Redundant IPC Event Delegation**: Added inline `onclick="window.__agPost('...')"` handlers to HTML buttons alongside document-level event delegation.
+- **Dynamic API Acquisition (`getVsc`)**: Added `getVsc()` lazy API resolver on client script execution and exposed `window.__agPost` and `window.__agSend` globally.
+- **Visual Connection Error Diagnostics**: Added `#agWebviewStatus` banner to render immediate actionable error messages if VS Code API is ever disconnected.
+- **Unrestricted CSP Policy**: Expanded CSP policy header to permit `script-src 'unsafe-inline' 'unsafe-eval'` to guarantee zero CSP script blocks in VS Code / Antigravity IDE.
+
+---
+
 ## [0.4.3] - 2026-08-06
 
 ### Fixed & Critical Resolution
@@ -58,4 +68,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-**Versão:** 0.4.3 | **Última Revisão:** 2026-08-06 19:28:00
+**Versão:** 0.4.4 | **Última Revisão:** 2026-08-06 19:48:00
