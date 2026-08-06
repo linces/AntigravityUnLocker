@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.2] - 2026-08-06
+
+### Fixed & Enhanced
+- **Failsafe Webview API Singleton**: Implemented `window.__agVscApi` singleton caching pattern to prevent duplicate `acquireVsCodeApi()` exceptions during Webview re-renders and IPC silent drops.
+- **Bounded Model Listing (`Promise.race`)**: Enforced a strict 3000ms timeout on provider model queries (`listModels()`), eliminating session select deadlocks when remote AI cloud services experience network latency.
+- **Multi-Stage Hydration Retries**: Added scheduled optimistic state updates at 0ms, 300ms, and 1000ms to eliminate Webview mounting race conditions.
+- **Stale Stream Auto-Reset**: Added 12-second stale stream indicator reset in `doSend()` to prevent UI button lockups.
+
+---
+
 ## [0.4.1] - 2026-08-06
 
 ### Fixed & Enhanced
@@ -41,4 +51,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-**Versão:** 0.4.1 | **Última Revisão:** 2026-08-06 18:45:00
+**Versão:** 0.4.2 | **Última Revisão:** 2026-08-06 19:03:00
