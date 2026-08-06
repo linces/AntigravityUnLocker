@@ -143,7 +143,7 @@ export class FileTools {
     }
   }
 
-  private resolveUri(filePath: string): vscode.Uri | undefined {
+  public resolveUri(filePath: string): vscode.Uri | undefined {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
       return undefined;

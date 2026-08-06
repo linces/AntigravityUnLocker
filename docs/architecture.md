@@ -1,88 +1,95 @@
-# Architecture — AG Universal AI Extension
+# Software Architecture Blueprint — AG Universal AI (SSOT)
 
-## Overview
+## 1. Visão Geral & Princípios
 
-AG Universal AI is a VS Code extension that provides multi-provider AI assistance through official VS Code Extension APIs. It connects to any OpenAI-compatible backend (local or cloud) and exposes AI capabilities through:
+O **AG Universal AI** é uma plataforma unificada e assistente de inteligência artificial de alta performance operando diretamente como uma extensão nativa no **VS Code** e **Antigravity IDE**.
 
-1. **Chat Participant (`@ag`)** — Native chat integration with slash commands
-2. **Language Model Chat Provider** — Registers models in VS Code's model picker
-3. **Inline Completion Provider** — Ghost text code suggestions (Phase 2)
-4. **Tool Registry** — LM Tools API for agentic workflows (Phase 2)
-5. **MCP Server** — Model Context Protocol integration (Phase 3)
+### Princípios Arquiteturais (`[dev]`)
+* **Single Core Engine**: A extensão concentra a orquestração e execução local, abstraindo microsserviços e daemons externos.
+* **Direct MCP Strategy**: Comunicação direta via JSON-RPC 2.0 (`stdio` / `SSE`) com servidores MCP locais e remotos.
+* **Embedded AI Gateway**: Roteamento multi-provedor (12+ provedores local/cloud), controle de tokens, failover e rate limiting nativos no cliente.
+* **Embedded SynAI Agents**: Motor autônomo de agentes com personas especializadas (Supervisor, Planner, Code, Review, Security, Database).
+* **Security & Zero Trust**: Chaves mantidas em `SecretStorage` do VS Code ou bootstrap via `.env` local (gitignored). Zero vazamento de PII ou caminhos absolutos locais.
 
 ---
 
-## Component Architecture
+## 2. Diagrama Arquitetural Geral
 
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          AG Universal AI (VS Code / IDE)                    │
+│                                                                             │
+│  ┌─────────────────────────┐  ┌─────────────────────┐  ┌─────────────────┐ │
+│  │   UI & Interaction      │  │  Embedded AI        │  │  Embedded       │ │
+│  │   - Sidebar Webview     │  │  Gateway Layer      │  │  SynAI Agents   │ │
+│  │   - Native Chat (@ag)   │  │  - Model Router     │  │  - Supervisor   │ │
+│  │   - Ghost Text (FIM)    │  │  - Fallback Chain   │  │  - Planner      │ │
+│  │   - QuickPick / Status  │  │  - Token / Cost     │  │  - Code / Review│ │
+│  └────────────┬────────────┘  └──────────┬──────────┘  └────────┬────────┘ │
+│               │                          │                      │          │
+│               └──────────────────────────┼──────────────────────┘          │
+│                                          │                                 │
+│                   ┌──────────────────────┴───────────────────┐             │
+│                   │      Embedded Direct MCP Client Engine   │             │
+│                   │      (JSON-RPC 2.0 / stdio / SSE)        │             │
+│                   └──────────────────────┬───────────────────┘             │
+└──────────────────────────────────────────┼─────────────────────────────────┘
+                                           │
+         ┌─────────────────────────────────┴────────────────────────────────┐
+         │                                                                  │
+         ▼                                                                  ▼
+┌─────────────────────────────────────────┐    ┌──────────────────────────────────────────┐
+│   MCPs Oficiais / Open-Source (Direto)  │    │     Provedores de IA Direct Client       │
+│ ─────────────────────────────────────── │    │ ──────────────────────────────────────── │
+│ • Filesystem & Git (Local Workspace)    │    │ • Ollama / LM Studio (Local)             │
+│ • PostgreSQL / MySQL / SQLite (DB)      │    │ • OpenAI / Anthropic / Gemini (Cloud)    │
+│ • Playwright (Browser Automation)       │    │ • Groq / DeepSeek / Qwen / GLM (Cloud)   │
+│ • Docker / Kubernetes (Infra)           │    │ • OpenRouter / Together / Fireworks      │
+│ • Fetch / Web Search (HTTP/REST)        │    └──────────────────────────────────────────┘
+│ • Memory / Knowledge Graph (Context)    │
+└─────────────────────────────────────────┘
 ```
-┌─────────────────────────────────────────────────────────┐
-│                   AG Universal AI                       │
-│                  VS Code Extension                      │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│  │  Language     │  │   Inline     │  │    Chat      │  │
-│  │  Model Chat   │  │  Completion  │  │  Participant │  │
-│  │  Provider     │  │   Provider   │  │  (@ag)       │  │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  │
-│         │                 │                  │          │
-│  ┌──────┴─────────────────┴──────────────────┴───────┐  │
-│  │              Provider Manager                     │  │
-│  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌────────┐  │  │
-│  │  │ OpenAI  │ │ Ollama  │ │ Groq    │ │Custom  │  │  │
-│  │  │ Adapter │ │ Adapter │ │ Adapter │ │Adapter │  │  │
-│  │  └─────────┘ └─────────┘ └─────────┘ └────────┘  │  │
-│  └───────────────────────────────────────────────────┘  │
-│                                                         │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│  │  Tool        │  │    MCP       │  │   Agent      │  │
-│  │  Registry    │  │   Server     │  │   Engine     │  │
-│  │  (LM Tools)  │  │  (stdio)     │  │  (Agentic)   │  │
-│  └──────────────┘  └──────────────┘  └──────────────┘  │
-│                                                         │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │  UI Layer                                        │   │
-│  │  ┌──────────┐ ┌──────────┐ ┌─────────────────┐  │   │
-│  │  │Status Bar│ │Tree View │ │ Webview Panel   │  │   │
-│  │  │(Provider)│ │(Providers│ │ (Dashboard)     │  │   │
-│  │  │          │ │ & Models)│ │                 │  │   │
-│  │  └──────────┘ └──────────┘ └─────────────────┘  │   │
-│  └──────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────┘
-```
 
 ---
 
-## Key Design Decisions
+## 3. Matriz de MCPs Oficiais / Open-Source Integração Direta
 
-### 1. OpenAI Format as Lingua Franca
-All providers communicate using the OpenAI `v1/chat/completions` API format. This is the de-facto standard supported by virtually every AI backend.
+O AG Universal AI consome os principais servidores MCP da comunidade via `stdio`:
 
-### 2. Adapter Pattern for Providers
-Each provider implements the `ILLMProvider` interface. The `OpenAIAdapter` serves as the universal base, with specialized adapters (e.g., `OllamaAdapter`) adding provider-specific features.
-
-### 3. SecretStorage for API Keys
-All API keys are stored in VS Code's encrypted `SecretStorage`. No credentials are ever written to disk files (`.env`) or stored in settings.
-
-### 4. Configuration-Driven
-Provider settings are exposed through VS Code's standard `contributes.configuration` system, making them editable via the Settings UI and `settings.json`.
-
-### 5. Event-Driven Architecture
-The `ProviderManager` emits events (`onDidChangeProvider`, `onDidChangeHealth`) that UI components (StatusBar, TreeView) react to automatically.
+| Categoria | MCP Server | Protocolo | Utilidade Principal |
+| :--- | :--- | :--- | :--- |
+| **Filesystem** | `@modelcontextprotocol/server-filesystem` | `stdio` | Acesso seguro e delimitado ao workspace local |
+| **Git & Versionamento** | `@modelcontextprotocol/server-github` / `git-mcp` | `stdio` | Leitura de repositórios, commits, PRs e histórico Git |
+| **Banco de Dados** | `@modelcontextprotocol/server-postgres` | `stdio` | Inspeção de schemas, queries controladas e análises de DB |
+| **Navegação & E2E** | `@modelcontextprotocol/server-playwright` | `stdio` | Automação de browser, screenshots e verificação visual |
+| **Banco Leve / Cache** | `@modelcontextprotocol/server-sqlite` / `server-memory` | `stdio` | Memória de curto/longo prazo para sessões e grafos |
+| **Requisições Web** | `@modelcontextprotocol/server-fetch` | `stdio` | Consumo de documentação web, REST APIs e scraping |
+| **Containers & DevOps**| `docker-mcp` / `k8s-mcp` | `stdio` | Inspeção de containers, logs e comandos Docker |
 
 ---
 
-## Technology Stack
+## 4. Componentes Internos da Extensão
 
-| Component | Technology |
-| :--- | :--- |
-| Language | TypeScript (strict mode) |
-| Runtime | VS Code Extension Host (Node.js) |
-| Build | esbuild (single-file bundle) |
-| API Communication | Native `fetch` (Node.js 22+) |
-| Security | VS Code SecretStorage |
-| Testing | Mocha + @vscode/test-electron |
+### 4.1 UI & Workspace Integration Layer
+- **Sidebar Webview (`src/ui/sidebar-webview.ts`)**: Interface webview reativa em TypeScript com card de chat estilo Qodo/Cursor, suporte a anexos diretos, captura de imagens do clipboard (`Ctrl+V`) e seletor de modelos.
+- **Native Chat (`src/chat/session-manager.ts`)**: Integrado à API nativa de chat do VS Code (`@ag`) com persistência de sessões no `workspaceState`.
+
+### 4.2 Embedded AI Gateway Layer
+- **Provider Manager (`src/providers/provider-manager.ts`)**: Gerencia conexões e estados com 12+ provedores (Ollama, LM Studio, OpenAI, Groq, NVIDIA NIM, OpenRouter, DashScope Qwen, Moonshot Kimi, DeepSeek, SiliconFlow, Together AI, Fireworks AI e Z.ai GLM-5.2).
+- **Fallback Chain Engine**: Alternância automática de provedor em caso de timeout ou indisponibilidade da API principal.
+
+### 4.3 Embedded SynAI Agent Harness
+- **Agent Engine (`src/agent/engine.ts`)**: Executa loops de raciocínio "Plan-Then-Act", decompondo instruções complexas e aplicando correções em tempo real com base no retorno de ferramentas.
+- **Tool Registry (`src/tools/tool-registry.ts`)**: Coleção de ferramentas nativas de arquivos, terminal, workspace e edições substring de código (`ag_replaceInFile`, `ag_multiReplaceInFile`).
 
 ---
 
-**Versão:** 3.0.0 | **Última Revisão:** 2026-07-29 19:45:00
+## 5. Diretrizes de Segurança & Telemetria
+
+1. **Zero Exposure Policy**: Caminhos locais absolutos e nomes de usuários de ambiente não são expostos em logs, telemetria pública ou documentação.
+2. **SecretStorage**: Armazenamento encriptado de chaves via VS Code Keyring.
+3. **Métricas Locais**: A telemetria de requisições, latência e consumo de tokens é calculada e mantida localmente no cliente para exibição no Dashboard.
+
+---
+
+**Versão:** 0.4.0 | **Última Revisão:** 2026-08-06 18:35:00

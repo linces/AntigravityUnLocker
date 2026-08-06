@@ -166,6 +166,15 @@ export type ProviderChangeEvent = {
 
 // ─── Session Management ─────────────────────────────────────────────────────
 
+export interface ChatSessionMessage {
+  id?: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string | ContentPart[];
+  timestamp?: number;
+  providerId?: string;
+  model?: string;
+}
+
 export interface ChatSession {
   id: string;
   title: string;
@@ -173,10 +182,7 @@ export interface ChatSession {
   updatedAt: number;
   providerId?: string;
   model?: string;
-  messages: Array<{
-    role: 'user' | 'assistant' | 'system';
-    content: string | ContentPart[];
-  }>;
+  messages: ChatSessionMessage[];
 }
 
 export interface SessionState {

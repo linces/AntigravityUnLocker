@@ -9,89 +9,124 @@
 </p>
 
 <p align="center">
-  <b>A powerful, multi-provider AI coding assistant extension for VS Code & Antigravity IDE.</b><br />
-  Code completion, chat, agent workflows, MCP integration, real-time telemetry, and tool calling — powered by any OpenAI-compatible backend.
+  <b>A powerful, multi-provider AI coding assistant & agent engine for VS Code & Antigravity IDE.</b><br />
+  Code completion, multi-session chat, Direct MCP integration, embedded model routing, real-time telemetry, and tool calling.
 </p>
 
 > [!IMPORTANT]
-> **AG Universal AI** is a legitimate VS Code extension that uses official VS Code Extension APIs. It works with VS Code, Antigravity IDE, VSCodium, and any VS Code fork that supports the standard extension model.
+> **AG Universal AI** operates as a unified Single Core engine inside VS Code / Antigravity IDE. It connects directly to official and open-source Model Context Protocol (MCP) servers and integrates an embedded multi-provider AI Gateway and multi-agent harness.
 
 ---
 
-## ✨ Features
+## 🏛️ Architecture & Core Vision (SSOT)
 
-### 🤖 Multi-Provider AI Chat & Session Persistence (`@ag` & Qodo / Cursor Style Sidebar)
-- **Chat Session Persistence**: Multi-session chat history persisted in VS Code `workspaceState`. Create new sessions (`➕`), switch between past chats (`📜 History`), auto-name sessions from initial prompt, and delete sessions (`🗑️`).
-- Native chat participant integrated into VS Code's chat panel and custom Sidebar Webview (`ag-sidebar`)
-- Qodo & Cursor Style Integrated Input Card — Sleek input box with embedded `+ Agent` mode pill, `⚡ Model / Provider` selector pill, API key status, slash command chips, and `Send ⬆` pill button
-- Dynamic Provider & Model Switcher — switch active AI provider and select specific model per provider with real-time sync across Sidebar, Status Bar (`$(robot) AG AI: Provider (Model)`), QuickPick, and Dashboard
-- Slash commands: `/explain`, `/refactor`, `/test`, `/fix`, `/docs`, `/review`
-- Context-aware with `#file` and `#selection` references
-- Real-time streaming responses with fallback provider chain
+The platform consolidates AI capabilities directly into the VS Code extension host:
 
-### 🔌 12+ Supported Providers (2 Local + 10 Cloud)
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          AG Universal AI (VS Code / IDE)                    │
+│                                                                             │
+│  ┌─────────────────────────┐  ┌─────────────────────┐  ┌─────────────────┐ │
+│  │   UI & Interaction      │  │  Embedded AI        │  │  Embedded       │ │
+│  │   - Sidebar Webview     │  │  Gateway Layer      │  │  SynAI Agents   │ │
+│  │   - Native Chat (@ag)   │  │  - Model Router     │  │  - Supervisor   │ │
+│  │   - Ghost Text (FIM)    │  │  - Fallback Chain   │  │  - Planner      │ │
+│  │   - QuickPick / Status  │  │  - Token / Cost     │  │  - Code / Review│ │
+│  └────────────┬────────────┘  └──────────┬──────────┘  └────────┬────────┘ │
+│               │                          │                      │          │
+│               └──────────────────────────┼──────────────────────┘          │
+│                                          │                                 │
+│                   ┌──────────────────────┴───────────────────┐             │
+│                   │      Embedded Direct MCP Client Engine   │             │
+│                   │      (JSON-RPC 2.0 / stdio / SSE)        │             │
+│                   └──────────────────────┬───────────────────┘             │
+└──────────────────────────────────────────┼─────────────────────────────────┘
+                                           │
+         ┌─────────────────────────────────┴────────────────────────────────┐
+         │                                                                  │
+         ▼                                                                  ▼
+┌─────────────────────────────────────────┐    ┌──────────────────────────────────────────┐
+│   MCPs Oficiais / Open-Source (Direto)  │    │     Provedores de IA Direct Client       │
+│ ─────────────────────────────────────── │    │ ──────────────────────────────────────── │
+│ • Filesystem & Git (Local Workspace)    │    │ • Ollama / LM Studio (Local)             │
+│ • PostgreSQL / MySQL / SQLite (DB)      │    │ • OpenAI / Anthropic / Gemini (Cloud)    │
+│ • Playwright (Browser Automation)       │    │ • Groq / DeepSeek / Qwen / GLM (Cloud)   │
+│ • Docker / Kubernetes (Infra)           │    │ • OpenRouter / Together / Fireworks      │
+│ • Fetch / Web Search (HTTP/REST)        │    └──────────────────────────────────────────┘
+│ • Memory / Knowledge Graph (Context)    │
+└─────────────────────────────────────────┘
+```
 
-| Provider | Type | Key Features |
-| :--- | :--- | :--- |
-| **Ollama** | 🏠 Local | 100% offline, free, auto-model discovery |
-| **LM Studio** | 🏠 Local | GGUF models, free, offline |
-| **OpenAI** | ☁️ Cloud | GPT-4o, o1, o3-mini |
-| **Groq** | ☁️ Cloud | Ultra-fast LPU inference |
-| **NVIDIA NIM** | ☁️ Cloud | Llama-3.3-70b, Nemotron-70b, DeepSeek-R1 |
-| **OpenRouter** | ☁️ Cloud | Multi-model routing, free models available |
-| **DashScope** | ☁️ Cloud | Qwen 3.8 (2.4T MoE), Qwen 2.5 Coder |
-| **Moonshot AI** | ☁️ Cloud | Kimi K3, 1M token context |
-| **DeepSeek** | ☁️ Cloud | V3, R1 reasoning models |
-| **SiliconFlow** | ☁️ Cloud | Fast Qwen/DeepSeek hosting |
-| **Together AI** | ☁️ Cloud | Open-source model hosting |
-| **Fireworks AI** | ☁️ Cloud | High-speed function calling |
-| **Z.ai (GLM)** | ☁️ Cloud | GLM-5.2 flagship open-source, 1M context |
+---
 
-### 📊 Real-Time Telemetry & Interactive Dashboard
-- Event-driven live metrics tracking: Total Requests, Success Rate %, Latency (ms), and Tokens
-- Interactive Provider Grid — 1-click active provider switching directly from dashboard cards
-- Real-time error traceback logging and stream reader lock safety guards
+## 🔌 12+ Supported AI Providers (2 Local + 10 Cloud)
 
-### ⚙️ Model Context Protocol (MCP) & Plan-Then-Act Agent
-- Embedded MCP Server over JSON-RPC 2.0 (`tools/list`, `tools/call`, `resources/list`) exposing workspace resources and `[dev]` Transversal Domain SSOT data
-- Direct File Attachments (`📎` button + Drag & Drop) with removable file pills
-- Clipboard Screenshot Capture via `Ctrl + V` with Base64 preview & Multimodal AI Payload
-- Interactive Large File Links with line navigation in active VS Code editor (`#L40`)
-- Emoji Picker Popover (`😀`) & Markdown Shortcode Parser (`:rocket:`, `:bug:`, `:fire:`)
-- Autonomous Agent Engine with Self-Correction Harness (auto-reflection on tool errors & diagnostics)
-- Precise Substring Code Edit Tools (`ag_replaceInFile`, `ag_multiReplaceInFile`) avoiding full file rewrites
-- Agent Stepper Widget rendering step-by-step plan execution (⏳ Pending, 🔄 In Progress, ✅ Completed, ❌ Failed)
-- Ghost Text Inline Completion with FIM (Fill-In-the-Middle) prompting
+| Provider | Type | Default Model | Key Features |
+| :--- | :--- | :--- | :--- |
+| **Ollama** | 🏠 Local | `qwen2.5-coder:14b` | 100% offline, free, auto-model discovery |
+| **LM Studio** | 🏠 Local | `local-model` | GGUF models, free, offline |
+| **OpenAI** | ☁️ Cloud | `gpt-4o` | GPT-4o, o1, o3-mini |
+| **Groq** | ☁️ Cloud | `llama-3.3-70b-versatile` | Ultra-fast LPU inference |
+| **OpenRouter** | ☁️ Cloud | `qwen/qwen-2.5-coder-32b-instruct` | Multi-model routing |
+| **DashScope** | ☁️ Cloud | `qwen3.8-max-preview` | Qwen 3.8 (2.4T MoE), Qwen 2.5 Coder |
+| **Moonshot AI** | ☁️ Cloud | `kimi-k3` | Kimi K3, 1M token context |
+| **DeepSeek** | ☁️ Cloud | `deepseek-chat` | V3, R1 reasoning models |
+| **SiliconFlow** | ☁️ Cloud | `Qwen/Qwen2.5-Coder-32B-Instruct` | High-speed open models |
+| **Together AI** | ☁️ Cloud | `Qwen/Qwen2.5-Coder-32B-Instruct` | Open-source model hosting |
+| **Fireworks AI** | ☁️ Cloud | `qwen2p5-coder-32b-instruct` | High-speed function calling |
+| **Z.ai (GLM)** | ☁️ Cloud | `glm-5.2` | GLM-5.2 flagship open-source, 1M context |
+
+---
+
+## 📦 Matriz de MCPs Oficiais / Open-Source Recomendados
+
+Para consumo direto pelo AG Universal AI sem necessidade de daemons intermediários:
+
+| Categoria | MCP Server | Protocolo | Utilidade Principal |
+| :--- | :--- | :--- | :--- |
+| **Filesystem** | `@modelcontextprotocol/server-filesystem` | `stdio` | Acesso seguro e delimitado ao sistema de arquivos |
+| **Git & Versionamento** | `@modelcontextprotocol/server-github` / `git-mcp` | `stdio` | Leitura de repositórios, commits, PRs e histórico Git |
+| **Banco de Dados** | `@modelcontextprotocol/server-postgres` | `stdio` | Inspecionar schemas, executar queries e análises de DB |
+| **Navegação & E2E** | `@modelcontextprotocol/server-playwright` | `stdio` | Automação de browser, screenshots e verificação visual |
+| **Banco Leve / Cache** | `@modelcontextprotocol/server-sqlite` / `server-memory` | `stdio` | Memória de curto/longo prazo para sessões e grafos |
+| **Requisições Web** | `@modelcontextprotocol/server-fetch` | `stdio` | Consumo de documentação web, REST APIs e scraping |
+| **Containers & DevOps**| `docker-mcp` / `k8s-mcp` | `stdio` | Inspeção de containers, logs e comandos Docker |
+
+---
+
+## ✨ Features Principal
+
+### 🤖 Multi-Provider Chat & Sessões Persistentes (`@ag` Sidebar)
+- Persistência de sessões no `workspaceState` (criar `➕`, alternar `📜`, excluir `🗑️`, limpar `🧹`).
+- Nomeação automática de sessões baseada na mensagem inicial.
+- Qodo & Cursor Style Input Card com seletor de modelos/provedores em tempo real.
+- Slash commands: `/explain`, `/refactor`, `/test`, `/fix`, `/docs`, `/review`.
+
+### ⚡ Agent Engine & Multi-Agent Personas (SynAI Embedded)
+- Motor autônomo com ciclos de planejamento, execução de ferramentas e reflexão com autocorreção.
+- Edição de código por substituição precisa (`ag_replaceInFile`, `ag_multiReplaceInFile`).
+- Suporte a personas especializadas (Supervisor, Planner, Code, Review, Security, Docs, Database).
+
+### 📊 Telemetria & Dashboard Interativo
+- Métricas em tempo real (requisições, taxa de sucesso %, latência ms e uso de tokens).
+- Troca de provedor ativo com 1 clique diretamente no Dashboard (`AG AI: Show Dashboard`).
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Install the Extension
+### 1. Configurar Provedor Local ou Cloud
+- **Local (Ollama)**: Baixe [Ollama](https://ollama.com) e execute `ollama pull qwen2.5-coder:14b`.
+- **Cloud**: Abra a Paleta de Comandos (`Ctrl+Shift+P`), execute `AG AI: Set API Key for Provider` ou configure o arquivo `.env` (gitignored).
 
-Install from Open VSX or load directly in VS Code / Antigravity IDE.
-
-### 2. Configure a Provider
-
-**For local inference:**
-1. Install [Ollama](https://ollama.com)
-2. Pull a model: `ollama pull qwen2.5-coder:14b`
-3. The extension auto-detects Ollama on `localhost:11434`
-
-**For cloud providers:**
-1. Open Command Palette (`Ctrl+Shift+P`)
-2. Run `AG AI: Set API Key for Provider` or place keys in `.env` (gitignored)
-3. Select your provider via Status Bar or Dashboard
-
-### 3. Start Chatting
-
-Open the Chat panel and type `@ag` followed by your question, or use the 🤖 Activity Bar sidebar.
+### 2. Iniciar Chat
+Abra a barra lateral de IA e digite `@ag` ou interaja diretamente pelo painel interativo.
 
 ---
 
 ## 📖 Documentation
 
-- Architecture & Design: `./docs/architecture.md`
+- Architecture Blueprint (SSOT): `./docs/architecture.md`
 - Provider Specification: `./docs/providers.md`
 
 ---
@@ -102,5 +137,4 @@ MIT — See [LICENSE](./LICENSE)
 
 ---
 
-**Versão:** 0.4.0 | **Última Revisão:** 2026-08-05 20:52:00
-
+**Versão:** 0.4.0 | **Última Revisão:** 2026-08-06 18:35:00

@@ -8,6 +8,8 @@
 import * as vscode from 'vscode';
 import type { ProviderManager } from '../providers/provider-manager';
 import type { SessionManager } from '../chat/session-manager';
+import type { ToolRegistry } from '../tools/tool-registry';
+import type { AgentEngine } from '../agent/engine';
 import { getAllPresets } from '../providers/provider-registry';
 import { buildSystemPrompt, buildSlashCommandPrompt } from '../chat/prompt-builder';
 

@@ -37,7 +37,7 @@ export class SessionManager implements vscode.Disposable {
       } else {
         this.sessions = [];
       }
-      this.activeSessionId = this.workspaceState.get<string>(ACTIVE_SESSION_KEY, undefined);
+      this.activeSessionId = this.workspaceState.get<string | undefined>(ACTIVE_SESSION_KEY, undefined);
 
       if (this.sessions.length === 0) {
         this.createSession('New Chat');

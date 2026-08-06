@@ -1,21 +1,23 @@
-# Supported Providers — AG Universal AI
+# Supported Providers & Direct MCP — AG Universal AI
 
 ## Overview
 
-AG Universal AI supports any OpenAI-compatible API endpoint through a universal adapter pattern. Below are the built-in provider presets.
+O **AG Universal AI** oferece suporte nativo a qualquer endpoint compatível com o padrão OpenAI API (`v1/chat/completions`) através de um padrão de adaptadores universais (`ILLMProvider`), além de permitir conexão direta a servidores MCP via `stdio`.
 
 ---
 
-## Local Providers (Free, Offline)
+## Provedores Locais (Gratuitos & Offline)
 
-| Provider | Default Model | Base URL | Notes |
+| Provedor | Modelo Padrão | Base URL | Observações |
 | :--- | :--- | :--- | :--- |
-| **Ollama** | `qwen2.5-coder:14b` | `http://localhost:11434` | Auto-model discovery, no API key |
-| **LM Studio** | `local-model` | `http://localhost:1234/v1` | GGUF models, no API key |
+| **Ollama** | `qwen2.5-coder:14b` | `http://localhost:11434` | Descoberta automática de modelos, 100% offline |
+| **LM Studio** | `local-model` | `http://localhost:1234/v1` | Execução de modelos GGUF locais |
 
-## Cloud Providers
+---
 
-| Provider | Default Model | Base URL | Key Procurement |
+## Provedores em Nuvem
+
+| Provedor | Modelo Padrão | Base URL | Obtenção de Chave |
 | :--- | :--- | :--- | :--- |
 | **OpenAI** | `gpt-4o` | `https://api.openai.com/v1` | [platform.openai.com](https://platform.openai.com/api-keys) |
 | **Groq** | `llama-3.3-70b-versatile` | `https://api.groq.com/openai/v1` | [console.groq.com](https://console.groq.com/keys) |
@@ -30,30 +32,47 @@ AG Universal AI supports any OpenAI-compatible API endpoint through a universal 
 
 ---
 
-## Custom Provider
+## Provedor Customizado
 
-You can connect to any OpenAI-compatible endpoint by configuring `ag-universal-ai.customProvider` in your VS Code settings:
+Para conectar a qualquer endpoint customizado compatível com OpenAI, configure a chave `ag-universal-ai.customProvider` no `settings.json`:
 
 ```json
 {
   "ag-universal-ai.activeProvider": "custom",
   "ag-universal-ai.customProvider": {
-    "baseUrl": "http://your-server:8080/v1",
-    "model": "your-model-name"
+    "baseUrl": "http://seu-servidor-local:8080/v1",
+    "model": "nome-do-modelo"
   }
 }
 ```
 
-Then set the API key via the command: `AG AI: Set API Key for Provider`.
+---
+
+## Conexão Direta a Servidores MCP (Direct MCP Configuration)
+
+No modelo Single Core, os MCPs são configurados diretamente via VS Code Settings:
+
+```json
+{
+  "agUniversal.mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://localhost/mydb"]
+    }
+  }
+}
+```
 
 ---
 
-## Provider Interface
-
-All providers implement the `ILLMProvider` interface:
+## Interface Universal de Provedores (`ILLMProvider`)
 
 ```typescript
-interface ILLMProvider {
+export interface ILLMProvider {
   readonly id: string;
   readonly name: string;
   readonly config: ProviderConfig;
@@ -63,9 +82,10 @@ interface ILLMProvider {
   health(): Promise<HealthStatus>;
   capabilities(): ProviderCapabilities;
   listModels?(): Promise<ModelInfo[]>;
+  updateModel?(model: string): void;
 }
 ```
 
 ---
 
-**Versão:** 0.4.0 | **Última Revisão:** 2026-08-05 20:52:00
+**Versão:** 0.4.0 | **Última Revisão:** 2026-08-06 18:35:00
