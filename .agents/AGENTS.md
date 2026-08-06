@@ -59,4 +59,4 @@ Sempre que uma alteração ou correção em componentes da extensão ou Webview 
 
 ---
 
-**Versão:** 0.4.7 | **Última Revisão:** 2026-08-06 22:38:00
+**Versão:** 0.4.9 | **Última Revisão:** 2026-08-06 23:02:00
