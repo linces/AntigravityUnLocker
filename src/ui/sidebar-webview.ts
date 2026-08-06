@@ -570,6 +570,18 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       '</option>'
     ).join('');
 
+    const sessions = this.sessionManager.getSessions();
+    const activeSession = this.sessionManager.getActiveSession();
+    const sessionOpts = sessions.map(s =>
+      '<option value="' + s.id + '"' + (s.id === activeSession.id ? ' selected' : '') + '>' +
+      (s.title || 'Chat Session') + (s.messages.length ? ' (' + s.messages.length + ')' : '') +
+      '</option>'
+    ).join('');
+
+    const ap = this.providerManager.getActiveProvider();
+    const activeModel = ap?.config.model || '';
+    const modelOpts = activeModel ? `<option value="${activeModel}" selected>${activeModel}</option>` : '';
+
     return '<!DOCTYPE html>\n<html lang="en">\n<head>\n' +
       '<meta charset="UTF-8">\n' +
       '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; img-src ' + csp + ' https: data: blob:; font-src ' + csp + ' https: data:; style-src ' + csp + ' \'unsafe-inline\'; script-src ' + csp + ' \'nonce-' + nonce + '\' \'unsafe-inline\' \'unsafe-eval\'; connect-src ' + csp + ' https: http: ws: wss:;">\n' +
@@ -577,7 +589,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       '<style>\n' + this.getCss() + '\n</style>\n' +
       '</head>\n<body>\n' +
       '<div id="agWebviewStatus" style="font-size: 10px; color: #ff5555; background: rgba(255,0,0,0.15); padding: 4px 8px; display: none; text-align: center; border-bottom: 1px solid rgba(255,0,0,0.3);"></div>\n' +
-      this.getBody(opts) +
+      this.getBody(opts, sessionOpts, modelOpts, activeModel) +
       '\n<script nonce="' + nonce + '">\n' + this.getScript() + '\n</script>\n' +
       '</body>\n</html>';
   }
@@ -666,21 +678,21 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     `;
   }
 
-  private getBody(optionsHtml: string): string {
+  private getBody(optionsHtml: string, sessionOpts: string, modelOpts: string, activeModel: string): string {
     return `
   <div class="hdr">
     <div class="hdr-row">
       <span class="brand">🤖 AG AI</span>
       <div class="session-bar" style="display: flex; align-items: center; gap: 4px; flex: 1; max-width: 170px; margin: 0 4px;">
         <select id="selSession" class="hdr-select" title="Switch Chat Session" style="background: var(--card-bg); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; font-size: 11px; padding: 2px 4px; width: 100%; text-overflow: ellipsis; outline: none; cursor: pointer;">
-          <option value="">Loading sessions...</option>
+          ${sessionOpts || '<option value="">New Chat</option>'}
         </select>
-        <button class="ibtn" id="btnNewSession" title="New Chat Session (➕)" onclick="window.__agPost && window.__agPost('newSession')">➕</button>
-        <button class="ibtn" id="btnDelSession" title="Delete Session (🗑️)" onclick="window.__agPost && window.__agPost('deleteSession')">🗑️</button>
+        <button type="button" class="ibtn" id="btnNewSession" title="New Chat Session (➕)">➕</button>
+        <button type="button" class="ibtn" id="btnDelSession" title="Delete Session (🗑️)">🗑️</button>
       </div>
       <div class="hdr-btns">
-        <button class="ibtn" id="btnClear" title="Clear Messages" onclick="window.__agPost && window.__agPost('clear')">🧹</button>
-        <button class="ibtn" id="btnDash" title="Dashboard" onclick="window.__agPost && window.__agPost('dashboard')">📊</button>
+        <button type="button" class="ibtn" id="btnClear" title="Clear Messages">🧹</button>
+        <button type="button" class="ibtn" id="btnDash" title="Dashboard">📊</button>
       </div>
     </div>
   </div>
@@ -708,7 +720,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
     <div class="card-toolbar">
       <div class="tb-left">
-        <button type="button" class="ibtn" id="btnAttachFile" title="Attach File (📎)" onclick="window.__agPost && window.__agPost('pickFile')">📎</button>
+        <button type="button" class="ibtn" id="btnAttachFile" title="Attach File (📎)">📎</button>
         <button type="button" class="ibtn" id="btnEmoji" title="Insert Emoji (😀)">😀</button>
         <div class="pill" id="pillAgent" title="Toggle Agent Mode (uses workspace tools)">
           <span>🤖 Agent</span>
@@ -717,15 +729,15 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
           <span>⚡</span>
           <select id="selProv">${optionsHtml}</select>
         </div>
-        <div class="pill-select" id="modelSelectWrap" style="display: none;" title="Active Model">
-          <select id="selModel"></select>
+        <div class="pill-select" id="modelSelectWrap" style="${activeModel ? 'display: inline-flex;' : 'display: none;'}" title="Active Model">
+          <select id="selModel">${modelOpts}</select>
         </div>
         <div class="keybar" id="keybar">
           <input type="password" id="keyIn" placeholder="API Key..." />
           <span id="btnSaveKey" style="cursor:pointer;" title="Save Key">💾</span>
         </div>
       </div>
-      <button id="btnSend" class="send-pill" onclick="window.__agSend && window.__agSend()">Send ⬆</button>
+      <button type="button" id="btnSend" class="send-pill">Send ⬆</button>
     </div>
   </div>`;
   }
