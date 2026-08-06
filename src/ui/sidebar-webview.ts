@@ -763,7 +763,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   private getScript(): string {
     return `
 (function(){
-  if (!window.__agVscApi) {
+  if (typeof window.__agVscApi === 'undefined' || !window.__agVscApi) {
     try {
       if (typeof acquireVsCodeApi === 'function') {
         window.__agVscApi = acquireVsCodeApi();
@@ -774,11 +774,6 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   }
 
   function getVsc() {
-    if (!window.__agVscApi && typeof acquireVsCodeApi === 'function') {
-      try {
-        window.__agVscApi = acquireVsCodeApi();
-      } catch (e) {}
-    }
     return window.__agVscApi || null;
   }
 
