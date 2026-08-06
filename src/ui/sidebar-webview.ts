@@ -763,12 +763,10 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   private getScript(): string {
     return `
 (function(){
-  var vscodeApi = window.__agVscApi || null;
-  if (!vscodeApi) {
+  if (!window.__agVscApi) {
     try {
       if (typeof acquireVsCodeApi === 'function') {
-        vscodeApi = acquireVsCodeApi();
-        window.__agVscApi = vscodeApi;
+        window.__agVscApi = acquireVsCodeApi();
       }
     } catch (err) {
       console.warn('[AG Webview] acquireVsCodeApi warning:', err);
@@ -776,7 +774,12 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   }
 
   function getVsc() {
-    return window.__agVscApi || vscodeApi || null;
+    if (!window.__agVscApi && typeof acquireVsCodeApi === 'function') {
+      try {
+        window.__agVscApi = acquireVsCodeApi();
+      } catch (e) {}
+    }
+    return window.__agVscApi || null;
   }
 
   window.__agPost = function(type, data) {
@@ -872,7 +875,77 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     })(chipEls[cIdx]);
   }
 
-  // ─── Global Event Delegation ───────────────────────
+  // ─── Direct Event Binds for Toolbar Elements ────────
+  function bindClick(id, handler) {
+    var el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        handler(e);
+      });
+    }
+  }
+
+  bindClick('btnDash', function() {
+    var api = getVsc();
+    if (api) api.postMessage({ type: 'dashboard' });
+  });
+
+  bindClick('btnClear', function() {
+    var api = getVsc();
+    if (api) api.postMessage({ type: 'clear' });
+  });
+
+  bindClick('btnNewSession', function() {
+    var api = getVsc();
+    if (api) api.postMessage({ type: 'newSession' });
+  });
+
+  bindClick('btnDelSession', function() {
+    var api = getVsc();
+    if (api) api.postMessage({ type: 'deleteSession' });
+  });
+
+  bindClick('btnSend', function() {
+    doSend();
+  });
+
+  bindClick('btnAttachFile', function() {
+    var api = getVsc();
+    if (api) api.postMessage({ type: 'pickFile' });
+  });
+
+  bindClick('btnEmoji', function() {
+    var emojiPicker = document.getElementById('emojiPicker');
+    if (emojiPicker) {
+      emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
+    }
+  });
+
+  bindClick('pillAgent', function(e) {
+    var agentPill = document.getElementById('pillAgent');
+    isAgentMode = !isAgentMode;
+    if (agentPill) {
+      if (isAgentMode) {
+        agentPill.classList.add('active');
+      } else {
+        agentPill.classList.remove('active');
+      }
+    }
+  });
+
+  bindClick('btnSaveKey', function() {
+    var kIn = getKeyIn();
+    var sPr = getSelProv();
+    var api = getVsc();
+    if (kIn && kIn.value && sPr && api) {
+      api.postMessage({ type: 'saveKey', id: sPr.value, key: kIn.value });
+      kIn.value = '';
+    }
+  });
+
+  // ─── Global Event Delegation for Dynamic Message Code Blocks ───────
   document.addEventListener('click', function(e){
     var t = e.target;
     if(!t) return;
@@ -881,76 +954,11 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
     var api = getVsc();
 
-    var btnDash = t.id === 'btnDash' ? t : t.closest('#btnDash');
-    if(btnDash){
-      if(api) api.postMessage({type:'dashboard'});
-      return;
-    }
-
-    var btnClear = t.id === 'btnClear' ? t : t.closest('#btnClear');
-    if(btnClear){
-      if(api) api.postMessage({type:'clear'});
-      return;
-    }
-
-    var btnNewSession = t.id === 'btnNewSession' ? t : t.closest('#btnNewSession');
-    if(btnNewSession){
-      if(api) api.postMessage({type:'newSession'});
-      return;
-    }
-
-    var btnDelSession = t.id === 'btnDelSession' ? t : t.closest('#btnDelSession');
-    if(btnDelSession){
-      if(api) api.postMessage({type:'deleteSession'});
-      return;
-    }
-
-    var btnSend = t.id === 'btnSend' ? t : t.closest('#btnSend');
-    if(btnSend){
-      doSend();
-      return;
-    }
-
-    var btnAttachFile = t.id === 'btnAttachFile' ? t : t.closest('#btnAttachFile');
-    if(btnAttachFile){
-      if(api) api.postMessage({type:'pickFile'});
-      return;
-    }
-
-    var btnEmoji = t.id === 'btnEmoji' ? t : t.closest('#btnEmoji');
-    var emojiPicker = document.getElementById('emojiPicker');
-    if(btnEmoji && emojiPicker){
-      emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
-      return;
-    }
-
     var fileLink = t.tagName === 'A' && t.classList.contains('file-link') ? t : t.closest('a.file-link');
     if(fileLink){
       e.preventDefault();
       var fp = fileLink.getAttribute('data-path');
       if(fp && api) api.postMessage({type:'openFile', path:fp});
-      return;
-    }
-
-    var agentPill = t.id === 'pillAgent' ? t : t.closest('#pillAgent');
-    if(agentPill){
-      isAgentMode = !isAgentMode;
-      if(isAgentMode){
-        agentPill.classList.add('active');
-      } else {
-        agentPill.classList.remove('active');
-      }
-      return;
-    }
-
-    var btnSaveKey = t.id === 'btnSaveKey' ? t : t.closest('#btnSaveKey');
-    if(btnSaveKey){
-      var kIn = getKeyIn();
-      var sPr = getSelProv();
-      if(kIn && kIn.value && sPr && api){
-        api.postMessage({type:'saveKey', id:sPr.value, key:kIn.value});
-        kIn.value = '';
-      }
       return;
     }
 
@@ -1051,18 +1059,28 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     });
   }
 
-  // ─── Dropdown Listeners ─────────────────────────────
-  document.addEventListener('change', function(e){
-    var t = e.target;
-    var api = getVsc();
-    if(!t || isUpdatingUI || !api) return;
-    if(t.id === 'selProv'){
-      api.postMessage({type:'switchProvider', id:t.value});
-    } else if(t.id === 'selModel' && t.value){
-      api.postMessage({type:'switchModel', model:t.value});
-    } else if(t.id === 'selSession' && t.value){
-      api.postMessage({type:'switchSession', id:t.value});
+  // ─── Direct Select Dropdown Change Handlers ─────────
+  function bindSelectChange(id, handler) {
+    var sel = document.getElementById(id);
+    if (sel) {
+      sel.addEventListener('change', function(e) {
+        if (isUpdatingUI) return;
+        var api = getVsc();
+        if (api) handler(sel.value, api);
+      });
     }
+  }
+
+  bindSelectChange('selProv', function(val, api) {
+    if (val) api.postMessage({ type: 'switchProvider', id: val });
+  });
+
+  bindSelectChange('selModel', function(val, api) {
+    if (val) api.postMessage({ type: 'switchModel', model: val });
+  });
+
+  bindSelectChange('selSession', function(val, api) {
+    if (val) api.postMessage({ type: 'switchSession', id:val });
   });
 
   // ─── Direct Keyboard & Auto-Resize on Textarea ──────

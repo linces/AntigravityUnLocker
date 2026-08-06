@@ -2,7 +2,7 @@
   "name": "ag-universal-ai",
   "displayName": "AG Universal AI",
   "description": "Universal multi-provider AI assistant for VS Code & Antigravity IDE — Code completion, chat, agent workflows, MCP, and tool calling powered by any OpenAI-compatible backend.",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "publisher": "linces",
   "icon": "resources/icons/ag-icon.png",
   "license": "MIT",
@@ -116,6 +116,30 @@
         "icon": "$(robot)"
       }
     ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "ag-universal-ai.runAgent",
+          "when": "view == ag-universal-ai.sidebarView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "ag-universal-ai.showDashboard",
+          "when": "view == ag-universal-ai.sidebarView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "ag-universal-ai.switchProvider",
+          "when": "view == ag-universal-ai.sidebarView",
+          "group": "navigation@3"
+        },
+        {
+          "command": "ag-universal-ai.switchModel",
+          "when": "view == ag-universal-ai.sidebarView",
+          "group": "navigation@4"
+        }
+      ]
+    },
     "configuration": {
       "title": "AG Universal AI",
       "properties": {
