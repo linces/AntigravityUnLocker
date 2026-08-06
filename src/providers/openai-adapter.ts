@@ -80,8 +80,17 @@ export class OpenAIAdapter implements ILLMProvider {
 
         if (!response.ok) {
           const errorText = await response.text();
+          let formattedError = errorText;
+          try {
+            const parsedErr = JSON.parse(errorText);
+            if (parsedErr?.error?.message) {
+              formattedError = parsedErr.error.message;
+            }
+          } catch {
+            // Keep raw text if not JSON
+          }
           const isTransient = [429, 502, 503, 504].includes(response.status);
-          const err = new Error(`HTTP ${response.status}: ${errorText}`);
+          const err = new Error(`HTTP ${response.status}: ${formattedError}`);
           if (isTransient && attempt < maxRetries) {
             lastError = err;
             continue;
@@ -112,7 +121,7 @@ export class OpenAIAdapter implements ILLMProvider {
     const payload = this.buildPayload(request, true);
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timer = setTimeout(() => controller.abort(), Math.max(this.timeoutMs, 120000));
 
     const abortHandler = () => controller.abort();
     if (signal) {
@@ -132,7 +141,16 @@ export class OpenAIAdapter implements ILLMProvider {
       if (!response.ok || !response.body) {
         let errorText = 'No response body';
         try {
-          errorText = await response.text();
+          const rawText = await response.text();
+          errorText = rawText;
+          try {
+            const parsed = JSON.parse(rawText);
+            if (parsed?.error?.message) {
+              errorText = parsed.error.message;
+            }
+          } catch {
+            // ignore JSON parse error
+          }
         } catch {
           // ignore
         }
@@ -145,7 +163,7 @@ export class OpenAIAdapter implements ILLMProvider {
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) {break;}
+        if (done) { break; }
 
         // Clear connection timeout once data starts streaming
         clearTimeout(timer);
@@ -156,13 +174,26 @@ export class OpenAIAdapter implements ILLMProvider {
 
         for (const line of lines) {
           const trimmed = line.trim();
-          if (trimmed.startsWith('data: ')) {
-            const dataStr = trimmed.slice(6);
-            if (dataStr === '[DONE]') {return;}
+          if (trimmed.startsWith('data:')) {
+            const dataStr = trimmed.slice(5).trim();
+            if (dataStr === '[DONE]') { return; }
             try {
               const parsed = JSON.parse(dataStr);
-              const delta = parsed.choices?.[0]?.delta?.content;
-              if (delta) {yield delta;}
+              const choice = parsed.choices?.[0];
+              if (choice) {
+                const delta = choice.delta;
+                const content = delta?.content;
+                const reasoning = delta?.reasoning_content || delta?.reasoning;
+                const text = choice.text;
+
+                if (typeof content === 'string' && content.length > 0) {
+                  yield content;
+                } else if (typeof reasoning === 'string' && reasoning.length > 0) {
+                  yield reasoning;
+                } else if (typeof text === 'string' && text.length > 0) {
+                  yield text;
+                }
+              }
             } catch {
               // Skip malformed chunks
             }

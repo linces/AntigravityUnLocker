@@ -199,45 +199,46 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   // ── Chat Handler ──────────────────────────────────────────────────────────
 
   private async handleChat(text: string, slash?: string, images?: string[]): Promise<void> {
-    let userContent: any = text;
-    if (images && images.length > 0) {
-      userContent = [
-        { type: 'text', text },
-        ...images.map(img => ({ type: 'image_url', image_url: { url: img } }))
-      ];
-    }
-    const activeProvider = this.providerManager.getActiveProvider();
-    await this.sessionManager.addMessage(
-      'user',
-      userContent,
-      activeProvider?.id,
-      activeProvider?.config.model
-    );
+    try {
+      let userContent: any = text;
+      if (images && images.length > 0) {
+        userContent = [
+          { type: 'text', text },
+          ...images.map(img => ({ type: 'image_url', image_url: { url: img } }))
+        ];
+      }
+      const activeProvider = this.providerManager.getActiveProvider();
+      await this.sessionManager.addMessage(
+        'user',
+        userContent,
+        activeProvider?.id,
+        activeProvider?.config.model
+      );
 
-    // Auto-detect intent to create/generate files or artifacts autonomously
-    const lowerText = text.toLowerCase();
-    const isCreateFileIntent =
-      lowerText.includes('crie um arquivo') ||
-      lowerText.includes('crie o arquivo') ||
-      lowerText.includes('criar arquivo') ||
-      lowerText.includes('crie um artefato') ||
-      lowerText.includes('salve o arquivo') ||
-      lowerText.includes('salve no arquivo') ||
-      lowerText.includes('gerar arquivo') ||
-      lowerText.includes('create file') ||
-      lowerText.includes('write file') ||
-      lowerText.includes('save file');
+      // Auto-detect intent to create/generate files or artifacts autonomously
+      const lowerText = text.toLowerCase();
+      const isCreateFileIntent =
+        lowerText.includes('crie um arquivo') ||
+        lowerText.includes('crie o arquivo') ||
+        lowerText.includes('criar arquivo') ||
+        lowerText.includes('crie um artefato') ||
+        lowerText.includes('salve o arquivo') ||
+        lowerText.includes('salve no arquivo') ||
+        lowerText.includes('gerar arquivo') ||
+        lowerText.includes('create file') ||
+        lowerText.includes('write file') ||
+        lowerText.includes('save file');
 
-    if (isCreateFileIntent) {
-      this.log(`Auto-routing file creation request "${text}" to Agent Engine...`);
-      return this.handleAgent(text);
-    }
+      if (isCreateFileIntent) {
+        this.log(`Auto-routing file creation request "${text}" to Agent Engine...`);
+        return this.handleAgent(text);
+      }
 
-    const provider = activeProvider;
-    if (!provider) {
-      this.post({ type: 'done', text: '⚠️ No provider active. Select one from the dropdown.' });
-      return;
-    }
+      const provider = activeProvider;
+      if (!provider) {
+        this.post({ type: 'done', text: '⚠️ No provider active. Select one from the dropdown.' });
+        return;
+      }
 
     const sysPrompt = slash ? buildSlashCommandPrompt(slash) : buildSystemPrompt();
 
@@ -301,9 +302,21 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
     const msgs = [
       { role: 'system' as const, content: sysPrompt },
-      ...sessionHistory.slice(-6).map(m => ({ role: m.role as any, content: m.content as any })),
+      ...sessionHistory.slice(-6).map(m => ({ role: m.role as any, content: Array.isArray(m.content) ? JSON.parse(JSON.stringify(m.content)) : m.content })),
     ];
-    if (ctx) { msgs[msgs.length - 1].content += ctx; }
+    if (ctx && msgs.length > 0) {
+      const lastMsg = msgs[msgs.length - 1];
+      if (typeof lastMsg.content === 'string') {
+        lastMsg.content += ctx;
+      } else if (Array.isArray(lastMsg.content)) {
+        const textPart = lastMsg.content.find((c: any) => c && c.type === 'text');
+        if (textPart && typeof textPart.text === 'string') {
+          textPart.text += ctx;
+        } else {
+          lastMsg.content.push({ type: 'text', text: ctx });
+        }
+      }
+    }
 
     this.log(`Calling ${provider.name} (${provider.config.model})...`);
 
@@ -417,6 +430,11 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       );
     }
     this.post({ type: 'done', text: full });
+    } catch (topErr: unknown) {
+      const msg = topErr instanceof Error ? topErr.message : String(topErr);
+      this.log(`Critical error in handleChat: ${msg}`);
+      this.post({ type: 'done', text: `❌ Request error: ${msg}` });
+    }
   }
 
   private async handleAgent(goal: string): Promise<void> {
@@ -1054,8 +1072,11 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   var lastStreamStartTime = 0;
   function doSend(){
     if(streamEl !== null){
-      if(Date.now() - lastStreamStartTime > 12000){
+      if(Date.now() - lastStreamStartTime > 6000){
         console.warn('[AG Webview] Clearing stale stream indicator');
+        if(streamEl){
+          streamEl.innerHTML = md('⚠️ Request timed out or failed to start stream. Please check provider connection or select another model.');
+        }
         streamEl = null;
       } else {
         return;
@@ -1335,7 +1356,9 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     text = text.split(String.fromCharCode(10)).join('<br>');
 
     for (var i = 0; i < codeBlocks.length; i++) {
-      text = text.replace('___CODE_BLOCK_' + i + '___', codeBlocks[i]);
+      (function(blockContent) {
+        text = text.replace('___CODE_BLOCK_' + i + '___', function() { return blockContent; });
+      })(codeBlocks[i]);
     }
 
     return text;
