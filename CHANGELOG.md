@@ -5,6 +5,13 @@ All notable changes to the **AG Universal AI** extension will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.5] - 2026-08-06
+
+### Fixed & Self-Healing Webview IPC Handshake
+- **Dynamic API Acquisition (`getVsc()`)**: Replaced static `vsc = getVsc()` initialization with dynamic runtime resolution across all click handlers, dropdown listeners, and send routines to eliminate silent UI drops.
+- **Heartbeat Self-Healing Handshake**: Implemented 1000ms periodic `{ type: 'ready' }` retry loop during webview initialization to guarantee state hydration (`selSession`, `history`, `providers`) even under iframe mount latency.
+- **Resilient Stream Lock Recovery**: Ensured `streamEl` state resets immediately (`streamEl = null`) if IPC is unavailable during `doSend()`, preventing 12-second UI button blockages.
+
 ---
 
 ## [0.4.4] - 2026-08-06
@@ -68,4 +75,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-**Versão:** 0.4.4 | **Última Revisão:** 2026-08-06 19:48:00
+**Versão:** 0.4.5 | **Última Revisão:** 2026-08-06 20:14:00

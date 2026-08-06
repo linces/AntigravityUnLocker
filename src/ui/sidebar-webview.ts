@@ -733,7 +733,6 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   private getScript(): string {
     return `
 (function(){
-  var vsc = null;
   function getVsc() {
     if (window.__agVscApi) return window.__agVscApi;
     try {
@@ -746,7 +745,6 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     }
     return window.__agVscApi || null;
   }
-  vsc = getVsc();
 
   window.__agPost = function(type, data) {
     var api = getVsc();
@@ -773,6 +771,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   var streamEl = null;
   var currentStreamText = '';
   var isAgentMode = false;
+  var isHydrated = false;
 
   var attachedFiles = [];
   var attachedImages = [];
@@ -830,27 +829,29 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     if(t.nodeType === 3) t = t.parentElement;
     if(!t || typeof t.closest !== 'function') return;
 
+    var api = getVsc();
+
     var btnDash = t.id === 'btnDash' ? t : t.closest('#btnDash');
     if(btnDash){
-      if(vsc) vsc.postMessage({type:'dashboard'});
+      if(api) api.postMessage({type:'dashboard'});
       return;
     }
 
     var btnClear = t.id === 'btnClear' ? t : t.closest('#btnClear');
     if(btnClear){
-      if(vsc) vsc.postMessage({type:'clear'});
+      if(api) api.postMessage({type:'clear'});
       return;
     }
 
     var btnNewSession = t.id === 'btnNewSession' ? t : t.closest('#btnNewSession');
     if(btnNewSession){
-      if(vsc) vsc.postMessage({type:'newSession'});
+      if(api) api.postMessage({type:'newSession'});
       return;
     }
 
     var btnDelSession = t.id === 'btnDelSession' ? t : t.closest('#btnDelSession');
     if(btnDelSession){
-      if(vsc) vsc.postMessage({type:'deleteSession'});
+      if(api) api.postMessage({type:'deleteSession'});
       return;
     }
 
@@ -862,7 +863,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
     var btnAttachFile = t.id === 'btnAttachFile' ? t : t.closest('#btnAttachFile');
     if(btnAttachFile){
-      if(vsc) vsc.postMessage({type:'pickFile'});
+      if(api) api.postMessage({type:'pickFile'});
       return;
     }
 
@@ -877,7 +878,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     if(fileLink){
       e.preventDefault();
       var fp = fileLink.getAttribute('data-path');
-      if(fp && vsc) vsc.postMessage({type:'openFile', path:fp});
+      if(fp && api) api.postMessage({type:'openFile', path:fp});
       return;
     }
 
@@ -896,8 +897,8 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     if(btnSaveKey){
       var kIn = getKeyIn();
       var sPr = getSelProv();
-      if(kIn && kIn.value && sPr && vsc){
-        vsc.postMessage({type:'saveKey', id:sPr.value, key:kIn.value});
+      if(kIn && kIn.value && sPr && api){
+        api.postMessage({type:'saveKey', id:sPr.value, key:kIn.value});
         kIn.value = '';
       }
       return;
@@ -914,7 +915,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       var pre = t.closest('pre');
       if(pre){
         var code = pre.querySelector('code');
-        if(code && vsc) vsc.postMessage({type:'apply', code:code.innerText});
+        if(code && api) api.postMessage({type:'apply', code:code.innerText});
       }
       return;
     }
@@ -926,7 +927,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         var hdrSpan = pre.querySelector('.code-hdr span');
         var langOrPath = hdrSpan ? hdrSpan.innerText.trim() : '';
         var detectedPath = (langOrPath.includes('.') || langOrPath.includes('/') || langOrPath.includes('\\')) ? langOrPath : '';
-        if(code && vsc) vsc.postMessage({type:'saveFile', code:code.innerText, path:detectedPath});
+        if(code && api) api.postMessage({type:'saveFile', code:code.innerText, path:detectedPath});
       }
       return;
     }
@@ -1010,13 +1011,14 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   // ─── Dropdown Listeners ─────────────────────────────
   document.addEventListener('change', function(e){
     var t = e.target;
-    if(!t || isUpdatingUI || !vsc) return;
+    var api = getVsc();
+    if(!t || isUpdatingUI || !api) return;
     if(t.id === 'selProv'){
-      vsc.postMessage({type:'switchProvider', id:t.value});
+      api.postMessage({type:'switchProvider', id:t.value});
     } else if(t.id === 'selModel' && t.value){
-      vsc.postMessage({type:'switchModel', model:t.value});
+      api.postMessage({type:'switchModel', model:t.value});
     } else if(t.id === 'selSession' && t.value){
-      vsc.postMessage({type:'switchSession', id:t.value});
+      api.postMessage({type:'switchSession', id:t.value});
     }
   });
 
@@ -1069,8 +1071,10 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     inputEl.value = '';
     inputEl.style.height = 'auto';
 
-    if(!vsc){
-      if(streamEl) streamEl.innerHTML = '❌ Error: VS Code API not connected.';
+    var api = getVsc();
+    if(!api){
+      if(streamEl) streamEl.innerHTML = '<div style="color:#ff5555;font-weight:bold;">❌ Error: VS Code API not connected. Reload window (Ctrl+Shift+P -> Reload Window).</div>';
+      streamEl = null;
       return;
     }
 
@@ -1086,7 +1090,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       }
     }
 
-    vsc.postMessage(payload);
+    api.postMessage(payload);
 
     attachedFiles = [];
     attachedImages = [];
@@ -1104,6 +1108,11 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         renderAttachments();
       }
       else if(m.type === 'state'){
+        isHydrated = true;
+        if(handshakeTimer) clearInterval(handshakeTimer);
+        var st = document.getElementById('agWebviewStatus');
+        if(st) st.style.display = 'none';
+
         isUpdatingUI = true;
         try {
           var sSession = document.getElementById('selSession');
@@ -1320,8 +1329,26 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     return text;
   }
 
+  // ─── Self-Healing Heartbeat Handshake ──────────────
+  function triggerReady(){
+    var api = getVsc();
+    if(api) {
+      api.postMessage({type:'ready'});
+    }
+  }
+
+  triggerReady();
+  var handshakeCount = 0;
+  var handshakeTimer = setInterval(function(){
+    if(isHydrated || handshakeCount >= 10){
+      clearInterval(handshakeTimer);
+    } else {
+      handshakeCount++;
+      triggerReady();
+    }
+  }, 1000);
+
   console.log('[AG Webview] Initialized successfully!');
-  if(vsc) vsc.postMessage({type:'ready'});
 })();
 `;
   }

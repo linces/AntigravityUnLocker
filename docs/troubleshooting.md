@@ -88,4 +88,27 @@ No painel da extensão, a lista de sessões de chat exibe permanentemente `<opti
 
 ---
 
-**Versão:** 0.4.4 | **Última Revisão:** 2026-08-06 19:48:00
+## 🔴 Incident Postmortem 4: Webview UI Silent Freeze (Stuck on 'Loading sessions...')
+
+### Description of Issue
+O painel do Webview exibe `<option value="">Loading sessions...</option>` no menu superior e clicar no botão "Send ⬆" ou digitar texto não produz qualquer reação na interface (nenhuma mensagem enviada, nenhum indicador de erro).
+
+### Root Cause Analysis
+1. **Avaliação Única de `vsc = getVsc()` no Startup do Script**:
+   O script cliente do Webview resolvia `var vsc = getVsc()` uma única vez no topo do escopo IIFE. Se o objeto de API do VS Code ainda não estivesse pronto ou se a montagem inicial sofresse atraso no iframe, `vsc` tornava-se `null` permanentemente.
+2. **Descarte Silencioso em Event Handlers**:
+   Diversas rotinas (`doSend()`, `change`, `click`) verificavam `if (!vsc) return;` ou `if (vsc) vsc.postMessage(...)`. Com `vsc` nulo, todas as mensagens IPC do cliente eram descartadas em silêncio, sem log de erro no DOM.
+3. **Sinal `ready` Descartado**:
+   A chamada inicial `if(vsc) vsc.postMessage({type:'ready'})` não executava, impedindo o Host da extensão de enviar a carga de estado com sessões e histórico.
+
+### Solução Aplicada (`[dev]`)
+1. **Invocação Dinâmica de `getVsc()`**:
+   Removida a variável estática `vsc = null`. Todas as funções chamam `getVsc()` dinamicamente em tempo de execução.
+2. **Heartbeat Self-Healing Handshake (`ready`)**:
+   Implementado um loop de handshake automático que dispara `{type:'ready'}` a cada 1000ms (até 10 tentativas ou até receber a primeira confirmação de estado `type:'state'`).
+3. **Desbloqueio de Indicador de Stream em Falhas**:
+   Em `doSend()`, caso a API não esteja conectada, o elemento `streamEl` é limpo imediatamente (`streamEl = null`), permitindo novas tentativas assim que a conexão se restabeleça.
+
+---
+
+**Versão:** 0.4.5 | **Última Revisão:** 2026-08-06 20:14:00
