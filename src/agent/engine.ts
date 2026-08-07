@@ -41,13 +41,22 @@ export class AgentEngine implements vscode.Disposable {
   public async run(
     userMessage: string,
     systemPrompt: string,
-    stream?: vscode.ChatResponseStream,
+    stream?: vscode.ChatResponseStream | ((text: string) => void),
     token?: vscode.CancellationToken
   ): Promise<AgentResult> {
     const provider = this.providerManager.getActiveProvider();
     if (!provider) {
       throw new Error('No active AI provider configured.');
     }
+
+    const emit = (text: string) => {
+      if (!stream) { return; }
+      if (typeof stream === 'function') {
+        stream(text);
+      } else if ('markdown' in stream && typeof stream.markdown === 'function') {
+        stream.markdown(text);
+      }
+    };
 
     const messages: ChatMessage[] = [
       { role: 'system', content: systemPrompt },
@@ -117,9 +126,7 @@ export class AgentEngine implements vscode.Disposable {
 
       // Check if there are tool calls
       if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-        if (stream) {
-          stream.markdown(`\n🔧 *Executing ${assistantMessage.tool_calls.length} tool(s)...*\n\n`);
-        }
+        emit(`\n🔧 *Executing ${assistantMessage.tool_calls.length} tool(s)...*\n\n`);
 
         for (const toolCall of assistantMessage.tool_calls) {
           const toolName = toolCall.function.name;
@@ -131,8 +138,8 @@ export class AgentEngine implements vscode.Disposable {
             toolArgs = { raw: toolCall.function.arguments };
           }
 
-          // Safety: confirm destructive actions
-          if (this.isDestructive(toolName) && stream) {
+          // Safety: confirm destructive actions if running in ChatResponseStream mode
+          if (this.isDestructive(toolName) && stream && typeof stream !== 'function') {
             const confirmed = await this.confirmAction(toolName, toolArgs);
             if (!confirmed) {
               const skipMsg = `Tool "${toolName}" skipped by user.`;
@@ -147,9 +154,7 @@ export class AgentEngine implements vscode.Disposable {
           }
 
           // Execute the tool
-          if (stream) {
-            stream.markdown(`> \`${toolName}\`(${this.summarizeArgs(toolArgs)})\n`);
-          }
+          emit(`> \`${toolName}\`(${this.summarizeArgs(toolArgs)})\n`);
 
           const result = await this.toolRegistry.executeTool(toolName, toolArgs);
 
@@ -169,14 +174,12 @@ export class AgentEngine implements vscode.Disposable {
 
           toolCallLog.push({ name: toolName, args: toolArgs, result });
 
-          if (stream) {
-            // Show result
-            if (isErrorResult) {
-              stream.markdown(`> ⚠️ **Error:** ${result.length > 200 ? result.substring(0, 200) + '...' : result}\n> 💡 *Self-Correction Harness activated. Retrying with diagnostic reflection...*\n\n`);
-            } else {
-              const preview = result.length > 200 ? result.substring(0, 200) + '...' : result;
-              stream.markdown(`> ✅ ${preview}\n\n`);
-            }
+          // Show result
+          if (isErrorResult) {
+            emit(`> ⚠️ **Error:** ${result.length > 200 ? result.substring(0, 200) + '...' : result}\n> 💡 *Self-Correction Harness activated. Retrying with diagnostic reflection...*\n\n`);
+          } else {
+            const preview = result.length > 200 ? result.substring(0, 200) + '...' : result;
+            emit(`> ✅ ${preview}\n\n`);
           }
         }
 
@@ -189,19 +192,22 @@ export class AgentEngine implements vscode.Disposable {
         ? assistantMessage.content
         : '';
 
-      if (stream && finalResponse) {
-        stream.markdown(finalResponse);
+      if (finalResponse) {
+        emit(finalResponse);
       }
 
       break;
     }
 
+    if (!finalResponse && toolCallLog.length > 0) {
+      finalResponse = `✅ Execution complete. ${toolCallLog.length} action(s) performed successfully:\n` +
+        toolCallLog.map((t) => `- \`${t.name}\`: ${t.result.length > 100 ? t.result.substring(0, 100) + '...' : t.result}`).join('\n');
+    }
+
     if (iterations >= MAX_ITERATIONS) {
       const limitMsg = `\n\n⚠️ Agent reached maximum iterations (${MAX_ITERATIONS}). Stopping.`;
       finalResponse += limitMsg;
-      if (stream) {
-        stream.markdown(limitMsg);
-      }
+      emit(limitMsg);
     }
 
     this.log(`Agent completed: ${iterations} iterations, ${toolCallLog.length} tool calls`);

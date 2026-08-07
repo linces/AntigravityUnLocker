@@ -15,6 +15,7 @@ import type {
   HealthStatus,
   ModelInfo,
 } from './types';
+import { getPreset } from './provider-registry';
 
 export class OpenAIAdapter implements ILLMProvider {
   public readonly id: string;
@@ -356,22 +357,16 @@ export class OpenAIAdapter implements ILLMProvider {
   }
 
   private getFallbackModels(): ModelInfo[] {
-    if (this.id === 'nvidia') {
-      const models = [
-        'meta/llama-3.3-70b-instruct',
-        'nvidia/llama-3.1-nemotron-70b-instruct',
-        'deepseek-ai/deepseek-r1',
-        'qwen/qwen2.5-coder-32b-instruct',
-        'mistralai/mistral-large-2-instruct',
-      ];
-      return models.map((m) => ({
+    const preset = getPreset(this.id);
+    if (preset?.availableModels && preset.availableModels.length > 0) {
+      return preset.availableModels.map((m) => ({
         id: m,
         name: m,
         vendor: this.id,
         maxInputTokens: 128000,
         maxOutputTokens: 4096,
         supportsTools: true,
-        supportsVision: false,
+        supportsVision: m.toLowerCase().includes('vision') || m.toLowerCase().includes('vl'),
       }));
     }
     return [this.defaultModelInfo()];

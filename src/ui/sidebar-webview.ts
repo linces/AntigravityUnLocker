@@ -384,7 +384,9 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       }
 
       const fb = fbId ? this.providerManager.getProvider(fbId) : undefined;
-      if (fb) {
+      const fbHealth = fb ? await fb.health() : undefined;
+
+      if (fb && (fb.id !== 'ollama-local' || fbHealth?.isHealthy)) {
         this.log(`Falling back to ${fb.name}`);
         this.post({ type: 'chunk', text: `\n⚠️ ${provider.name} failed. Trying ${fb.name}...\n\n` });
         const fbStartTime = Date.now();
@@ -444,32 +446,43 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     const model = activeProvider ? activeProvider.config.model : 'agent-loop';
 
     try {
-      const result = await this.agentEngine.run(goal, 'Use tools to accomplish the goal.');
+      const result = await this.agentEngine.run(
+        goal,
+        'Use tools to accomplish the goal.',
+        (chunk: string) => this.post({ type: 'chunk', text: chunk })
+      );
       const latencyMs = Date.now() - startTime;
       const totalChars = result.response.length;
       this.providerManager.recordMetric({
         providerId,
         model,
-        isStream: false,
+        isStream: true,
         promptTokens: Math.ceil(goal.length / 4),
         completionTokens: Math.ceil(totalChars / 4),
         latencyMs,
         status: 'success',
       });
-      this.post({ type: 'done', text: `✅ Agent done (${result.iterations} steps, ${result.toolCalls.length} tools)\n\n${result.response}` });
+      await this.sessionManager.addMessage(
+        'assistant',
+        result.response,
+        providerId,
+        model
+      );
+      this.post({ type: 'done', text: result.response });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      this.log(`Agent error: ${msg}`);
       this.providerManager.recordMetric({
         providerId,
         model,
-        isStream: false,
+        isStream: true,
         promptTokens: Math.ceil(goal.length / 4),
         completionTokens: 0,
         latencyMs: Date.now() - startTime,
         status: 'error',
         errorMessage: msg,
       });
-      this.post({ type: 'done', text: `❌ Agent error: ${msg}` });
+      this.post({ type: 'error', text: msg });
     }
   }
 
@@ -740,6 +753,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       <div class="tb-left">
         <button type="button" class="ibtn" id="btnAttachFile" title="Attach File (📎)">📎</button>
         <button type="button" class="ibtn" id="btnEmoji" title="Insert Emoji (😀)">😀</button>
+        <button type="button" class="ibtn" id="btnToggleKey" title="API Key Settings (🔑)">🔑</button>
         <div class="pill" id="pillAgent" title="Toggle Agent Mode (uses workspace tools)">
           <span>🤖 Agent</span>
         </div>
@@ -915,6 +929,17 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     var emojiPicker = document.getElementById('emojiPicker');
     if (emojiPicker) {
       emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
+    }
+  });
+
+  bindClick('btnToggleKey', function() {
+    var kBar = document.getElementById('keybar');
+    if (kBar) {
+      kBar.style.display = (kBar.style.display === 'none' || !kBar.style.display) ? 'inline-flex' : 'none';
+      if (kBar.style.display === 'inline-flex') {
+        var kIn = getKeyIn();
+        if (kIn) kIn.focus();
+      }
     }
   });
 
