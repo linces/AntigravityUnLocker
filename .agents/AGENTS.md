@@ -48,7 +48,14 @@ Whenever any feature, code adapter, route, backend model, or documentation file 
 - Todos os manipuladores de entrada em Webviews do VS Code (especialmente `<textarea>` e botões da toolbar) devem possuir captura direta (`addEventListener` nos elementos específicos com `e.preventDefault()` e `e.stopPropagation()`) para garantir o acionamento na tecla `Enter` (sem `Shift`) e impedir inserção involuntária de quebra de linha.
 - O objeto de IPC `acquireVsCodeApi()` deve ser capturado exatamente **uma vez** na inicialização do script e mantido em cache seguro (`window.__agVscApi`) para evitar exceções por re-aquisição no ciclo do Webview.
 
-### 2. Ciclo Obrigatório de Release & Atualização de Extensão (VSIX)
+### 2. Prevenção de Colisão de Backticks em Template Strings de Webview
+- NUNCA utilizar expressões regulares ou literais contendo backticks (`\`\`\``) diretamente dentro de template strings TypeScript/JavaScript que geram o script cliente do Webview (`getScript()`). O empacotador (esbuild) pode desescapar os backticks e quebrar a sintaxe do script no navegador do Webview (`Uncaught SyntaxError`). SEMPRE utilizar a construção dinâmica `new RegExp(String.fromCharCode(96) + ...)`.
+- Todo script de Webview DEVE injetar um handler `window.onerror` no topo da IIFE para capturar erros não tratados e exibir um aviso visual de diagnóstico (`#agWebviewStatus`).
+
+### 3. Adaptador Universal de Streaming (Node vs Web ReadableStream)
+- Requisições HTTP streaming (`fetch`) no ambiente Node/Electron do VS Code NUNCA devem assumir apenas `response.body.getReader()`. Devem sempre implementar suporte híbrido a `body.getReader()` e `Symbol.asyncIterator in body` para evitar a exceção `TypeError: response.body.getReader is not a function`.
+
+### 4. Ciclo Obrigatório de Release & Atualização de Extensão (VSIX)
 Sempre que uma alteração ou correção em componentes da extensão ou Webview for efetuada:
 1. Incrementar a versão no `package.json` (ex: `0.4.6` ➔ `0.4.7`).
 2. Atualizar badges de versão e rodapé de timestamp no `README.md` (`Continuous Automatic README Synchronization`).
@@ -59,4 +66,4 @@ Sempre que uma alteração ou correção em componentes da extensão ou Webview 
 
 ---
 
-**Versão:** 0.5.4 | **Última Revisão:** 2026-08-07 12:43:00
+**Versão:** 0.5.4 | **Última Revisão:** 2026-08-07 13:03:00

@@ -111,4 +111,56 @@ O painel do Webview exibe `<option value="">Loading sessions...</option>` no men
 
 ---
 
-**Versão:** 0.5.3 | **Última Revisão:** 2026-08-07 00:15:00
+## 🔴 Incident Postmortem 5: Uncaught SyntaxError in Webview Script (Unescaped Template Backticks)
+
+### Description of Issue
+A interface do Webview renderizava caixas de texto e botões visualmente, porém clicar no botão "Send ⬆", pressionar a tecla `Enter` ou clicar em qualquer botão da toolbar não produzia nenhuma reação. Nenhuma mensagem aparecia no chat e nenhum erro era impresso.
+
+### Root Cause Analysis
+1. **Colisão de Escopo de Escapa de Backticks em Template Strings**:
+   No arquivo `src/ui/sidebar-webview.ts`, regexes para parsing de markdown contendo backticks literais (ex: `/\`\`\`([\s\S]*?)\`\`\`/g`) estavam encapsuladas dentro de uma template string do TypeScript (`` `...` ``). Ao ser empacotado pelo esbuild, os escapes eram desfeitos, emitindo triplos backticks brutos dentro da string JavaScript do bundle.
+2. **Abortamento de Parsing no Navegador da Webview**:
+   Ao interpretar o bloco `<script nonce="...">` dentro do iframe da Webview, o motor de JavaScript do navegador lançava `Uncaught SyntaxError: Unexpected token` (ou `Invalid regular expression`) durante o parse.
+3. **Incapacidade Total de Registro de Event Listeners**:
+   Devido ao `SyntaxError` em tempo de parse, o navegador encerrava a execução da IIFE antes de registrar qualquer ouvinte de evento no DOM (`bindClick`, `doSend`, `keydown`, `onDidReceiveMessage`).
+
+### Solução Definitiva & Regras de Prevenção (`[dev]`)
+1. **Regra de Construção de Regexes em Webview Templates**:
+   NUNCA utilizar backticks literais dentro de template strings TypeScript/JavaScript que geram conteúdo de `<script>` em Webviews. SEMPRE utilizar a construção via `new RegExp(String.fromCharCode(96) + ...)`.
+2. **Injeção de Coletor Global `window.onerror`**:
+   O script cliente de todas as Webviews DEVE declarar um manipulador `window.onerror` no topo da IIFE para capturar erros de sintaxe ou execução e exibir uma faixa vermelha de diagnóstico no DOM (`#agWebviewStatus`), evitando congelamentos silenciosos.
+
+---
+
+## 🔴 Incident Postmortem 6: Universal Stream Adapter for Node vs Web ReadableStreams (Undici / Fetch)
+
+### Description of Issue
+Ao fazer chamadas de chat streaming para provedores de nuvem (Groq, OpenAI, OpenRouter, DeepSeek), a chamada falhava com a exceção interna `TypeError: response.body.getReader is not a function`.
+
+### Root Cause Analysis
+No ambiente Node 18+/Electron do VS Code, a resposta do `fetch` nativo pode retornar um Web `ReadableStream` (`getReader()`) OU um Node `Readable` stream (`Symbol.asyncIterator`). Invocar `.getReader()` diretamente em fluxos nativos do Node lança `TypeError: response.body.getReader is not a function`.
+
+### Solução Definitiva & Regras de Prevenção (`[dev]`)
+Implementar o padrão de verificação dinâmica no adaptador HTTP:
+```typescript
+const body = response.body as any;
+let asyncChunks: AsyncIterable<Uint8Array>;
+if (typeof body.getReader === 'function') {
+  const r = body.getReader();
+  asyncChunks = {
+    async *[Symbol.asyncIterator]() {
+      while (true) {
+        const { done, value } = await r.read();
+        if (done) break;
+        if (value) yield value;
+      }
+    }
+  };
+} else if (Symbol.asyncIterator in body) {
+  asyncChunks = body;
+}
+```
+
+---
+
+**Versão:** 0.5.4 | **Última Revisão:** 2026-08-07 13:03:00
