@@ -158,18 +158,35 @@ export class OpenAIAdapter implements ILLMProvider {
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
-      reader = (response.body as ReadableStream<Uint8Array>).getReader();
+      const body = response.body as any;
+      let asyncChunks: AsyncIterable<Uint8Array>;
+
+      if (typeof body.getReader === 'function') {
+        const r = body.getReader() as ReadableStreamDefaultReader<Uint8Array>;
+        reader = r;
+        asyncChunks = {
+          async *[Symbol.asyncIterator]() {
+            while (true) {
+              const { done, value } = await r.read();
+              if (done) { break; }
+              if (value) { yield value; }
+            }
+          },
+        };
+      } else if (Symbol.asyncIterator in body) {
+        asyncChunks = body as AsyncIterable<Uint8Array>;
+      } else {
+        throw new Error('Response body is not streamable in this environment.');
+      }
+
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) { break; }
-
+      for await (const chunk of asyncChunks) {
         // Clear connection timeout once data starts streaming
         clearTimeout(timer);
 
-        buffer += decoder.decode(value, { stream: true });
+        buffer += decoder.decode(chunk, { stream: true });
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
 
