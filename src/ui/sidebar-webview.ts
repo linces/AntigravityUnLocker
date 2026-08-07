@@ -10,7 +10,7 @@ import type { ProviderManager } from '../providers/provider-manager';
 import type { SessionManager } from '../chat/session-manager';
 import type { ToolRegistry } from '../tools/tool-registry';
 import type { AgentEngine } from '../agent/engine';
-import { getAllPresets } from '../providers/provider-registry';
+import { getAllPresets, getPreset } from '../providers/provider-registry';
 import { buildSystemPrompt, buildSlashCommandPrompt } from '../chat/prompt-builder';
 
 export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vscode.Disposable {
@@ -519,7 +519,12 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     }));
 
     // 1. Post immediate state update (optimistic UI response)
-    const initialModels = ap?.config.model ? [ap.config.model] : [];
+    const preset = getPreset(activeId);
+    const presetModels = preset?.availableModels ? Array.from(preset.availableModels) : [];
+    const initialModels = Array.from(new Set([
+      ...(ap?.config.model ? [ap.config.model] : []),
+      ...presetModels,
+    ]));
     this.post({
       type: 'state',
       activeId,
