@@ -777,6 +777,15 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   private getScript(): string {
     return `
 (function(){
+  window.onerror = function(msg, url, line, col, error) {
+    console.error('[AG Webview Script Error]', msg, line, col, error);
+    var st = document.getElementById('agWebviewStatus');
+    if (st) {
+      st.style.display = 'block';
+      st.innerHTML = '⚠️ Webview Script Error: ' + esc(String(msg)) + ' (line ' + line + ')';
+    }
+  };
+
   if (typeof window.__agVscApi === 'undefined' || !window.__agVscApi) {
     try {
       if (typeof acquireVsCodeApi === 'function') {
@@ -1363,7 +1372,8 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       }
     }
     var codeBlocks = [];
-    var text = s.replace(/\`\`\`([\s\S]*?)\`\`\`/g, function(_, block){
+    var codeBlockRegex = new RegExp(String.fromCharCode(96,96,96) + '([\\\\s\\\\S]*?)' + String.fromCharCode(96,96,96), 'g');
+    var text = s.replace(codeBlockRegex, function(_, block){
       var id = '___CODE_BLOCK_' + codeBlocks.length + '___';
       var firstNewline = block.indexOf(String.fromCharCode(10));
       var lang = '';
@@ -1380,7 +1390,8 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
     text = esc(text);
 
-    text = text.replace(/\`([^\`]+)\`/g, '<code>$1</code>');
+    var inlineCodeRegex = new RegExp(String.fromCharCode(96) + '([^' + String.fromCharCode(96) + ']+)' + String.fromCharCode(96), 'g');
+    text = text.replace(inlineCodeRegex, '<code>$1</code>');
     text = text.replace(/[*][*](.+?)[*][*]/g, '<b>$1</b>');
     text = text.replace(/[*]([^*]+)[*]/g, '<i>$1</i>');
     text = text.replace(/^### (.*$)/gm, '<h4 style="margin:4px 0">$1</h4>');

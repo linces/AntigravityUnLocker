@@ -12,7 +12,7 @@ const buildOptions = {
   platform: 'node',
   target: 'node22',
   sourcemap: true,
-  minify: !isWatch,
+  minify: false,
   treeShaking: true,
   logLevel: 'info',
 };
