@@ -31,4 +31,4 @@ O **AG Universal AI** opera como uma engine unificada e assistente de IA multi-p
 
 ---
 
-**Versão:** 0.5.2 | **Última Revisão:** 2026-08-06 23:35:00
+**Versão:** 0.5.3 | **Última Revisão:** 2026-08-07 00:15:00

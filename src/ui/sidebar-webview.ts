@@ -1102,7 +1102,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     var text = inputEl.value.trim();
     if(!text && attachedFiles.length === 0 && attachedImages.length === 0) return;
 
-    if(streamEl !== null && (Date.now() - lastStreamStartTime > 3000)){
+    if(streamEl !== null && (Date.now() - lastStreamStartTime > 15000)){
       console.warn('[AG Webview] Resetting stale stream indicator');
       streamEl = null;
     }
@@ -1170,7 +1170,6 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         if(handshakeTimer) clearInterval(handshakeTimer);
         var st = document.getElementById('agWebviewStatus');
         if(st) st.style.display = 'none';
-        streamEl = null;
 
         isUpdatingUI = true;
         try {
@@ -1186,7 +1185,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
             if(m.activeSessionId) sSession.value = m.activeSessionId;
           }
 
-          if(m.history && Array.isArray(m.history)){
+          if(streamEl === null && m.history && Array.isArray(m.history)){
             var chatEl = getChat();
             if(chatEl){
               chatEl.innerHTML = '';
