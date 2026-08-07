@@ -24,5 +24,6 @@
   "ag-universal-ai.inlineCompletion.enabled": true,
   "ag-universal-ai.inlineCompletion.debounceMs": 300,
   "ag-universal-ai.inlineCompletion.maxTokens": 256,
-  "ag-universal-ai.telemetry.enabled": true
+  "ag-universal-ai.telemetry.enabled": true,
+  "ag-universal-ai.transversalDomainPath": "E:\\00Dev\\agent skills e mais prod"
 }

@@ -15,6 +15,17 @@ This project strictly operates under the **`[dev]` Transversal Domain Rules**:
 
 ---
 
+## 🗺️ LOCALIZAÇÃO ABSOLUTA DO REPOSITÓRIO DE DOMÍNIOS TRANSVERSAIS (MANDATO INVIOLÁVEL)
+
+> **REGRA NÚMERO 0 — LEI ABSOLUTA PARA QUALQUER AGENTE / PROMPT / SESSÃO / PROJETO**:
+> O repositório central dos domínios de estrutura transversal (`[dev]`, `juridico`, `websites`, `zaptvupt`, `linces`, `intelligence`), scripts DEE (`promote_knowledge.py`, `verify_dee_compliance.py`) e cadastro SSOT de projetos (`projects_registry.yaml`) está **ESTRITAMENTE E INVARIABLEMENTE** localizado em:
+>
+> `E:\00Dev\agent skills e mais prod`
+>
+> **NUNCA** procurar em outro caminho, **NUNCA** esquecer esta localização e **SEMPRE** utilizar este diretório raiz para qualquer promoção de conhecimento, consulta de KIs ou execução de scripts do Domain Evolution Engine (DEE).
+
+---
+
 ## 🔒 PUBLIC GITHUB REPOSITORY SAFETY & PRIVACY RULE
 
 This repository is **100% PUBLIC on GitHub**.

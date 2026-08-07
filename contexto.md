@@ -31,4 +31,12 @@ O **AG Universal AI** opera como uma engine unificada e assistente de IA multi-p
 
 ---
 
-**Versão:** 0.5.4 | **Última Revisão:** 2026-08-07 12:43:00
+## 🗺️ Repositório dos Domínios Transversais (`[dev]`)
+
+> O repositório central de domínios transversais, KIs de referência, projetos `projects_registry.yaml` e utilitários do Domain Evolution Engine (DEE) está permanentemente localizado em:
+>
+> `E:\00Dev\agent skills e mais prod`
+
+---
+
+**Versão:** 0.5.4 | **Última Revisão:** 2026-08-07 13:08:00
