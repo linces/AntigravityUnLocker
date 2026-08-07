@@ -5,6 +5,41 @@ All notable changes to the **AG Universal AI** extension will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.3] - 2026-08-07
+
+### Added & Fixed
+- **Webview Event Binds & Input Trapping**: Direct `addEventListener` input trapping on `<textarea>` and toolbar buttons with `preventDefault()` and `stopPropagation()` to prevent unwanted newline insertions on Enter key.
+- **IPC API Singleton Caching**: Captured `acquireVsCodeApi()` once into `window.__agVscApi` to prevent re-acquisition runtime exceptions.
+- **Unit Test Suite**: 14 mocha/esbuild unit tests covering Provider Registry, MCP Protocol, OpenAI Adapter, ProviderManager, and SessionManager.
+- **Status Bar Integration**: Enhanced latency and active model status display.
+
+---
+
+## [0.5.2] - 2026-08-06
+
+### Added & Fixed
+- **Precision Code Edits**: Added `ag_replaceInFile` and `ag_multiReplaceInFile` substring replacement tools.
+- **Robust Path Validation**: Enhanced workspace relative path resolution and error trapping across file tools.
+
+---
+
+## [0.5.1] - 2026-08-06
+
+### Added & Fixed
+- **Multi-Session Dynamic Switcher**: Multi-session management with auto-titling and session persistence in `workspaceState`.
+- **Webview Script Optimization**: Bundled webview script template generation for sub-5ms render response.
+
+---
+
+## [0.5.0] - 2026-08-06
+
+### Added & Fixed
+- **Multi-Persona SynAI Agent Harness**: Support for Supervisor, Planner, Code, Review, Security, Docs, and Database agent personas.
+- **Direct MCP Integration**: Protocol handling for official and community MCP servers over `stdio` and `SSE`.
+- **12+ AI Provider Presets**: Presets including Ollama, LM Studio, OpenAI, Groq, OpenRouter, DashScope Qwen, Kimi K3, DeepSeek, SiliconFlow, Together AI, Fireworks AI, and Z.ai GLM-5.2.
+
+---
+
 ## [0.4.5] - 2026-08-06
 
 ### Fixed & Self-Healing Webview IPC Handshake

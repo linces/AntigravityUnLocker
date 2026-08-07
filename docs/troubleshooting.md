@@ -111,4 +111,4 @@ O painel do Webview exibe `<option value="">Loading sessions...</option>` no men
 
 ---
 
-**Versão:** 0.4.5 | **Última Revisão:** 2026-08-06 20:14:00
+**Versão:** 0.5.3 | **Última Revisão:** 2026-08-07 00:15:00
