@@ -389,21 +389,55 @@ export class ProviderManager implements vscode.Disposable {
   }
 
   /**
-   * List available models for a provider.
+   * List available models for a provider. Always falls back to preset models if live fetch fails or is empty.
    */
   public async listModels(providerId: string): Promise<ModelInfo[]> {
     const provider = this.providers.get(providerId);
-    if (!provider || !provider.listModels) { return []; }
+    if (!provider || !provider.listModels) {
+      return this.getFallbackModelsForProvider(providerId);
+    }
     try {
-      return await Promise.race([
+      const models = await Promise.race([
         provider.listModels(),
         new Promise<ModelInfo[]>((_, reject) =>
           setTimeout(() => reject(new Error('Timeout listing models')), 3000)
         ),
       ]);
+      if (models && models.length > 0) {
+        return models;
+      }
+      return this.getFallbackModelsForProvider(providerId);
     } catch {
-      return [];
+      return this.getFallbackModelsForProvider(providerId);
     }
+  }
+
+  private getFallbackModelsForProvider(providerId: string): ModelInfo[] {
+    const preset = getPreset(providerId);
+    if (preset?.availableModels && preset.availableModels.length > 0) {
+      return preset.availableModels.map((m) => ({
+        id: m,
+        name: m,
+        vendor: providerId,
+        maxInputTokens: 128000,
+        maxOutputTokens: 4096,
+        supportsTools: true,
+        supportsVision: m.toLowerCase().includes('vision') || m.toLowerCase().includes('vl'),
+      }));
+    }
+    const provider = this.providers.get(providerId);
+    if (provider?.config.model) {
+      return [{
+        id: provider.config.model,
+        name: provider.config.model,
+        vendor: providerId,
+        maxInputTokens: 128000,
+        maxOutputTokens: 4096,
+        supportsTools: true,
+        supportsVision: false,
+      }];
+    }
+    return [];
   }
 
   /**

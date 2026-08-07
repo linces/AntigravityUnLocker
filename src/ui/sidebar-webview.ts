@@ -547,6 +547,10 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       models = [];
     }
 
+    if (models.length === 0) {
+      models = initialModels;
+    }
+
     // 3. Stale check: Drop if a newer state update was triggered
     if (currentSeq !== this.stateSeq) {
       return;
@@ -911,23 +915,19 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   }
 
   bindClick('btnDash', function() {
-    var api = getVsc();
-    if (api) api.postMessage({ type: 'dashboard' });
+    window.__agPost('dashboard');
   });
 
   bindClick('btnClear', function() {
-    var api = getVsc();
-    if (api) api.postMessage({ type: 'clear' });
+    window.__agPost('clear');
   });
 
   bindClick('btnNewSession', function() {
-    var api = getVsc();
-    if (api) api.postMessage({ type: 'newSession' });
+    window.__agPost('newSession');
   });
 
   bindClick('btnDelSession', function() {
-    var api = getVsc();
-    if (api) api.postMessage({ type: 'deleteSession' });
+    window.__agPost('deleteSession');
   });
 
   bindClick('btnSend', function() {
@@ -935,8 +935,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   });
 
   bindClick('btnAttachFile', function() {
-    var api = getVsc();
-    if (api) api.postMessage({ type: 'pickFile' });
+    window.__agPost('pickFile');
   });
 
   bindClick('btnEmoji', function() {
@@ -972,9 +971,8 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   bindClick('btnSaveKey', function() {
     var kIn = getKeyIn();
     var sPr = getSelProv();
-    var api = getVsc();
-    if (kIn && kIn.value && sPr && api) {
-      api.postMessage({ type: 'saveKey', id: sPr.value, key: kIn.value });
+    if (kIn && kIn.value && sPr) {
+      window.__agPost('saveKey', { id: sPr.value, key: kIn.value });
       kIn.value = '';
     }
   });
@@ -986,13 +984,11 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     if(t.nodeType === 3) t = t.parentElement;
     if(!t || typeof t.closest !== 'function') return;
 
-    var api = getVsc();
-
     var fileLink = t.tagName === 'A' && t.classList.contains('file-link') ? t : t.closest('a.file-link');
     if(fileLink){
       e.preventDefault();
       var fp = fileLink.getAttribute('data-path');
-      if(fp && api) api.postMessage({type:'openFile', path:fp});
+      if(fp) window.__agPost('openFile', { path: fp });
       return;
     }
 
@@ -1000,7 +996,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       var pre = t.closest('pre');
       if(pre){
         var code = pre.querySelector('code');
-        if(code && api) api.postMessage({type:'apply', code:code.innerText});
+        if(code) window.__agPost('apply', { code: code.innerText });
       }
       return;
     }
@@ -1012,7 +1008,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         var hdrSpan = pre.querySelector('.code-hdr span');
         var langOrPath = hdrSpan ? hdrSpan.innerText.trim() : '';
         var detectedPath = (langOrPath.includes('.') || langOrPath.includes('/') || langOrPath.includes('\\')) ? langOrPath : '';
-        if(code && api) api.postMessage({type:'saveFile', code:code.innerText, path:detectedPath});
+        if(code) window.__agPost('saveFile', { code: code.innerText, path: detectedPath });
       }
       return;
     }
@@ -1099,22 +1095,21 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     if (sel) {
       sel.addEventListener('change', function(e) {
         if (isUpdatingUI) return;
-        var api = getVsc();
-        if (api) handler(sel.value, api);
+        handler(sel.value);
       });
     }
   }
 
-  bindSelectChange('selProv', function(val, api) {
-    if (val) api.postMessage({ type: 'switchProvider', id: val });
+  bindSelectChange('selProv', function(val) {
+    if (val) window.__agPost('switchProvider', { id: val });
   });
 
-  bindSelectChange('selModel', function(val, api) {
-    if (val) api.postMessage({ type: 'switchModel', model: val });
+  bindSelectChange('selModel', function(val) {
+    if (val) window.__agPost('switchModel', { model: val });
   });
 
-  bindSelectChange('selSession', function(val, api) {
-    if (val) api.postMessage({ type: 'switchSession', id:val });
+  bindSelectChange('selSession', function(val) {
+    if (val) window.__agPost('switchSession', { id: val });
   });
 
   // ─── Direct Keyboard & Auto-Resize on Textarea ──────
@@ -1141,7 +1136,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     var text = inputEl.value.trim();
     if(!text && attachedFiles.length === 0 && attachedImages.length === 0) return;
 
-    if(streamEl !== null && (Date.now() - lastStreamStartTime > 15000)){
+    if(streamEl !== null && (Date.now() - lastStreamStartTime > 6000)){
       console.warn('[AG Webview] Resetting stale stream indicator');
       streamEl = null;
     }
@@ -1166,16 +1161,9 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     console.log('[AG Webview] doSend called:', fullText);
     addMsg('user', fullText);
     currentStreamText = '';
-    streamEl = addMsg('assistant', '⏳ Thinking...');
+    streamEl = addMsg('assistant', isAgentMode ? '🤖 Agent running tasks & tools...' : '⏳ Thinking...');
 
-    var api = getVsc();
-    if(!api){
-      if(streamEl) streamEl.innerHTML = '<div style="color:#ff5555;font-weight:bold;">❌ Error: VS Code API not connected. Reload window (Ctrl+Shift+P -> Reload Window).</div>';
-      streamEl = null;
-      return;
-    }
-
-    var payload = { type: isAgentMode ? 'agent' : 'chat', text: fullText };
+    var payload = { text: fullText };
     if(attachedImages.length > 0){
       payload.images = attachedImages.slice();
     }
@@ -1187,7 +1175,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       }
     }
 
-    api.postMessage(payload);
+    window.__agPost(isAgentMode ? 'agent' : 'chat', payload);
 
     attachedFiles = [];
     attachedImages = [];
