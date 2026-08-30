@@ -108,8 +108,18 @@ export class EditTools {
     }
 
     const workspaceRoot = workspaceFolders[0].uri;
-    const resolved = path.posix.join(workspaceRoot.path, filePath);
-    return workspaceRoot.with({ path: resolved });
+    const cleanPath = filePath.replace(/^[/\\]+/, '');
+    const uri = vscode.Uri.joinPath(workspaceRoot, cleanPath);
+
+    // Confinement check: ensure the resolved path stays within workspaceRoot
+    const rootPath = path.posix.normalize(workspaceRoot.fsPath.replace(/\\/g, '/')).toLowerCase().replace(/\/$/, '');
+    const targetPath = path.posix.normalize(uri.fsPath.replace(/\\/g, '/')).toLowerCase();
+    if (targetPath !== rootPath && !targetPath.startsWith(rootPath + '/')) {
+      this.log(`Path traversal attempt blocked: "${filePath}" resolves outside workspace`);
+      return undefined;
+    }
+
+    return uri;
   }
 
   private log(message: string): void {

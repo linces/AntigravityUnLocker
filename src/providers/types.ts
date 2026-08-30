@@ -51,6 +51,7 @@ export interface ChatCompletionRequest {
   max_tokens?: number;
   top_p?: number;
   stop?: string[];
+  signal?: AbortSignal;
 }
 
 export interface ChatCompletionResponse {

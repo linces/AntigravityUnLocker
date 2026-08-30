@@ -124,11 +124,22 @@ export class AgentEngine implements vscode.Disposable {
       // Add assistant response to history
       messages.push(assistantMessage);
 
-      // Check if there are tool calls
-      if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-        emit(`\n🔧 *Executing ${assistantMessage.tool_calls.length} tool(s)...*\n\n`);
+      // Check if there are tool calls (native or extracted from text JSON fallback)
+      let toolCalls = assistantMessage.tool_calls;
+      if (!toolCalls || toolCalls.length === 0) {
+        if (typeof assistantMessage.content === 'string') {
+          const extracted = this.extractToolCallsFromText(assistantMessage.content);
+          if (extracted.length > 0) {
+            toolCalls = extracted as any;
+            this.log(`Extracted ${extracted.length} tool call(s) from text response`);
+          }
+        }
+      }
 
-        for (const toolCall of assistantMessage.tool_calls) {
+      if (toolCalls && toolCalls.length > 0) {
+        emit(`\n🔧 *Executing ${toolCalls.length} tool(s)...*\n\n`);
+
+        for (const toolCall of toolCalls) {
           const toolName = toolCall.function.name;
           let toolArgs: Record<string, unknown> = {};
 
@@ -242,6 +253,84 @@ export class AgentEngine implements vscode.Disposable {
     );
 
     return result === 'Allow';
+  }
+
+  private extractToolCallsFromText(
+    content: string
+  ): Array<{ id: string; function: { name: string; arguments: string } }> {
+    if (!content || typeof content !== 'string') {
+      return [];
+    }
+
+    try {
+      // 1. Check for standard {"tool_calls": [...]}
+      const toolCallsMatch = content.match(/\{\s*"tool_calls"\s*:\s*\[[\s\S]*?\]\s*\}/);
+      if (toolCallsMatch) {
+        const parsed = JSON.parse(toolCallsMatch[0]);
+        if (Array.isArray(parsed.tool_calls) && parsed.tool_calls.length > 0) {
+          return parsed.tool_calls.map((tc: any, i: number) => ({
+            id: tc.id || `call_extracted_${Date.now()}_${i}`,
+            function: {
+              name: tc.function?.name || tc.name,
+              arguments:
+                typeof tc.function?.arguments === 'string'
+                  ? tc.function.arguments
+                  : JSON.stringify(tc.function?.arguments || tc.args || {}),
+            },
+          }));
+        }
+      }
+
+      // 2. Check for json block ```json ... ``` with tool_calls or function calls
+      const jsonBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (jsonBlockMatch) {
+        const parsed = JSON.parse(jsonBlockMatch[1]);
+        if (parsed.tool_calls && Array.isArray(parsed.tool_calls)) {
+          return parsed.tool_calls.map((tc: any, i: number) => ({
+            id: tc.id || `call_extracted_${Date.now()}_${i}`,
+            function: {
+              name: tc.function?.name || tc.name,
+              arguments:
+                typeof tc.function?.arguments === 'string'
+                  ? tc.function.arguments
+                  : JSON.stringify(tc.function?.arguments || tc.args || {}),
+            },
+          }));
+        }
+        if (parsed.function && parsed.function.name) {
+          return [
+            {
+              id: `call_extracted_${Date.now()}_0`,
+              function: {
+                name: parsed.function.name,
+                arguments:
+                  typeof parsed.function.arguments === 'string'
+                    ? parsed.function.arguments
+                    : JSON.stringify(parsed.function.arguments || {}),
+              },
+            },
+          ];
+        }
+        if (parsed.name && (parsed.arguments || parsed.args)) {
+          return [
+            {
+              id: `call_extracted_${Date.now()}_0`,
+              function: {
+                name: parsed.name,
+                arguments:
+                  typeof (parsed.arguments || parsed.args) === 'string'
+                    ? parsed.arguments || parsed.args
+                    : JSON.stringify(parsed.arguments || parsed.args || {}),
+              },
+            },
+          ];
+        }
+      }
+    } catch {
+      // Ignore JSON parse errors in free-form text
+    }
+
+    return [];
   }
 
   private summarizeArgs(args: Record<string, unknown>): string {

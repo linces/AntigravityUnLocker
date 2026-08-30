@@ -5,6 +5,17 @@ All notable changes to the **AG Universal AI** extension will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.8] - 2026-08-30
+
+### Added & Fixed
+- **Agent Engine Fallback Tool Parser**: Implemented robust text JSON and codeblock tool call extraction (`extractToolCallsFromText`) in `AgentEngine`, allowing models without native function calling support (e.g. local Ollama models) to execute tools autonomously.
+- **ToolRegistry Cleanup & Sanitization**: Removed duplicated properties and eliminated phantom `getCachedCompletion` / `buildCompletionPrompt` references from `ToolRegistry`.
+- **Path Traversal Hardening**: Enforced strict root path containment with `path.posix.normalize` in `FileTools.resolveUri` and `EditTools.resolveUri`.
+- **AbortSignal Propagation**: Added optional `signal` support in `ChatCompletionRequest`, `OpenAIAdapter.chat()`, and `AGInlineCompletionProvider` for immediate cancellation of in-flight completion requests.
+- **Expanded Unit Test Suite**: Added dedicated unit tests for `EditTools` (`replaceInFile`, `multiReplaceInFile`, traversal blocking) and `AgentEngine` text JSON execution, expanding coverage to 20 automated tests.
+
+---
+
 ## [0.5.3] - 2026-08-07
 
 ### Added & Fixed
@@ -110,4 +121,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-**Versão:** 0.4.5 | **Última Revisão:** 2026-08-06 20:14:00
+**Versão:** 0.5.8 | **Última Revisão:** 2026-08-30 17:18:00

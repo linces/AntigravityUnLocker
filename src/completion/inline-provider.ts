@@ -170,6 +170,7 @@ export class AGInlineCompletionProvider
         max_tokens: maxTokens,
         stream: false,
         stop: ['\n\n\n', '```', '// ---'],
+        signal: abortController.signal,
       };
 
       const startTime = Date.now();

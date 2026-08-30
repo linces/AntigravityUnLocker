@@ -70,6 +70,10 @@ export class OpenAIAdapter implements ILLMProvider {
 
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+      const abortHandler = () => controller.abort();
+      if (request.signal) {
+        request.signal.addEventListener('abort', abortHandler);
+      }
 
       try {
         const response = await fetch(url, {
@@ -108,6 +112,9 @@ export class OpenAIAdapter implements ILLMProvider {
         throw lastError;
       } finally {
         clearTimeout(timer);
+        if (request.signal) {
+          request.signal.removeEventListener('abort', abortHandler);
+        }
       }
     }
 

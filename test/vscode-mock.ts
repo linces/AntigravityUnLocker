@@ -1,4 +1,6 @@
 // Lightweight mock for VS Code API in headless Node unit tests
+import path from 'path';
+
 export const ConfigurationTarget = {
   Global: 1,
   Workspace: 2,
@@ -6,6 +8,48 @@ export const ConfigurationTarget = {
 };
 
 const mockConfigStore: Record<string, any> = {};
+export const mockFileStore = new Map<string, string>();
+
+export function setMockFile(filePath: string, content: string): void {
+  const norm = filePath.replace(/\\/g, '/');
+  mockFileStore.set(norm, content);
+}
+
+export function getMockFile(filePath: string): string | undefined {
+  const norm = filePath.replace(/\\/g, '/');
+  return mockFileStore.get(norm);
+}
+
+export const Position = class {
+  constructor(public line: number, public character: number) {}
+};
+
+export const Range = class {
+  constructor(public start: any, public end: any) {}
+};
+
+export const FileType = {
+  Unknown: 0,
+  File: 1,
+  Directory: 2,
+  SymbolicLink: 64,
+};
+
+export const DiagnosticSeverity = {
+  Error: 0,
+  Warning: 1,
+  Information: 2,
+  Hint: 3,
+};
+
+export const languages = {
+  getDiagnostics: () => [],
+};
+
+export const commands = {
+  registerCommand: () => ({ dispose: () => {} }),
+  executeCommand: () => Promise.resolve(),
+};
 
 export const workspace = {
   getConfiguration: (section?: string) => ({
@@ -21,13 +65,45 @@ export const workspace = {
   onDidChangeConfiguration: () => ({ dispose: () => {} }),
   workspaceFolders: [
     {
-      uri: { fsPath: '/mock/workspace', scheme: 'file', toString: () => 'file:///mock/workspace' },
+      uri: {
+        fsPath: '/mock/workspace',
+        path: '/mock/workspace',
+        scheme: 'file',
+        toString: () => 'file:///mock/workspace',
+        with: (change: any) => ({
+          fsPath: change.path || '/mock/workspace',
+          path: change.path || '/mock/workspace',
+          scheme: 'file',
+        }),
+      },
       name: 'workspace',
       index: 0,
     },
   ],
-  asRelativePath: (path: any) => String(path),
+  asRelativePath: (p: any) => String(p).replace('/mock/workspace/', ''),
   findFiles: async () => [],
+  fs: {
+    writeFile: async (uri: any, data: Uint8Array) => {
+      const norm = (uri.fsPath || uri.path || String(uri)).replace(/\\/g, '/');
+      mockFileStore.set(norm, new TextDecoder().decode(data));
+    },
+    readFile: async (uri: any) => {
+      const norm = (uri.fsPath || uri.path || String(uri)).replace(/\\/g, '/');
+      const content = mockFileStore.get(norm) || '';
+      return new TextEncoder().encode(content);
+    },
+  },
+  openTextDocument: async (uri: any) => {
+    const norm = (uri.fsPath || uri.path || String(uri)).replace(/\\/g, '/');
+    const text = mockFileStore.get(norm) ?? '';
+    const lines = text.split('\n');
+    return {
+      getText: () => text,
+      lineCount: lines.length,
+      languageId: 'typescript',
+      lineAt: (lineNum: number) => ({ text: lines[lineNum] || '' }),
+    };
+  },
 };
 
 export const window = {
@@ -37,12 +113,51 @@ export const window = {
   }),
   showInformationMessage: () => Promise.resolve(),
   showErrorMessage: () => Promise.resolve(),
-  showWarningMessage: () => Promise.resolve(),
+  showWarningMessage: () => Promise.resolve('Allow'),
 };
 
 export const Uri = {
-  file: (path: string) => ({ fsPath: path, scheme: 'file' }),
-  parse: (uri: string) => ({ fsPath: uri, scheme: 'file' }),
+  file: (filePath: string) => {
+    const norm = path.posix.normalize(filePath.replace(/\\/g, '/'));
+    return {
+      fsPath: norm,
+      path: norm,
+      scheme: 'file',
+      with: (change: any) => ({
+        fsPath: path.posix.normalize((change.path || norm).replace(/\\/g, '/')),
+        path: path.posix.normalize((change.path || norm).replace(/\\/g, '/')),
+        scheme: 'file',
+      }),
+    };
+  },
+  parse: (uri: string) => {
+    const norm = path.posix.normalize(uri.replace('file://', '').replace(/\\/g, '/'));
+    return {
+      fsPath: norm,
+      path: norm,
+      scheme: 'file',
+      with: (change: any) => ({
+        fsPath: path.posix.normalize((change.path || norm).replace(/\\/g, '/')),
+        path: path.posix.normalize((change.path || norm).replace(/\\/g, '/')),
+        scheme: 'file',
+      }),
+    };
+  },
+  joinPath: (base: any, ...pathSegments: string[]) => {
+    const basePath = (base.fsPath || base.path || '').replace(/\\/g, '/').replace(/\/$/, '');
+    const cleanSegments = pathSegments.map((s) => s.replace(/^[/\\]+/, '').replace(/\\/g, '/'));
+    const joined = path.posix.normalize([basePath, ...cleanSegments].join('/'));
+    return {
+      fsPath: joined,
+      path: joined,
+      scheme: 'file',
+      with: (change: any) => ({
+        fsPath: path.posix.normalize((change.path || joined).replace(/\\/g, '/')),
+        path: path.posix.normalize((change.path || joined).replace(/\\/g, '/')),
+        scheme: 'file',
+      }),
+    };
+  },
 };
 
 export const EventEmitter = class {
