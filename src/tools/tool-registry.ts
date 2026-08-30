@@ -16,10 +16,20 @@ export class ToolRegistry implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
   private outputChannel: vscode.OutputChannel;
 
+  // Thread-safe cache for inline completions
+  private cache = new Map<string, string>();
+  private readonly maxCacheSize = 50;
+  private readonly activeRequests = new Set<string>();
+
   public readonly fileTools: FileTools;
   public readonly editTools: EditTools;
   public readonly terminalTools: TerminalTools;
   public readonly workspaceTools: WorkspaceTools;
+
+  // Thread-safe cache for inline completions
+  private cache = new Map<string, string>();
+  private readonly maxCacheSize = 50;
+  private readonly activeRequests = new Set<string>();
 
   constructor(outputChannel: vscode.OutputChannel) {
     this.outputChannel = outputChannel;
@@ -265,6 +275,9 @@ export class ToolRegistry implements vscode.Disposable {
   /**
    * Execute a tool by name with the given arguments.
    */
+  /**
+   * Execute a tool by name with the given arguments.
+   */
   public async executeTool(
     name: string,
     args: Record<string, unknown>
@@ -332,6 +345,73 @@ export class ToolRegistry implements vscode.Disposable {
       this.log(`Tool error: ${name} — ${msg}`);
       return `Error executing ${name}: ${msg}`;
     }
+  }
+
+  /**
+   * Thread-safe cache getter with concurrent request prevention.
+   */
+  private async getCachedCompletion(
+    document: vscode.TextDocument,
+    position: vscode.Position,
+    token: vscode.CancellationToken,
+    config: vscode.WorkspaceConfiguration
+  ): Promise<string | undefined> {
+    const prompt = this.buildCompletionPrompt(document, position);
+    const cacheKey = this.hashString(prompt.slice(-200));
+
+    if (this.activeRequests.has(cacheKey)) {
+      return new Promise<string>((resolve) => {
+        const check = () => {
+          if (!this.activeRequests.has(cacheKey)) {
+            const cached = this.cache.get(cacheKey);
+            if (cached) resolve(cached);
+            else resolve(undefined);
+          } else {
+            setTimeout(check, 10);
+          }
+        };
+        check();
+      });
+    }
+
+    this.activeRequests.add(cacheKey);
+
+    try {
+      const cached = this.cache.get(cacheKey);
+      if (cached) {
+        return cached;
+      }
+
+      return undefined;
+    } finally {
+      this.activeRequests.delete(cacheKey);
+    }
+  }
+
+  /**
+   * Thread-safe cache setter with size management.
+   */
+  private cacheResult(key: string, value: string): void {
+    if (this.cache.size >= this.maxCacheSize) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey);
+      }
+    }
+    this.cache.set(key, value);
+  }
+
+  /**
+   * Hash string for cache key generation.
+   */
+  private hashString(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash |= 0;
+    }
+    return hash.toString(36);
   }
 
   // ─── Private ──────────────────────────────────────────────────────────────
