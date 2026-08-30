@@ -134,61 +134,72 @@ export class ProviderManager implements vscode.Disposable {
   /**
    * Set the active provider by ID.
    */
-  /**
-   * Set the active provider by ID.
-   */
-  public async setActiveProvider(id: string): Promise<void> {
-    const provider = this.providers.get(id);
-    if (!provider) {
-      this.log(`Provider "${id}" not found. Available: ${[...this.providers.keys()].join(', ')}`);
-      return;
-    }
+   public async setActiveProvider(id: string): Promise<void> {
+     const provider = this.providers.get(id);
+     if (!provider) {
+       this.log(`Provider "${id}" not found. Available: ${[...this.providers.keys()].join(', ')}`);
+       return;
+     }
 
-    const previousId = this.activeProviderId;
-    this.activeProviderId = id;
+     // Prevenir race condition: aguardar se já updating config
+     if (this.isUpdatingConfig) {
+       await new Promise<void>((resolve) => {
+         const check = () => {
+           if (!this.isUpdatingConfig) {
+             resolve();
+           } else {
+             setTimeout(check, 10);
+           }
+         };
+         check();
+       });
+     }
 
-    // Check for saved model preference for this provider or fallback to preset default
-    const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
-    const userOverrides = config.get<Record<string, { model?: string }>>('providers', {});
-    const savedModel = userOverrides[id]?.model;
-    if (savedModel) {
-      if (provider instanceof OpenAIAdapter) {
-        provider.updateModel(savedModel);
-      } else {
-        provider.config.model = savedModel;
-      }
-    } else {
-      const preset = getPreset(id);
-      if (preset?.defaultModel) {
-        if (provider instanceof OpenAIAdapter) {
-          provider.updateModel(preset.defaultModel);
-        } else {
-          provider.config.model = preset.defaultModel;
-        }
-      }
-    }
+     const previousId = this.activeProviderId;
+     this.activeProviderId = id;
 
-    this.isUpdatingConfig = true;
-    this.lastConfigUpdateTime = Date.now();
-    try {
-      await config.update('activeProvider', id, vscode.ConfigurationTarget.Global);
-      await config.update('activeModel', provider.config.model, vscode.ConfigurationTarget.Global);
-    } catch (err) {
-      this.log(`Error persisting active provider settings: ${err}`);
-    } finally {
-      setTimeout(() => {
-        this.isUpdatingConfig = false;
-      }, 500);
-    }
+     // Check for saved model preference for this provider or fallback to preset default
+     const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
+     const userOverrides = config.get<Record<string, { model?: string }>>('providers', {});
+     const savedModel = userOverrides[id]?.model;
+     if (savedModel) {
+       if (provider instanceof OpenAIAdapter) {
+         provider.updateModel(savedModel);
+       } else {
+         provider.config.model = savedModel;
+       }
+     } else {
+       const preset = getPreset(id);
+       if (preset?.defaultModel) {
+         if (provider instanceof OpenAIAdapter) {
+           provider.updateModel(preset.defaultModel);
+         } else {
+           provider.config.model = preset.defaultModel;
+         }
+       }
+     }
 
-    this._onDidChangeProvider.fire({
-      previousId,
-      newId: id,
-      provider,
-    });
+     this.isUpdatingConfig = true;
+     this.lastConfigUpdateTime = Date.now();
+     try {
+       await Promise.all([
+         config.update('activeProvider', id, vscode.ConfigurationTarget.Global),
+         config.update('activeModel', provider.config.model, vscode.ConfigurationTarget.Global),
+       ]);
+     } catch (err) {
+       this.log(`Error persisting active provider settings: ${err}`);
+     } finally {
+       this.isUpdatingConfig = false;
+     }
 
-    this.log(`Active provider switched: ${previousId} → ${id} (${provider.name}, model: ${provider.config.model})`);
-  }
+     this._onDidChangeProvider.fire({
+       previousId,
+       newId: id,
+       provider,
+     });
+
+     this.log(`Active provider switched: ${previousId} → ${id} (${provider.name}, model: ${provider.config.model})`);
+   }
 
   /**
    * Set active model for a provider and persist settings.

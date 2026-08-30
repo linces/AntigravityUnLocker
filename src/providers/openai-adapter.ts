@@ -235,27 +235,39 @@ export class OpenAIAdapter implements ILLMProvider {
 
   public async health(): Promise<HealthStatus> {
     const start = Date.now();
-    try {
-      // Try /models endpoint first (standard OpenAI), fall back to a minimal chat
-      const response = await fetch(`${this.baseUrl}/models`, {
-        method: 'GET',
-        headers: this.buildHeaders(),
-        signal: AbortSignal.timeout(5000),
-      });
-
-      return {
-        isHealthy: response.ok,
-        latencyMs: Date.now() - start,
-        lastChecked: new Date(),
-      };
-    } catch (err: unknown) {
-      return {
-        isHealthy: false,
-        latencyMs: Date.now() - start,
-        error: err instanceof Error ? err.message : String(err),
-        lastChecked: new Date(),
-      };
+    // Try multiple endpoints in order of preference
+    const endpoints = [
+      '/models',           // OpenAI padrão
+      '/api/tags',         // Ollama
+      '/v1/models',       // Outros compatíveis com OpenAI
+    ];
+    
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+          method: 'GET',
+          headers: this.buildHeaders(),
+          signal: AbortSignal.timeout(3000),
+        });
+        
+        if (response.ok) {
+          return {
+            isHealthy: true,
+            latencyMs: Date.now() - start,
+            lastChecked: new Date(),
+          };
+        }
+      } catch {
+        continue; // Tentar próximo endpoint
+      }
     }
+    
+    return {
+      isHealthy: false,
+      latencyMs: Date.now() - start,
+      error: 'Todos os endpoints de health check falharam',
+      lastChecked: new Date(),
+    };
   }
 
   public async listModels(): Promise<ModelInfo[]> {
