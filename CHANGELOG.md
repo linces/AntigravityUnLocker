@@ -5,6 +5,14 @@ All notable changes to the **AG Universal AI** extension will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-08-30
+
+### Fixed
+- **Extension Activation Resilience**: Fixed variable name typo (`workspaceFolder` -> `workspaceFolders`) in `MCPClientManager.loadConfigurations()` that was causing `ReferenceError` on extension startup.
+- **Asynchronous Non-Blocking MCP Initialization**: Configured `mcpClient.initialize()` to run in background without blocking the synchronous registration of Sidebar Webview (`ag-universal-ai.sidebarView`) and Tree View (`ag-universal-ai.treeView`).
+
+---
+
 ## [0.6.0] - 2026-08-30
 
 ### Added & Enhanced
@@ -132,4 +140,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-**Versão:** 0.6.0 | **Última Revisão:** 2026-08-30 17:53:00
+**Versão:** 0.6.1 | **Última Revisão:** 2026-08-30 18:22:00

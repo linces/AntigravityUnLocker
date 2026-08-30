@@ -71,8 +71,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const mcpClient = new MCPClientManager(toolRegistry, outputChannel);
   context.subscriptions.push(mcpClient);
-  await mcpClient.initialize();
-  log('Direct MCP Client Manager initialized (stdio JSON-RPC)');
+  mcpClient.initialize().catch((err: unknown) => {
+    const msg = err instanceof Error ? err.message : String(err);
+    log(`Direct MCP Client Manager background initialization warning: ${msg}`);
+  });
+  log('Direct MCP Client Manager registered (stdio JSON-RPC)');
 
   // ─── 6. Embedded MCP Server ────────────────────────────────────────────
   const mcpServer = new MCPServer(toolRegistry, outputChannel);

@@ -327,7 +327,7 @@ export class MCPClientManager implements vscode.Disposable {
 
     // 2. File: .vscode/mcp.json or .mcp.json in workspace
     const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (workspaceFolder && workspaceFolders.length > 0) {
+    if (workspaceFolders && workspaceFolders.length > 0) {
       const root = workspaceFolders[0].uri.fsPath;
       const filePaths = [
         path.join(root, '.vscode', 'mcp.json'),
