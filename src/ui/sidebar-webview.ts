@@ -262,6 +262,15 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         return;
       }
 
+      const preset = getPreset(provider.id);
+      if (preset?.requiresApiKey && !provider.config.apiKey) {
+        this.post({
+          type: 'done',
+          text: `⚠️ **${provider.name}** requires an API key.\n\nClick the 🔑 icon on the toolbar below to enter your key, or use \`Ctrl+Shift+P\` ➔ **\`AG AI: Set API Key for Provider\`**.\n\n*Tip: You can also switch to **Ollama** or **LM Studio** for 100% free local offline inference without any key.*`
+        });
+        return;
+      }
+
     const sysPrompt = slash ? buildSlashCommandPrompt(slash) : buildSystemPrompt();
 
     // Add editor context
@@ -907,24 +916,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     });
   }
 
-  // Direct binds for chips
-  var chipEls = document.querySelectorAll('.chip');
-  for (var cIdx = 0; cIdx < chipEls.length; cIdx++) {
-    (function(chip){
-      chip.addEventListener('click', function(e){
-        e.preventDefault();
-        e.stopPropagation();
-        var c = chip.getAttribute('data-c');
-        var inputEl = getInp();
-        if (c && inputEl) {
-          inputEl.value = c;
-          inputEl.focus();
-        }
-      });
-    })(chipEls[cIdx]);
-  }
-
-  // ─── Direct Event Binds for Toolbar Elements ────────
+  // ─── Event Binds for Toolbar Elements & Chips ────────
   function bindClick(id, handler) {
     var el = document.getElementById(id);
     if (el) {
@@ -936,29 +928,12 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     }
   }
 
-  bindClick('btnDash', function() {
-    window.__agPost('dashboard');
-  });
-
-  bindClick('btnClear', function() {
-    window.__agPost('clear');
-  });
-
-  bindClick('btnNewSession', function() {
-    window.__agPost('newSession');
-  });
-
-  bindClick('btnDelSession', function() {
-    window.__agPost('deleteSession');
-  });
-
-  bindClick('btnSend', function() {
-    doSend();
-  });
-
-  bindClick('btnAttachFile', function() {
-    window.__agPost('pickFile');
-  });
+  bindClick('btnDash', function() { window.__agPost('dashboard'); });
+  bindClick('btnClear', function() { window.__agPost('clear'); });
+  bindClick('btnNewSession', function() { window.__agPost('newSession'); });
+  bindClick('btnDelSession', function() { window.__agPost('deleteSession'); });
+  bindClick('btnSend', function() { doSend(); });
+  bindClick('btnAttachFile', function() { window.__agPost('pickFile'); });
 
   bindClick('btnEmoji', function() {
     var emojiPicker = document.getElementById('emojiPicker');
@@ -978,7 +953,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     }
   });
 
-  bindClick('pillAgent', function(e) {
+  bindClick('pillAgent', function() {
     var agentPill = document.getElementById('pillAgent');
     isAgentMode = !isAgentMode;
     if (agentPill) {
@@ -999,12 +974,25 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     }
   });
 
-  // ─── Global Event Delegation for Dynamic Message Code Blocks ───────
+  // ─── Global Event Delegation for Dynamic Elements ───────
   document.addEventListener('click', function(e){
     var t = e.target;
     if(!t) return;
     if(t.nodeType === 3) t = t.parentElement;
     if(!t || typeof t.closest !== 'function') return;
+
+    var chip = t.closest('.chip');
+    if(chip){
+      e.preventDefault();
+      var c = chip.getAttribute('data-c');
+      var inputEl = getInp();
+      if(c && inputEl){
+        inputEl.value = c;
+        inputEl.focus();
+        inputEl.selectionStart = inputEl.selectionEnd = inputEl.value.length;
+      }
+      return;
+    }
 
     var fileLink = t.tagName === 'A' && t.classList.contains('file-link') ? t : t.closest('a.file-link');
     if(fileLink){
@@ -1014,7 +1002,19 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       return;
     }
 
-    if(t.classList && (t.classList.contains('cbtn') || t.classList.contains('apply-btn')) && !t.classList.contains('save-btn')){
+    if(t.classList && t.classList.contains('diff-btn')){
+      var pre = t.closest('pre');
+      if(pre){
+        var code = pre.querySelector('code');
+        var hdrSpan = pre.querySelector('.code-hdr span');
+        var langOrPath = hdrSpan ? hdrSpan.innerText.trim() : '';
+        var detectedPath = (langOrPath.includes('.') || langOrPath.includes('/') || langOrPath.includes('\\')) ? langOrPath : '';
+        if(code) window.__agPost('diff', { code: code.innerText, path: detectedPath });
+      }
+      return;
+    }
+
+    if(t.classList && (t.classList.contains('cbtn') || t.classList.contains('apply-btn')) && !t.classList.contains('save-btn') && !t.classList.contains('diff-btn')){
       var pre = t.closest('pre');
       if(pre){
         var code = pre.querySelector('code');
@@ -1156,7 +1156,14 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     var inputEl = getInp();
     if(!inputEl) return;
     var text = inputEl.value.trim();
-    if(!text && attachedFiles.length === 0 && attachedImages.length === 0) return;
+    if(!text && attachedFiles.length === 0 && attachedImages.length === 0){
+      inputEl.focus();
+      inputEl.placeholder = '⚠️ Please enter a prompt or click a command...';
+      setTimeout(function(){
+        if(inputEl && !inputEl.value) inputEl.placeholder = 'Describe what to build...';
+      }, 2500);
+      return;
+    }
 
     if(streamEl !== null && (Date.now() - lastStreamStartTime > 6000)){
       console.warn('[AG Webview] Resetting stale stream indicator');
@@ -1398,7 +1405,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         code = block.substring(firstNewline + 1);
       }
       var cleanCode = esc(code.trim());
-      var blockHtml = '<pre><div class="code-hdr"><span>' + (lang || 'code') + '</span><div><button class="cbtn save-btn">Save File 📄</button> <button class="cbtn apply-btn">Apply to Editor</button></div></div><code>' + cleanCode + '</code></pre>';
+      var blockHtml = '<pre><div class="code-hdr"><span>' + (lang || 'code') + '</span><div style="display:flex;gap:4px;"><button type="button" class="cbtn diff-btn" title="Inspect Diff side-by-side">Diff 🔍</button> <button type="button" class="cbtn save-btn" title="Save to file">Save 📄</button> <button type="button" class="cbtn apply-btn" title="Apply to editor">Apply</button></div></div><code>' + cleanCode + '</code></pre>';
       codeBlocks.push(blockHtml);
       return id;
     });

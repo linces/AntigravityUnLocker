@@ -1,6 +1,11 @@
 {
   "ag-universal-ai.activeProvider": "groq",
-  "ag-universal-ai.fallbackProviders": ["openrouter", "moonshot-kimi", "dashscope-qwen", "ollama-local"],
+  "ag-universal-ai.fallbackProviders": [
+    "openrouter",
+    "moonshot-kimi",
+    "dashscope-qwen",
+    "ollama-local"
+  ],
   "ag-universal-ai.providers": {
     "groq": {
       "model": "llama-3.3-70b-versatile",
@@ -25,5 +30,6 @@
   "ag-universal-ai.inlineCompletion.debounceMs": 300,
   "ag-universal-ai.inlineCompletion.maxTokens": 256,
   "ag-universal-ai.telemetry.enabled": true,
-  "ag-universal-ai.transversalDomainPath": "E:\\00Dev\\agent skills e mais prod"
+  "ag-universal-ai.transversalDomainPath": "E:\\00Dev\\agent skills e mais prod",
+  "i18n-ally.localesPaths": ["E:/00Dev/AntigravityUnlock"]
 }
