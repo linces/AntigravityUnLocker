@@ -5,3 +5,5 @@ import './provider-manager.test';
 import './session-manager.test';
 import './edit-tools.test';
 import './agent-engine.test';
+import './diff-provider.test';
+import './mcp-client.test';

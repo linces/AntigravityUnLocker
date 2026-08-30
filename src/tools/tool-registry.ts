@@ -21,12 +21,59 @@ export class ToolRegistry implements vscode.Disposable {
   public readonly terminalTools: TerminalTools;
   public readonly workspaceTools: WorkspaceTools;
 
+  private dynamicTools = new Map<
+    string,
+    {
+      definition: {
+        type: 'function';
+        function: { name: string; description: string; parameters: Record<string, unknown> };
+      };
+      handler: (args: Record<string, unknown>) => Promise<string>;
+      serverId?: string;
+    }
+  >();
+
   constructor(outputChannel: vscode.OutputChannel) {
     this.outputChannel = outputChannel;
     this.fileTools = new FileTools(outputChannel);
     this.editTools = new EditTools(outputChannel);
     this.terminalTools = new TerminalTools(outputChannel);
     this.workspaceTools = new WorkspaceTools(outputChannel);
+  }
+
+  /**
+   * Register a dynamic tool (e.g. from an external MCP server).
+   */
+  public registerDynamicTool(
+    definition: {
+      type: 'function';
+      function: { name: string; description: string; parameters: Record<string, unknown> };
+    },
+    handler: (args: Record<string, unknown>) => Promise<string>,
+    serverId?: string
+  ): vscode.Disposable {
+    const toolName = definition.function.name;
+    this.dynamicTools.set(toolName, { definition, handler, serverId });
+    this.log(`Dynamic MCP tool registered: ${toolName}${serverId ? ` (server: ${serverId})` : ''}`);
+
+    return {
+      dispose: () => {
+        this.dynamicTools.delete(toolName);
+        this.log(`Dynamic MCP tool unregistered: ${toolName}`);
+      },
+    };
+  }
+
+  /**
+   * Unregister all dynamic tools registered by a specific server.
+   */
+  public unregisterDynamicTools(serverId: string): void {
+    for (const [toolName, tool] of this.dynamicTools.entries()) {
+      if (tool.serverId === serverId) {
+        this.dynamicTools.delete(toolName);
+        this.log(`Dynamic MCP tool removed for server "${serverId}": ${toolName}`);
+      }
+    }
   }
 
   /**
@@ -45,7 +92,10 @@ export class ToolRegistry implements vscode.Disposable {
     type: 'function';
     function: { name: string; description: string; parameters: Record<string, unknown> };
   }> {
-    return [
+    const baseTools: Array<{
+      type: 'function';
+      function: { name: string; description: string; parameters: Record<string, unknown> };
+    }> = [
       // ─── File Tools ───────────────────────────────────────────────────────
       {
         type: 'function' as const,
@@ -260,11 +310,11 @@ export class ToolRegistry implements vscode.Disposable {
         },
       },
     ];
+
+    const dynamic = [...this.dynamicTools.values()].map((d) => d.definition);
+    return [...baseTools, ...dynamic];
   }
 
-  /**
-   * Execute a tool by name with the given arguments.
-   */
   /**
    * Execute a tool by name with the given arguments.
    */
@@ -273,6 +323,18 @@ export class ToolRegistry implements vscode.Disposable {
     args: Record<string, unknown>
   ): Promise<string> {
     this.log(`Executing tool: ${name} with args: ${JSON.stringify(args)}`);
+
+    // Check dynamic MCP tools first
+    if (this.dynamicTools.has(name)) {
+      const dynamic = this.dynamicTools.get(name)!;
+      try {
+        return await dynamic.handler(args);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.log(`Dynamic MCP tool error: ${name} — ${msg}`);
+        return `Error executing dynamic MCP tool ${name}: ${msg}`;
+      }
+    }
 
     try {
       switch (name) {

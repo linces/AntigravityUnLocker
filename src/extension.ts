@@ -29,6 +29,8 @@ import {
 } from './ui/quick-pick';
 
 import { SessionManager } from './chat/session-manager';
+import { MCPClientManager } from './mcp/client';
+import { AGDiffProvider } from './ui/diff-provider';
 
 let outputChannel: vscode.OutputChannel;
 
@@ -60,7 +62,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const toolRegistry = new ToolRegistry(outputChannel);
   context.subscriptions.push(toolRegistry);
   toolRegistry.register(context);
-  log('Tool registry activated (7 workspace/file/terminal tools)');
+  log('Tool registry activated (workspace/file/terminal tools)');
+
+  // ─── 5.5. Diff Provider & Direct MCP Client Manager ───────────────────────
+  const diffProvider = new AGDiffProvider();
+  context.subscriptions.push(diffProvider);
+  diffProvider.register(context);
+
+  const mcpClient = new MCPClientManager(toolRegistry, outputChannel);
+  context.subscriptions.push(mcpClient);
+  await mcpClient.initialize();
+  log('Direct MCP Client Manager initialized (stdio JSON-RPC)');
 
   // ─── 6. Embedded MCP Server ────────────────────────────────────────────
   const mcpServer = new MCPServer(toolRegistry, outputChannel);
@@ -193,6 +205,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             `AG Agent finished: ${result.iterations} iterations, ${result.toolCalls.length} tools executed`
           );
         }
+      );
+    }),
+
+    // Reload External MCP Servers Command
+    vscode.commands.registerCommand('ag-universal-ai.reloadMcpServers', async () => {
+      await mcpClient.reloadServers();
+      const statuses = mcpClient.getServerStatuses();
+      const connected = statuses.filter((s) => s.status === 'connected').length;
+      vscode.window.showInformationMessage(
+        `AG AI: ${statuses.length} MCP server(s) configured (${connected} connected, ${toolRegistry.getToolDefinitions().length} total tools available).`
       );
     })
   );

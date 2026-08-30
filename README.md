@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Platform-VS%20Code%20%7C%20Antigravity%20IDE-blue?style=for-the-badge&logo=visualstudiocode" alt="Platform" />
   <img src="https://img.shields.io/badge/Providers-12%2B-purple?style=for-the-badge&logo=openai" alt="Providers" />
-  <img src="https://img.shields.io/badge/Version-0.5.8-green?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-0.6.0-green?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-brightgreen?style=for-the-badge" alt="License" />
 </p>
 
@@ -14,7 +14,7 @@
 </p>
 
 > [!IMPORTANT]
-> **AG Universal AI** operates as a unified Single Core engine inside VS Code / Antigravity IDE. It connects directly to official and open-source Model Context Protocol (MCP) servers and integrates an embedded multi-provider AI Gateway and multi-agent harness.
+> **AG Universal AI** operates as a unified Single Core engine inside VS Code / Antigravity IDE. It connects directly to official and open-source Model Context Protocol (MCP) servers (stdio JSON-RPC) and integrates an embedded multi-provider AI Gateway and multi-agent harness.
 
 ---
 
@@ -31,14 +31,14 @@ The platform consolidates AI capabilities directly into the VS Code extension ho
 │  │   - Sidebar Webview     │  │  Gateway Layer      │  │  SynAI Agents   │ │
 │  │   - Native Chat (@ag)   │  │  - Model Router     │  │  - Supervisor   │ │
 │  │   - Ghost Text (FIM)    │  │  - Fallback Chain   │  │  - Planner      │ │
-│  │   - QuickPick / Status  │  │  - Token / Cost     │  │  - Code / Review│ │
+│  │   - Interactive Diff    │  │  - Token / Cost     │  │  - Code / Review│ │
 │  └────────────┬────────────┘  └──────────┬──────────┘  └────────┬────────┘ │
 │               │                          │                      │          │
 │               └──────────────────────────┼──────────────────────┘          │
 │                                          │                                 │
 │                   ┌──────────────────────┴───────────────────┐             │
-│                   │      Embedded Direct MCP Client Engine   │             │
-│                   │      (JSON-RPC 2.0 / stdio / SSE)        │             │
+│                   │      Direct MCP Client Engine (stdio)    │             │
+│                   │      (JSON-RPC 2.0 / Dynamic Tools)      │             │
 │                   └──────────────────────┬───────────────────┘             │
 └──────────────────────────────────────────┼─────────────────────────────────┘
                                            │
@@ -102,6 +102,14 @@ Para consumo direto pelo AG Universal AI sem necessidade de daemons intermediár
 - Qodo & Cursor Style Input Card com seletor de modelos/provedores em tempo real.
 - Slash commands: `/explain`, `/refactor`, `/test`, `/fix`, `/docs`, `/review`.
 
+### ⚡ Direct MCP Client Engine (`MCPClientManager`)
+- Conexão nativa JSON-RPC 2.0 (`stdio`) a servidores MCP externos (Postgres, Git, Filesystem, Playwright).
+- Descoberta automática de ferramentas e injeção dinâmica no `ToolRegistry`.
+- Configuração simplificada via `.vscode/mcp.json` ou `ag-universal-ai.mcpServers`.
+
+### 🔍 Visualização Interativa de Diff (`AGDiffProvider`)
+- Pré-visualização side-by-side com `vscode.diff` e esquema virtual `ag-diff://` antes de aplicar modificações em arquivos.
+
 ### ⚡ Agent Engine & Multi-Agent Personas (SynAI Embedded)
 - Motor autônomo com ciclos de planejamento, execução de ferramentas e reflexão com autocorreção.
 - Edição de código por substituição precisa (`ag_replaceInFile`, `ag_multiReplaceInFile`).
@@ -119,7 +127,7 @@ Para consumo direto pelo AG Universal AI sem necessidade de daemons intermediár
 - **Local (Ollama)**: Baixe [Ollama](https://ollama.com) e execute `ollama pull qwen2.5-coder:14b`.
 - **Cloud**: Abra a Paleta de Comandos (`Ctrl+Shift+P`), execute `AG AI: Set API Key for Provider` ou configure o arquivo `.env` (gitignored).
 
-### 2. Iniciar Chat
+### 2. Iniciar Chat & Usar Ferramentas
 Abra a barra lateral de IA e digite `@ag` ou interaja diretamente pelo painel interativo.
 
 ---
@@ -138,4 +146,5 @@ MIT — See [LICENSE](./LICENSE)
 
 ---
 
-**Versão:** 0.5.8 | **Última Revisão:** 2026-08-30 17:18:00
+**Versão:** 0.6.0 | **Última Revisão:** 2026-08-30 17:53:00
+

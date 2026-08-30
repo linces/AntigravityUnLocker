@@ -81,10 +81,15 @@ O projeto atua como uma **extensão unificada para VS Code e Antigravity IDE**, 
   - [x] Hardening de contenção de caminhos (`resolveUri`) em ferramentas de arquivo e edição.
   - [x] Propagação de `AbortSignal` em `ChatCompletionRequest`.
   - [x] Expansão da suíte de testes unitários para `EditTools` e `AgentEngine`.
-- [ ] **v0.6.0**:
-  - [ ] Conexão direta com servidores MCP externos (`@modelcontextprotocol/sdk`) via stdio/SSE.
-  - [ ] Visualização de Diff interativo antes de edições automáticas de arquivos no Webview.
+- [x] **v0.6.0**:
+  - [x] Direct MCP Client Engine nativo (`MCPClientManager`) via stdio JSON-RPC 2.0 com descoberta dinâmica de ferramentas.
+  - [x] Visualização de Diff interativo side-by-side (`AGDiffProvider` no esquema `ag-diff://`) com `vscode.diff`.
+  - [x] Alinhamento total de schemas de ferramentas no servidor MCP embarcado (9 ferramentas de workspace).
+  - [x] Suíte de testes automatizados expandida para 22 testes unitários.
+- [ ] **v0.7.0**:
+  - [ ] Suporte a transportes SSE / HTTP remotos no MCP Client Engine.
+  - [ ] Multi-persona Agent Swarm com delegação paralela de sub-tarefas.
 
 ---
 
-**Versão:** 0.5.8 | **Última Revisão:** 2026-08-30 17:15:00
+**Versão:** 0.6.0 | **Última Revisão:** 2026-08-30 17:53:00

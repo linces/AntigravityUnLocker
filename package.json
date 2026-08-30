@@ -2,7 +2,7 @@
    "name": "ag-universal-ai",
    "displayName": "AG Universal AI",
    "description": "Universal multi-provider AI assistant for VS Code & Antigravity IDE — Code completion, chat, agent workflows, MCP, and tool calling powered by any OpenAI-compatible backend.",
-   "version": "0.5.8",
+   "version": "0.6.0",
    "publisher": "linces",
    "icon": "resources/icons/ag-icon.png",
    "license": "MIT",
@@ -114,6 +114,11 @@
          "command": "ag-universal-ai.runAgent",
          "title": "AG AI: Run Agent Task",
          "icon": "$(robot)"
+       },
+       {
+         "command": "ag-universal-ai.reloadMcpServers",
+         "title": "AG AI: Reload External MCP Servers",
+         "icon": "$(sync)"
        }
      ],
      "menus": {
@@ -256,6 +261,21 @@
            "type": "boolean",
            "default": true,
            "description": "Enable local request metrics tracking (never sent externally)."
+         },
+         "ag-universal-ai.mcpServers": {
+           "type": "object",
+           "default": {},
+           "description": "External Model Context Protocol (MCP) server configurations (stdio JSON-RPC). Keys are server IDs, values are { command, args, env, disabled }.",
+           "additionalProperties": {
+             "type": "object",
+             "properties": {
+               "command": { "type": "string", "description": "Command to spawn the MCP server (e.g., npx, node, python)" },
+               "args": { "type": "array", "items": { "type": "string" }, "description": "Arguments to pass to the command" },
+               "env": { "type": "object", "description": "Environment variables for the MCP process" },
+               "disabled": { "type": "boolean", "default": false, "description": "Disable this MCP server" }
+             },
+             "required": ["command"]
+           }
          }
        }
      },

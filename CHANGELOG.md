@@ -5,6 +5,17 @@ All notable changes to the **AG Universal AI** extension will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-08-30
+
+### Added & Enhanced
+- **Direct MCP Client Engine (`MCPClientManager`)**: Implemented full JSON-RPC 2.0 client over stdio, connecting directly to external MCP servers (Postgres, Git, Filesystem, Playwright, SQLite, Fetch) configured in `.vscode/mcp.json` or settings (`ag-universal-ai.mcpServers`), and dynamically binding tools into `ToolRegistry`.
+- **Interactive Diff Preview (`AGDiffProvider`)**: Added virtual document content provider on scheme `ag-diff://` for side-by-side inspection (`vscode.diff`) before applying proposed code edits.
+- **Embedded MCP Server Full Alignment**: Added official schemas for `ag_replaceInFile`, `ag_multiReplaceInFile`, `ag_getSelection`, and `ag_getDiagnostics` to `getMCPToolDefinitions()`.
+- **Dynamic Tool Dispatching**: Extended `ToolRegistry` with `registerDynamicTool` and `unregisterDynamicTools` to support real-time MCP tool additions and removals.
+- **Expanded Test Suite**: Added `test/mcp-client.test.ts` and `test/diff-provider.test.ts` bringing the automated test suite to 22 passing tests.
+
+---
+
 ## [0.5.8] - 2026-08-30
 
 ### Added & Fixed
@@ -121,4 +132,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-**Versão:** 0.5.8 | **Última Revisão:** 2026-08-30 17:18:00
+**Versão:** 0.6.0 | **Última Revisão:** 2026-08-30 17:53:00

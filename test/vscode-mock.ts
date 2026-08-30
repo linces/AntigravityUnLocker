@@ -82,6 +82,7 @@ export const workspace = {
   ],
   asRelativePath: (p: any) => String(p).replace('/mock/workspace/', ''),
   findFiles: async () => [],
+  registerTextDocumentContentProvider: () => ({ dispose: () => {} }),
   fs: {
     writeFile: async (uri: any, data: Uint8Array) => {
       const norm = (uri.fsPath || uri.path || String(uri)).replace(/\\/g, '/');
@@ -155,6 +156,21 @@ export const Uri = {
         fsPath: path.posix.normalize((change.path || joined).replace(/\\/g, '/')),
         path: path.posix.normalize((change.path || joined).replace(/\\/g, '/')),
         scheme: 'file',
+      }),
+    };
+  },
+  from: (components: { scheme: string; path: string; authority?: string }) => {
+    const norm = path.posix.normalize(components.path.replace(/\\/g, '/'));
+    return {
+      fsPath: norm,
+      path: norm,
+      scheme: components.scheme,
+      authority: components.authority || '',
+      toString: () => `${components.scheme}://${components.authority || ''}${norm}`,
+      with: (change: any) => ({
+        fsPath: path.posix.normalize((change.path || norm).replace(/\\/g, '/')),
+        path: path.posix.normalize((change.path || norm).replace(/\\/g, '/')),
+        scheme: change.scheme || components.scheme,
       }),
     };
   },

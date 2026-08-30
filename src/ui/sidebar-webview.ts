@@ -12,6 +12,7 @@ import type { ToolRegistry } from '../tools/tool-registry';
 import type { AgentEngine } from '../agent/engine';
 import { getAllPresets, getPreset } from '../providers/provider-registry';
 import { buildSystemPrompt, buildSlashCommandPrompt } from '../chat/prompt-builder';
+import { AGDiffProvider } from './diff-provider';
 
 export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vscode.Disposable {
   private view?: vscode.WebviewView;
@@ -159,6 +160,27 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
           case 'apply':
             this.applyCode(msg.code);
             break;
+          case 'diff': {
+            let targetPath = msg.path;
+            if (!targetPath || !targetPath.trim()) {
+              const ed = vscode.window.activeTextEditor;
+              if (ed) {
+                targetPath = vscode.workspace.asRelativePath(ed.document.uri);
+              } else {
+                targetPath = await vscode.window.showInputBox({
+                  prompt: 'Enter workspace file path to compare with proposed code',
+                  placeHolder: 'src/index.ts',
+                });
+              }
+            }
+            if (targetPath && targetPath.trim()) {
+              const diffProvider = AGDiffProvider.getInstance();
+              if (diffProvider) {
+                await diffProvider.showDiff(targetPath.trim(), msg.code);
+              }
+            }
+            break;
+          }
           case 'saveFile': {
             let targetPath = msg.path;
             if (!targetPath || !targetPath.trim()) {
