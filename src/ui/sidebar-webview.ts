@@ -875,9 +875,8 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     text = text.replace(/:robot:/g, '🤖');
     text = text.replace(/:package:/g, '📦');
     text = text.replace(/:smile:/g, '😄');
-    text = text.replace(/:thumbsup:/g, '👍');
-
-    text = text.replace(/(file:\/\/\/[^\s<]+|\b(?:[a-zA-Z]:[\\/]|src\/|docs\/)[^\s<]+)/g, '<a href="#" class="file-link" data-path="$1">$1</a>');
+    var fileLinkRegex = new RegExp('(file:\\/\\/\\/[^\\s<]+|\\b(?:[a-zA-Z]:[\\\\/]|src\\/|docs\\/)[^\\s<]+)', 'g');
+    text = text.replace(fileLinkRegex, '<a href="#" class="file-link" data-path="$1">$1</a>');
 
     text = text.split(String.fromCharCode(10)).join('<br>');
 

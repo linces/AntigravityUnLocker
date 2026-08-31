@@ -2,7 +2,7 @@
    "name": "ag-universal-ai",
    "displayName": "AG Universal AI",
    "description": "Universal multi-provider AI assistant for VS Code & Antigravity IDE — Code completion, chat, agent workflows, MCP, and tool calling powered by any OpenAI-compatible backend.",
-   "version": "0.6.2",
+   "version": "0.6.3",
    "publisher": "linces",
    "icon": "resources/icons/ag-icon.png",
    "license": "MIT",
