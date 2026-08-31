@@ -155,7 +155,12 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
             this.post({ type: 'cleared' });
             break;
           case 'dashboard':
-            vscode.commands.executeCommand('ag-universal-ai.showDashboard');
+            try {
+              await vscode.commands.executeCommand('ag-universal-ai.showDashboard');
+            } catch (dErr) {
+              this.log(`Error launching dashboard: ${dErr}`);
+              vscode.window.showErrorMessage(`AG AI Dashboard: ${dErr}`);
+            }
             break;
           case 'apply':
             this.applyCode(msg.code);
@@ -817,7 +822,32 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   private getScript(): string {
     return `
 (function(){
-  // ─── Core Helpers (Must be top-level in IIFE) ───────
+  // ─── Global Error Trap (Must be first in IIFE) ──────
+  window.onerror = function(msg, url, line, col, error) {
+    console.error('[AG Webview Script Error]', msg, line, col, error);
+    var st = document.getElementById('agWebviewStatus');
+    if (st) {
+      st.style.display = 'block';
+      st.innerHTML = '⚠️ Webview Script Error: ' + esc(String(msg)) + ' (line ' + line + ')';
+    }
+  };
+
+  // ─── VS Code API Capture (Single Instance) ───────────
+  if (typeof window.__agVscApi === 'undefined' || !window.__agVscApi) {
+    try {
+      if (typeof acquireVsCodeApi === 'function') {
+        window.__agVscApi = acquireVsCodeApi();
+      }
+    } catch (err) {
+      console.warn('[AG Webview] acquireVsCodeApi warning:', err);
+    }
+  }
+
+  function getVsc() {
+    return window.__agVscApi || null;
+  }
+
+  // ─── Core Helpers ────────────────────────────────────
   function esc(s){
     if(!s) return '';
     if(typeof s !== 'string') s = String(s);
@@ -894,57 +924,6 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   function getSelProv(){ return document.getElementById('selProv'); }
   function getSelModel(){ return document.getElementById('selModel'); }
   function getKeyIn(){ return document.getElementById('keyIn'); }
-
-  function bot(){
-    var chatEl = getChat();
-    if(chatEl) chatEl.scrollTop = chatEl.scrollHeight;
-  }
-
-  function addMsg(role, text){
-    var chatEl = getChat();
-    var d = document.createElement('div');
-    d.className = 'msg ' + role;
-    if(typeof text !== 'string'){
-      if(Array.isArray(text)){
-        text = text.map(function(c){
-          if(typeof c === 'string') return c;
-          return (c && typeof c === 'object' && c.text) ? c.text : '';
-        }).join(' ');
-      } else {
-        text = String(text || '');
-      }
-    }
-    d.innerHTML = md(text);
-    if(chatEl){
-      chatEl.appendChild(d);
-    }
-    bot();
-    return d;
-  }
-
-  window.onerror = function(msg, url, line, col, error) {
-    console.error('[AG Webview Script Error]', msg, line, col, error);
-    var st = document.getElementById('agWebviewStatus');
-    if (st) {
-      st.style.display = 'block';
-      st.innerHTML = '⚠️ Webview Script Error: ' + esc(String(msg)) + ' (line ' + line + ')';
-    }
-  };
-
-  // ─── VS Code API Capture (Single Instance) ───────────
-  if (typeof window.__agVscApi === 'undefined' || !window.__agVscApi) {
-    try {
-      if (typeof acquireVsCodeApi === 'function') {
-        window.__agVscApi = acquireVsCodeApi();
-      }
-    } catch (err) {
-      console.warn('[AG Webview] acquireVsCodeApi warning:', err);
-    }
-  }
-
-  function getVsc() {
-    return window.__agVscApi || null;
-  }
 
   window.__agPost = function(type, data) {
     var api = getVsc();
@@ -1251,6 +1230,14 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
   // ─── Send Function ─────────────────────────────────
   var lastStreamStartTime = 0;
+  function resetSendBtn(){
+    var sendBtn = document.getElementById('btnSend');
+    if(sendBtn){
+      sendBtn.textContent = 'Send ⬆';
+      sendBtn.style.opacity = '1';
+    }
+  }
+
   function doSend(){
     var inputEl = getInp();
     if(!inputEl) return;
@@ -1264,14 +1251,21 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       return;
     }
 
-    if(streamEl !== null && (Date.now() - lastStreamStartTime > 6000)){
+    if(streamEl !== null && (Date.now() - lastStreamStartTime > 15000)){
       console.warn('[AG Webview] Resetting stale stream indicator');
       streamEl = null;
     }
     if(streamEl !== null){
+      console.warn('[AG Webview] Stream in progress, ignoring duplicate send');
       return;
     }
     lastStreamStartTime = Date.now();
+
+    var sendBtn = document.getElementById('btnSend');
+    if(sendBtn){
+      sendBtn.textContent = '⏳ Sending...';
+      sendBtn.style.opacity = '0.7';
+    }
 
     // Immediately clear input box for high responsiveness
     inputEl.value = '';
@@ -1322,6 +1316,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       }
       else if(m.type === 'state'){
         isHydrated = true;
+        resetSendBtn();
         if(handshakeTimer) clearInterval(handshakeTimer);
         var st = document.getElementById('agWebviewStatus');
         if(st) st.style.display = 'none';
@@ -1421,6 +1416,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         bot();
       }
       else if(m.type === 'done'){
+        resetSendBtn();
         var finalText = (m.text || currentStreamText);
         if(streamEl){
           streamEl.innerHTML = md(finalText);
@@ -1432,6 +1428,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         bot();
       }
       else if(m.type === 'error'){
+        resetSendBtn();
         var errHtml = '<div style="color:#ff5555;font-weight:bold;">❌ Error: ' + esc(m.text) + '</div>';
         if(streamEl){
           streamEl.innerHTML = errHtml;
@@ -1443,6 +1440,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         bot();
       }
       else if(m.type === 'cleared'){
+        resetSendBtn();
         var chatEl = getChat();
         if(chatEl) chatEl.innerHTML = '';
         streamEl = null;

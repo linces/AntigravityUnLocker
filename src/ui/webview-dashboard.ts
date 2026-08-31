@@ -38,6 +38,11 @@ export class AGWebviewDashboard {
     AGWebviewDashboard.currentPanel = panel;
     panel.webview.html = AGWebviewDashboard.getHtml(panel.webview, providerManager);
 
+    // Multi-pass state hydration to eliminate rendering race conditions
+    AGWebviewDashboard.updateState(providerManager);
+    setTimeout(() => AGWebviewDashboard.updateState(providerManager), 250);
+    setTimeout(() => AGWebviewDashboard.updateState(providerManager), 800);
+
     // Listen for messages from Webview
     panel.webview.onDidReceiveMessage(
       async (msg) => {
@@ -239,22 +244,42 @@ export class AGWebviewDashboard {
 
   <script nonce="${nonce}">
   (function(){
-    var vscode = acquireVsCodeApi();
+    // ─── Top-Level Error Handler ────────────────────────
+    window.onerror = function(msg, url, line, col, error) {
+      console.error('[AG Dashboard Script Error]', msg, line, col, error);
+    };
+
+    // ─── VS Code API Singleton Cache ────────────────────
+    if (typeof window.__agVscApi === 'undefined' || !window.__agVscApi) {
+      try {
+        if (typeof acquireVsCodeApi === 'function') {
+          window.__agVscApi = acquireVsCodeApi();
+        }
+      } catch (err) {
+        console.warn('[AG Dashboard] acquireVsCodeApi warning:', err);
+      }
+    }
+    var vscode = window.__agVscApi || null;
+    function postMsg(data){
+      if(vscode) vscode.postMessage(data);
+    }
 
     var btnRefresh = document.getElementById('btnRefresh');
     var btnClear = document.getElementById('btnClear');
     var providersGrid = document.getElementById('providersGrid');
     var logTableBody = document.getElementById('logTableBody');
 
-    btnRefresh.addEventListener('click', function(){ vscode.postMessage({type:'refresh'}); });
-    btnClear.addEventListener('click', function(){ vscode.postMessage({type:'clearMetrics'}); });
+    if(btnRefresh) btnRefresh.addEventListener('click', function(){ postMsg({type:'refresh'}); });
+    if(btnClear) btnClear.addEventListener('click', function(){ postMsg({type:'clearMetrics'}); });
 
-    providersGrid.addEventListener('click', function(e){
-      var card = e.target.closest('.card');
-      if(card && card.getAttribute('data-id')){
-        vscode.postMessage({type:'switchProvider', id: card.getAttribute('data-id')});
-      }
-    });
+    if(providersGrid) {
+      providersGrid.addEventListener('click', function(e){
+        var card = e.target.closest('.card');
+        if(card && card.getAttribute('data-id')){
+          postMsg({type:'switchProvider', id: card.getAttribute('data-id')});
+        }
+      });
+    }
 
     window.addEventListener('message', function(ev){
       var m = ev.data;
@@ -303,7 +328,7 @@ export class AGWebviewDashboard {
       return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
-    vscode.postMessage({type:'ready'});
+    postMsg({type:'ready'});
   })();
   </script>
 </body>
