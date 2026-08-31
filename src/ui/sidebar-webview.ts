@@ -1113,7 +1113,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         var code = pre.querySelector('code');
         var hdrSpan = pre.querySelector('.code-hdr span');
         var langOrPath = hdrSpan ? hdrSpan.innerText.trim() : '';
-        var detectedPath = (langOrPath.includes('.') || langOrPath.includes('/') || langOrPath.includes('\\')) ? langOrPath : '';
+        var detectedPath = (langOrPath.indexOf('.') >= 0 || langOrPath.indexOf('/') >= 0 || langOrPath.indexOf(String.fromCharCode(92)) >= 0) ? langOrPath : '';
         if(code) window.__agPost('diff', { code: code.innerText, path: detectedPath });
       }
       return;
@@ -1134,7 +1134,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         var code = pre.querySelector('code');
         var hdrSpan = pre.querySelector('.code-hdr span');
         var langOrPath = hdrSpan ? hdrSpan.innerText.trim() : '';
-        var detectedPath = (langOrPath.includes('.') || langOrPath.includes('/') || langOrPath.includes('\\')) ? langOrPath : '';
+        var detectedPath = (langOrPath.indexOf('.') >= 0 || langOrPath.indexOf('/') >= 0 || langOrPath.indexOf(String.fromCharCode(92)) >= 0) ? langOrPath : '';
         if(code) window.__agPost('saveFile', { code: code.innerText, path: detectedPath });
       }
       return;
