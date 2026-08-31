@@ -5,6 +5,16 @@ All notable changes to the **AG Universal AI** extension will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-08-31
+
+### Fixed & Hardened
+- **Webview Context Retention (`retainContextWhenHidden`)**: Registered `AGSidebarWebviewProvider` with `retainContextWhenHidden: true` to prevent VS Code from tearing down and discarding Webview DOM state, focus, and listeners during tab/editor switches.
+- **Webview Script Resilience**: Moved core functions (`esc`, `md`, `addMsg`, `bot`) to top-level of IIFE to prevent `ReferenceError` during early errors. Added resilient message handler fallback in `done`, `chunk`, and `error` so messages are never silently dropped even if `streamEl` reference is reset.
+- **Proactive Cloud API Key Guidance**: Added pre-request API key validation with clear in-chat guidance on saving keys via the `🔑` toolbar button or switching to free local providers (Ollama / LM Studio).
+- **Interactive Code Block Diff**: Integrated `Diff 🔍` button directly in code block headers for one-click side-by-side inspection (`vscode.diff`).
+
+---
+
 ## [0.6.1] - 2026-08-30
 
 ### Fixed

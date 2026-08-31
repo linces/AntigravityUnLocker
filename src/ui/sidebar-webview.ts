@@ -817,6 +817,112 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   private getScript(): string {
     return `
 (function(){
+  // ─── Core Helpers (Must be top-level in IIFE) ───────
+  function esc(s){
+    if(!s) return '';
+    if(typeof s !== 'string') s = String(s);
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+  }
+
+  function md(s){
+    if(!s) return '';
+    if(typeof s !== 'string'){
+      if(Array.isArray(s)){
+        s = s.map(function(c){
+          if(typeof c === 'string') return c;
+          return (c && typeof c === 'object' && c.text) ? c.text : '';
+        }).join(' ');
+      } else {
+        s = String(s);
+      }
+    }
+    var codeBlocks = [];
+    var codeBlockRegex = new RegExp(String.fromCharCode(96,96,96) + '([\\\\s\\\\S]*?)' + String.fromCharCode(96,96,96), 'g');
+    var text = s.replace(codeBlockRegex, function(_, block){
+      var id = '___CODE_BLOCK_' + codeBlocks.length + '___';
+      var firstNewline = block.indexOf(String.fromCharCode(10));
+      var lang = '';
+      var code = block;
+      if (firstNewline > 0 && firstNewline < 20 && !block.substring(0, firstNewline).includes(' ')) {
+        lang = block.substring(0, firstNewline).trim();
+        code = block.substring(firstNewline + 1);
+      }
+      var cleanCode = esc(code.trim());
+      var blockHtml = '<pre><div class="code-hdr"><span>' + (lang || 'code') + '</span><div style="display:flex;gap:4px;"><button type="button" class="cbtn diff-btn" title="Inspect Diff side-by-side">Diff 🔍</button> <button type="button" class="cbtn save-btn" title="Save to file">Save 📄</button> <button type="button" class="cbtn apply-btn" title="Apply to editor">Apply</button></div></div><code>' + cleanCode + '</code></pre>';
+      codeBlocks.push(blockHtml);
+      return id;
+    });
+
+    text = esc(text);
+
+    var inlineCodeRegex = new RegExp(String.fromCharCode(96) + '([^' + String.fromCharCode(96) + ']+)' + String.fromCharCode(96), 'g');
+    text = text.replace(inlineCodeRegex, '<code>$1</code>');
+    text = text.replace(/[*][*](.+?)[*][*]/g, '<b>$1</b>');
+    text = text.replace(/[*]([^*]+)[*]/g, '<i>$1</i>');
+    text = text.replace(/^### (.*$)/gm, '<h4 style="margin:4px 0">$1</h4>');
+    text = text.replace(/^## (.*$)/gm, '<h3 style="margin:6px 0">$1</h3>');
+    text = text.replace(/^# (.*$)/gm, '<h2 style="margin:8px 0">$1</h2>');
+    text = text.replace(/^[-*] (.*$)/gm, '• $1');
+    text = text.replace(/^(?:⏳|🔄|✅|❌) (.*$)/gm, '<div class="stepper-step">$1</div>');
+
+    text = text.replace(/:rocket:/g, '🚀');
+    text = text.replace(/:bug:/g, '🐛');
+    text = text.replace(/:fire:/g, '🔥');
+    text = text.replace(/:check:/g, '✅');
+    text = text.replace(/:warning:/g, '⚠️');
+    text = text.replace(/:zap:/g, '⚡');
+    text = text.replace(/:bulb:/g, '💡');
+    text = text.replace(/:robot:/g, '🤖');
+    text = text.replace(/:package:/g, '📦');
+    text = text.replace(/:smile:/g, '😄');
+    text = text.replace(/:thumbsup:/g, '👍');
+
+    text = text.replace(/(file:\/\/\/[^\s<]+|\b(?:[a-zA-Z]:[\\/]|src\/|docs\/)[^\s<]+)/g, '<a href="#" class="file-link" data-path="$1">$1</a>');
+
+    text = text.split(String.fromCharCode(10)).join('<br>');
+
+    for (var i = 0; i < codeBlocks.length; i++) {
+      (function(blockContent) {
+        text = text.replace('___CODE_BLOCK_' + i + '___', function() { return blockContent; });
+      })(codeBlocks[i]);
+    }
+
+    return text;
+  }
+
+  function getChat(){ return document.getElementById('chat'); }
+  function getInp(){ return document.getElementById('inp'); }
+  function getSelProv(){ return document.getElementById('selProv'); }
+  function getSelModel(){ return document.getElementById('selModel'); }
+  function getKeyIn(){ return document.getElementById('keyIn'); }
+
+  function bot(){
+    var chatEl = getChat();
+    if(chatEl) chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  function addMsg(role, text){
+    var chatEl = getChat();
+    var d = document.createElement('div');
+    d.className = 'msg ' + role;
+    if(typeof text !== 'string'){
+      if(Array.isArray(text)){
+        text = text.map(function(c){
+          if(typeof c === 'string') return c;
+          return (c && typeof c === 'object' && c.text) ? c.text : '';
+        }).join(' ');
+      } else {
+        text = String(text || '');
+      }
+    }
+    d.innerHTML = md(text);
+    if(chatEl){
+      chatEl.appendChild(d);
+    }
+    bot();
+    return d;
+  }
+
   window.onerror = function(msg, url, line, col, error) {
     console.error('[AG Webview Script Error]', msg, line, col, error);
     var st = document.getElementById('agWebviewStatus');
@@ -826,6 +932,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     }
   };
 
+  // ─── VS Code API Capture (Single Instance) ───────────
   if (typeof window.__agVscApi === 'undefined' || !window.__agVscApi) {
     try {
       if (typeof acquireVsCodeApi === 'function') {
@@ -866,17 +973,10 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   var currentStreamText = '';
   var isAgentMode = false;
   var isHydrated = false;
+  var isUpdatingUI = false;
 
   var attachedFiles = [];
   var attachedImages = [];
-
-  function getChat(){ return document.getElementById('chat'); }
-  function getInp(){ return document.getElementById('inp'); }
-  function getSelProv(){ return document.getElementById('selProv'); }
-  function getSelModel(){ return document.getElementById('selModel'); }
-  function getKeyIn(){ return document.getElementById('keyIn'); }
-
-  var isUpdatingUI = false;
 
   function renderAttachments(){
     var bar = document.getElementById('attachmentBar');
@@ -1056,7 +1156,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     }
   });
 
-  // ─── Drag & Drop Handlers ──────────────────────────
+  // ─── Drag & Drop Handlers ───────────────────────────
   window.addEventListener('dragover', function(e){ e.preventDefault(); });
   window.addEventListener('drop', function(e){
     e.preventDefault();
@@ -1084,7 +1184,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     }
   });
 
-  // ─── Emoji Picker Popover Setup ────────────────────
+  // ─── Emoji Picker Popover Setup ─────────────────────
   var emojiPicker = document.getElementById('emojiPicker');
   var emojis = ['🚀','⚡','🐛','🔧','🤖','💡','🧪','📦','🎨','🎯','🔒','💻','⚙️','📝','🔥','👍','👎','🎉','❤️','😄','🤔','🙌','👏','👀','💯','🙏'];
   if(emojiPicker){
@@ -1314,27 +1414,34 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         }
       }
       else if(m.type === 'chunk'){
-        if(streamEl){
-          currentStreamText += (m.text || '');
-          streamEl.innerHTML = md(currentStreamText);
-          bot();
+        if(!streamEl){
+          streamEl = addMsg('assistant', '');
         }
+        currentStreamText += (m.text || '');
+        streamEl.innerHTML = md(currentStreamText);
+        bot();
       }
       else if(m.type === 'done'){
+        var finalText = (m.text || currentStreamText);
         if(streamEl){
-          var finalText = (m.text || currentStreamText);
           streamEl.innerHTML = md(finalText);
           streamEl = null;
-          currentStreamText = '';
-          bot();
+        } else if(finalText){
+          addMsg('assistant', finalText);
         }
+        currentStreamText = '';
+        bot();
       }
       else if(m.type === 'error'){
+        var errHtml = '<div style="color:#ff5555;font-weight:bold;">❌ Error: ' + esc(m.text) + '</div>';
         if(streamEl){
-          streamEl.innerHTML = '<div style="color:#ff5555;font-weight:bold;">❌ Error: ' + esc(m.text) + '</div>';
+          streamEl.innerHTML = errHtml;
           streamEl = null;
-          currentStreamText = '';
+        } else {
+          addMsg('assistant', errHtml);
         }
+        currentStreamText = '';
+        bot();
       }
       else if(m.type === 'cleared'){
         var chatEl = getChat();
@@ -1346,106 +1453,6 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       console.error('[AG AI Webview Error]', err);
     }
   });
-
-  // ─── Helpers ───────────────────────────────────────
-  function addMsg(role, text){
-    var chatEl = getChat();
-    var d = document.createElement('div');
-    d.className = 'msg ' + role;
-    if(typeof text !== 'string'){
-      if(Array.isArray(text)){
-        text = text.map(function(c){
-          if(typeof c === 'string') return c;
-          return (c && typeof c === 'object' && c.text) ? c.text : '';
-        }).join(' ');
-      } else {
-        text = String(text || '');
-      }
-    }
-    d.innerHTML = md(text);
-    if(chatEl){
-      chatEl.appendChild(d);
-    }
-    bot();
-    return d;
-  }
-
-  function bot(){
-    var chatEl = getChat();
-    if(chatEl) chatEl.scrollTop = chatEl.scrollHeight;
-  }
-
-  function esc(s){
-    if(!s) return '';
-    if(typeof s !== 'string') s = String(s);
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
-  }
-
-  function md(s){
-    if(!s) return '';
-    if(typeof s !== 'string'){
-      if(Array.isArray(s)){
-        s = s.map(function(c){
-          if(typeof c === 'string') return c;
-          return (c && typeof c === 'object' && c.text) ? c.text : '';
-        }).join(' ');
-      } else {
-        s = String(s);
-      }
-    }
-    var codeBlocks = [];
-    var codeBlockRegex = new RegExp(String.fromCharCode(96,96,96) + '([\\\\s\\\\S]*?)' + String.fromCharCode(96,96,96), 'g');
-    var text = s.replace(codeBlockRegex, function(_, block){
-      var id = '___CODE_BLOCK_' + codeBlocks.length + '___';
-      var firstNewline = block.indexOf(String.fromCharCode(10));
-      var lang = '';
-      var code = block;
-      if (firstNewline > 0 && firstNewline < 20 && !block.substring(0, firstNewline).includes(' ')) {
-        lang = block.substring(0, firstNewline).trim();
-        code = block.substring(firstNewline + 1);
-      }
-      var cleanCode = esc(code.trim());
-      var blockHtml = '<pre><div class="code-hdr"><span>' + (lang || 'code') + '</span><div style="display:flex;gap:4px;"><button type="button" class="cbtn diff-btn" title="Inspect Diff side-by-side">Diff 🔍</button> <button type="button" class="cbtn save-btn" title="Save to file">Save 📄</button> <button type="button" class="cbtn apply-btn" title="Apply to editor">Apply</button></div></div><code>' + cleanCode + '</code></pre>';
-      codeBlocks.push(blockHtml);
-      return id;
-    });
-
-    text = esc(text);
-
-    var inlineCodeRegex = new RegExp(String.fromCharCode(96) + '([^' + String.fromCharCode(96) + ']+)' + String.fromCharCode(96), 'g');
-    text = text.replace(inlineCodeRegex, '<code>$1</code>');
-    text = text.replace(/[*][*](.+?)[*][*]/g, '<b>$1</b>');
-    text = text.replace(/[*]([^*]+)[*]/g, '<i>$1</i>');
-    text = text.replace(/^### (.*$)/gm, '<h4 style="margin:4px 0">$1</h4>');
-    text = text.replace(/^## (.*$)/gm, '<h3 style="margin:6px 0">$1</h3>');
-    text = text.replace(/^# (.*$)/gm, '<h2 style="margin:8px 0">$1</h2>');
-    text = text.replace(/^[-*] (.*$)/gm, '• $1');
-    text = text.replace(/^(?:⏳|🔄|✅|❌) (.*$)/gm, '<div class="stepper-step">$1</div>');
-
-    text = text.replace(/:rocket:/g, '🚀');
-    text = text.replace(/:bug:/g, '🐛');
-    text = text.replace(/:fire:/g, '🔥');
-    text = text.replace(/:check:/g, '✅');
-    text = text.replace(/:warning:/g, '⚠️');
-    text = text.replace(/:zap:/g, '⚡');
-    text = text.replace(/:bulb:/g, '💡');
-    text = text.replace(/:robot:/g, '🤖');
-    text = text.replace(/:package:/g, '📦');
-    text = text.replace(/:smile:/g, '😄');
-    text = text.replace(/:thumbsup:/g, '👍');
-
-    text = text.replace(/(file:\/\/\/[^\s<]+|\b(?:[a-zA-Z]:[\\/]|src\/|docs\/)[^\s<]+)/g, '<a href="#" class="file-link" data-path="$1">$1</a>');
-
-    text = text.split(String.fromCharCode(10)).join('<br>');
-
-    for (var i = 0; i < codeBlocks.length; i++) {
-      (function(blockContent) {
-        text = text.replace('___CODE_BLOCK_' + i + '___', function() { return blockContent; });
-      })(codeBlocks[i]);
-    }
-
-    return text;
-  }
 
   // ─── Self-Healing Heartbeat Handshake ──────────────
   function triggerReady(){
@@ -1471,3 +1478,4 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 `;
   }
 }
+

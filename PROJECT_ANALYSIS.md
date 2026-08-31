@@ -86,10 +86,15 @@ O projeto atua como uma **extensão unificada para VS Code e Antigravity IDE**, 
   - [x] Visualização de Diff interativo side-by-side (`AGDiffProvider` no esquema `ag-diff://`) com `vscode.diff`.
   - [x] Alinhamento total de schemas de ferramentas no servidor MCP embarcado (9 ferramentas de workspace).
   - [x] Suíte de testes automatizados expandida para 22 testes unitários.
+- [x] **v0.6.2**:
+  - [x] `retainContextWhenHidden: true` no registro do `WebviewViewProvider` para preservar DOM e listeners durante trocas de abas.
+  - [x] Reestruturação dos helpers de Webview no topo da IIFE para evitar `ReferenceError` em falhas prévias.
+  - [x] Fallback resiliente no recebimento de chunks e conclusão de mensagens para evitar perda silenciosa de respostas.
+  - [x] Validação prévia e orientação amigável no chat para provedores em nuvem que exigem API Key.
 - [ ] **v0.7.0**:
   - [ ] Suporte a transportes SSE / HTTP remotos no MCP Client Engine.
   - [ ] Multi-persona Agent Swarm com delegação paralela de sub-tarefas.
 
 ---
 
-**Versão:** 0.6.0 | **Última Revisão:** 2026-08-30 17:53:00
+**Versão:** 0.6.2 | **Última Revisão:** 2026-08-31 08:53:00

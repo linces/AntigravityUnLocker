@@ -113,7 +113,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     sidebarWebviewProvider,
     vscode.window.registerWebviewViewProvider(
       'ag-universal-ai.sidebarView',
-      sidebarWebviewProvider
+      sidebarWebviewProvider,
+      {
+        webviewOptions: {
+          retainContextWhenHidden: true,
+        },
+      }
     )
   );
   log('Primary Sidebar Webview registered (Kimi/Cursor/Cline style)');
