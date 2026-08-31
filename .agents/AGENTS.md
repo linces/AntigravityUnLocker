@@ -59,9 +59,14 @@ Whenever any feature, code adapter, route, backend model, or documentation file 
 - Todos os manipuladores de entrada em Webviews do VS Code (especialmente `<textarea>` e botões da toolbar) devem possuir captura direta (`addEventListener` nos elementos específicos com `e.preventDefault()` e `e.stopPropagation()`) para garantir o acionamento na tecla `Enter` (sem `Shift`) e impedir inserção involuntária de quebra de linha.
 - O objeto de IPC `acquireVsCodeApi()` deve ser capturado exatamente **uma vez** na inicialização do script e mantido em cache seguro (`window.__agVscApi`) para evitar exceções por re-aquisição no ciclo do Webview.
 
-### 2. Prevenção de Colisão de Backticks em Template Strings de Webview
-- NUNCA utilizar expressões regulares ou literais contendo backticks (`\`\`\``) diretamente dentro de template strings TypeScript/JavaScript que geram o script cliente do Webview (`getScript()`). O empacotador (esbuild) pode desescapar os backticks e quebrar a sintaxe do script no navegador do Webview (`Uncaught SyntaxError`). SEMPRE utilizar a construção dinâmica `new RegExp(String.fromCharCode(96) + ...)`.
-- Todo script de Webview DEVE injetar um handler `window.onerror` no topo da IIFE para capturar erros não tratados e exibir um aviso visual de diagnóstico (`#agWebviewStatus`).
+### 2. Prevenção Absoluta de Colisão de Escape, Backticks e Barras Invertidas em Template Strings (String.fromCharCode Rule)
+- NUNCA utilizar barras invertidas literais (`'\\'` ou `\\`) ou crases/backticks literais (`\`\`\`` ou `\``) diretamente dentro de strings ou expressões regulares em template strings TypeScript/JavaScript geradoras de script Webview (`getScript()`).
+- O bundler (`esbuild`) e o compilador TS desescapam caracteres especiais na montagem do bundle (ex: `includes('\\')` vira `includes('\')`), gerando `Uncaught SyntaxError: Invalid or unexpected token` / `Unterminated string literal` no navegador do Webview e congelando silenciosamente todo o script (nenhum `addEventListener` roda).
+- SEMPRE utilizar:
+  - `String.fromCharCode(92)` para barras invertidas (`\`) — ex: `langOrPath.indexOf(String.fromCharCode(92)) >= 0`.
+  - `String.fromCharCode(96)` para crases/backticks (`` ` ``) — ex: `new RegExp(String.fromCharCode(96) + ...)`.
+  - `String.fromCharCode(10)` para quebras de linha (`\n`).
+- Todo script de Webview DEVE injetar um handler `window.onerror` e helpers no topo da IIFE para capturar erros e exibir aviso visual de diagnóstico (`#agWebviewStatus`).
 
 ### 3. Adaptador Universal de Streaming (Node vs Web ReadableStream)
 - Requisições HTTP streaming (`fetch`) no ambiente Node/Electron do VS Code NUNCA devem assumir apenas `response.body.getReader()`. Devem sempre implementar suporte híbrido a `body.getReader()` e `Symbol.asyncIterator in body` para evitar a exceção `TypeError: response.body.getReader is not a function`.
@@ -80,4 +85,4 @@ Sempre que uma alteração ou correção em componentes da extensão ou Webview 
 
 ---
 
-**Versão:** 0.6.2 | **Última Revisão:** 2026-08-31 09:01:00
+**Versão:** 0.6.6 | **Última Revisão:** 2026-08-31 09:55:00
