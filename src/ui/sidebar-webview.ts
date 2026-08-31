@@ -822,7 +822,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   private getScript(): string {
     return `
 (function(){
-  // ─── Global Error Trap (Must be first in IIFE) ──────
+  // ─── Global Error Trap - Must be first in IIFE ──────
   window.onerror = function(msg, url, line, col, error) {
     console.error('[AG Webview Script Error]', msg, line, col, error);
     var st = document.getElementById('agWebviewStatus');
@@ -832,7 +832,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     }
   };
 
-  // ─── VS Code API Capture (Single Instance) ───────────
+  // ─── VS Code API Capture - Single Instance ───────────
   if (typeof window.__agVscApi === 'undefined' || !window.__agVscApi) {
     try {
       if (typeof acquireVsCodeApi === 'function') {
@@ -924,6 +924,33 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   function getSelProv(){ return document.getElementById('selProv'); }
   function getSelModel(){ return document.getElementById('selModel'); }
   function getKeyIn(){ return document.getElementById('keyIn'); }
+
+  function bot(){
+    var chatEl = getChat();
+    if(chatEl) chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  function addMsg(role, text){
+    var chatEl = getChat();
+    var d = document.createElement('div');
+    d.className = 'msg ' + (role === 'user' ? 'user' : 'assistant');
+    if(typeof text !== 'string'){
+      if(Array.isArray(text)){
+        text = text.map(function(c){
+          if(typeof c === 'string') return c;
+          return (c && typeof c === 'object' && c.text) ? c.text : '';
+        }).join(' ');
+      } else {
+        text = String(text || '');
+      }
+    }
+    d.innerHTML = md(text);
+    if(chatEl){
+      chatEl.appendChild(d);
+    }
+    bot();
+    return d;
+  }
 
   window.__agPost = function(type, data) {
     var api = getVsc();
@@ -1114,7 +1141,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     }
   });
 
-  // ─── Clipboard Paste Handler (Ctrl+V Screenshots) ───
+  // ─── Clipboard Paste Handler - Screenshots ───
   document.addEventListener('paste', function(e){
     if(!e.clipboardData || !e.clipboardData.items) return;
     var items = e.clipboardData.items;
@@ -1448,6 +1475,11 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       }
     } catch(err) {
       console.error('[AG AI Webview Error]', err);
+      var st = document.getElementById('agWebviewStatus');
+      if (st) {
+        st.style.display = 'block';
+        st.innerHTML = '⚠️ Webview Event Error: ' + esc(String(err && err.message ? err.message : err));
+      }
     }
   });
 
