@@ -2,7 +2,7 @@
    "name": "ag-universal-ai",
    "displayName": "AG Universal AI",
    "description": "Universal multi-provider AI assistant for VS Code & Antigravity IDE — Code completion, chat, agent workflows, MCP, and tool calling powered by any OpenAI-compatible backend.",
-   "version": "0.11.0",
+   "version": "0.12.0",
    "publisher": "linces",
    "icon": "resources/icons/ag-icon.png",
    "license": "MIT",
@@ -133,6 +133,11 @@
             "command": "ag-universal-ai.reloadRules",
             "title": "AG AI: Reload Rules & Domains",
             "icon": "$(refresh)"
+         },
+         {
+            "command": "ag-universal-ai.refreshModels",
+            "title": "AG AI: Refresh Model List (Auto-Discovery)",
+            "icon": "$(search)"
          }
       ],
       "menus": {

@@ -15,6 +15,7 @@ import * as path from 'path';
 import { OpenAIAdapter } from './openai-adapter';
 import { OllamaAdapter } from './ollama-adapter';
 import { getPreset, getAllPresets, type ProviderPreset } from './provider-registry';
+import { ModelDiscoveryService, type DiscoveryResult } from './model-discovery';
 import type {
   ILLMProvider,
   ProviderConfig,
@@ -55,6 +56,7 @@ export class ProviderManager implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
   private metrics: RequestMetric[] = [];
   private envKeys = new Map<string, string>();
+  private discoveryService: ModelDiscoveryService;
 
   private isUpdatingConfig = false;
   private lastConfigUpdateTime = 0;
@@ -74,6 +76,12 @@ export class ProviderManager implements vscode.Disposable {
   ) {
     this.secretStorage = context.secrets;
     this.outputChannel = outputChannel;
+
+    // Initialize Model Discovery Service with persistent cache
+    this.discoveryService = new ModelDiscoveryService(
+      (msg) => this.log(msg),
+      context.globalState
+    );
 
     // Listen for configuration changes
     this.disposables.push(
@@ -199,6 +207,11 @@ export class ProviderManager implements vscode.Disposable {
      });
 
      this.log(`Active provider switched: ${previousId} → ${id} (${provider.name}, model: ${provider.config.model})`);
+
+     // Background model discovery for newly active provider
+     this.discoveryService.discoverModels(provider).catch((err: unknown) => {
+       this.log(`Background model discovery for ${id} failed: ${err instanceof Error ? err.message : String(err)}`);
+     });
    }
 
   /**
@@ -400,55 +413,46 @@ export class ProviderManager implements vscode.Disposable {
   }
 
   /**
-   * List available models for a provider. Always falls back to preset models if live fetch fails or is empty.
+   * List available models for a provider using the Model Discovery Service.
+   * Falls back through: live → memory cache → persistent cache → preset → config model.
    */
   public async listModels(providerId: string): Promise<ModelInfo[]> {
     const provider = this.providers.get(providerId);
-    if (!provider || !provider.listModels) {
-      return this.getFallbackModelsForProvider(providerId);
+    if (!provider) {
+      return this.discoveryService.getCachedModels(providerId);
     }
-    try {
-      const models = await Promise.race([
-        provider.listModels(),
-        new Promise<ModelInfo[]>((_, reject) =>
-          setTimeout(() => reject(new Error('Timeout listing models')), 3000)
-        ),
-      ]);
-      if (models && models.length > 0) {
-        return models;
-      }
-      return this.getFallbackModelsForProvider(providerId);
-    } catch {
-      return this.getFallbackModelsForProvider(providerId);
-    }
+    const result = await this.discoveryService.discoverModels(provider);
+    return result.models;
   }
 
-  private getFallbackModelsForProvider(providerId: string): ModelInfo[] {
-    const preset = getPreset(providerId);
-    if (preset?.availableModels && preset.availableModels.length > 0) {
-      return preset.availableModels.map((m) => ({
-        id: m,
-        name: m,
-        vendor: providerId,
-        maxInputTokens: 128000,
-        maxOutputTokens: 4096,
-        supportsTools: true,
-        supportsVision: m.toLowerCase().includes('vision') || m.toLowerCase().includes('vl'),
-      }));
-    }
-    const provider = this.providers.get(providerId);
-    if (provider?.config.model) {
-      return [{
-        id: provider.config.model,
-        name: provider.config.model,
-        vendor: providerId,
-        maxInputTokens: 128000,
-        maxOutputTokens: 4096,
-        supportsTools: true,
-        supportsVision: false,
-      }];
-    }
-    return [];
+  /**
+   * Force-refresh the model list for a provider (invalidates cache).
+   */
+  public async refreshModels(providerId?: string): Promise<DiscoveryResult | undefined> {
+    const targetId = providerId || this.activeProviderId;
+    if (!targetId) { return undefined; }
+
+    const provider = this.providers.get(targetId);
+    if (!provider) { return undefined; }
+
+    this.discoveryService.invalidateCache(targetId);
+    const result = await this.discoveryService.discoverModels(provider, true);
+    this.log(`Model refresh for ${targetId}: ${result.models.length} models (source: ${result.source})`);
+    return result;
+  }
+
+  /**
+   * Get cached models synchronously (no network). For instant UI rendering.
+   */
+  public getCachedModels(providerId: string): ModelInfo[] {
+    return this.discoveryService.getCachedModels(providerId);
+  }
+
+  /**
+   * Get the discovery source for the last model fetch.
+   */
+  public getModelDiscoverySource(providerId: string): string | undefined {
+    return this.discoveryService.getLastSource(providerId);
   }
 
   /**

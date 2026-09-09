@@ -59,6 +59,7 @@ export async function showProviderPicker(providerManager: ProviderManager): Prom
 
 /**
  * Show a Quick Pick to select a specific model for the active provider.
+ * Uses the Model Discovery Service for live + cached model lists.
  */
 export async function showModelPicker(providerManager: ProviderManager): Promise<void> {
   const activeProvider = providerManager.getActiveProvider();
@@ -68,15 +69,15 @@ export async function showModelPicker(providerManager: ProviderManager): Promise
   }
 
   const quickPick = vscode.window.createQuickPick();
-  quickPick.placeholder = 'Loading models...';
+  quickPick.placeholder = 'Discovering models...';
   quickPick.title = `AG Universal AI — Select Model (${activeProvider.name})`;
   quickPick.busy = true;
   quickPick.show();
 
   try {
-    const models = activeProvider.listModels
-      ? await activeProvider.listModels()
-      : [];
+    const models = await providerManager.listModels(activeProvider.id);
+    const source = providerManager.getModelDiscoverySource(activeProvider.id);
+    const sourceLabel = source === 'live' ? '✓ Live' : source === 'memory-cache' ? '⚡ Cached' : source === 'persistent-cache' ? '💾 Saved' : '📋 Preset';
 
     if (models.length === 0) {
       quickPick.items = [
@@ -87,21 +88,30 @@ export async function showModelPicker(providerManager: ProviderManager): Promise
         },
       ];
     } else {
-      quickPick.items = models.map((m) => ({
-        label: m.id,
-        description: m.supportsVision ? '$(eye) Vision' : '',
-        detail: `Max Input: ${m.maxInputTokens.toLocaleString()} tokens`,
-      }));
+      quickPick.items = models.map((m) => {
+        const caps: string[] = [];
+        if (m.supportsVision) { caps.push('$(eye) Vision'); }
+        if (m.supportsTools) { caps.push('$(tools) Tools'); }
+        if (!m.supportsTools) { caps.push('$(dash) No Tools'); }
+        const isActive = m.id === activeProvider.config.model ? ' $(check)' : '';
+        return {
+          label: m.id + isActive,
+          description: caps.join(' · '),
+          detail: `${sourceLabel} · Max: ${m.maxInputTokens.toLocaleString()} tokens`,
+        };
+      });
     }
 
     quickPick.busy = false;
-    quickPick.placeholder = 'Select a model';
+    quickPick.placeholder = `Select a model (${sourceLabel})`;
 
     quickPick.onDidAccept(async () => {
       const selected = quickPick.selectedItems[0];
       if (selected && activeProvider) {
-        await providerManager.setModel(activeProvider.id, selected.label);
-        vscode.window.showInformationMessage(`AG AI: Model set to ${selected.label}`);
+        // Strip the active indicator from label
+        const modelId = selected.label.replace(/ \$\(check\)$/, '');
+        await providerManager.setModel(activeProvider.id, modelId);
+        vscode.window.showInformationMessage(`AG AI: Model set to ${modelId}`);
       }
       quickPick.dispose();
     });

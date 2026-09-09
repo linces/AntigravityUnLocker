@@ -303,34 +303,65 @@ export class OpenAIAdapter implements ILLMProvider {
   }
 
   public async listModels(): Promise<ModelInfo[]> {
-    try {
-      const response = await fetch(`${this.baseUrl}/models`, {
-        method: 'GET',
-        headers: this.buildHeaders(),
-        signal: AbortSignal.timeout(10000),
-      });
+    // Try multiple endpoint patterns — some providers nest differently
+    const endpoints = ['/models', '/v1/models'];
 
-      if (!response.ok) {
-        return this.getFallbackModels();
+    for (const endpoint of endpoints) {
+      try {
+        const url = `${this.baseUrl}${endpoint}`;
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: this.buildHeaders(),
+          signal: AbortSignal.timeout(10000),
+        });
+
+        if (!response.ok) { continue; }
+
+        const data = (await response.json()) as {
+          data?: Array<{
+            id: string;
+            owned_by?: string;
+            created?: number;
+            object?: string;
+          }>;
+        };
+
+        if (!data.data || !Array.isArray(data.data) || data.data.length === 0) {
+          continue;
+        }
+
+        return data.data.map((m) => ({
+          id: m.id,
+          name: m.id,
+          vendor: m.owned_by || this.id,
+          maxInputTokens: 128000,
+          maxOutputTokens: 4096,
+          supportsTools: this.looksLikeToolCapable(m.id),
+          supportsVision: this.looksLikeVisionCapable(m.id),
+        }));
+      } catch {
+        continue; // Try next endpoint
       }
-
-      const data = (await response.json()) as { data?: Array<{ id: string }> };
-      if (!data.data || !Array.isArray(data.data)) {
-        return this.getFallbackModels();
-      }
-
-      return data.data.map((m) => ({
-        id: m.id,
-        name: m.id,
-        vendor: this.id,
-        maxInputTokens: 128000,
-        maxOutputTokens: 4096,
-        supportsTools: true,
-        supportsVision: false,
-      }));
-    } catch {
-      return this.getFallbackModels();
     }
+
+    return this.getFallbackModels();
+  }
+
+  private looksLikeToolCapable(modelId: string): boolean {
+    const lower = modelId.toLowerCase();
+    // Embedding/audio/image-only models don't support tool calling
+    if (lower.includes('embed') || lower.includes('tts') || lower.includes('whisper') ||
+        lower.includes('dall-e') || lower.includes('cogview') || lower.includes('moderation')) {
+      return false;
+    }
+    return true;
+  }
+
+  private looksLikeVisionCapable(modelId: string): boolean {
+    const lower = modelId.toLowerCase();
+    return lower.includes('vision') || lower.includes('vl') || lower.includes('llava') ||
+           lower.includes('gpt-4o') || lower.includes('gpt-4-turbo') ||
+           lower.includes('claude-3') || lower.includes('gemini');
   }
 
   // ─── Private Helpers ────────────────────────────────────────────────────────

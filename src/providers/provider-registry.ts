@@ -182,10 +182,8 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     defaultModel: 'meta/llama-3.3-70b-instruct',
     availableModels: [
       'meta/llama-3.3-70b-instruct',
-      'nvidia/llama-3.1-nemotron-70b-instruct',
       'deepseek-ai/deepseek-r1',
       'qwen/qwen2.5-coder-32b-instruct',
-      'mistralai/mistral-large-2-instruct',
     ],
     timeoutMs: 120000,
     isLocal: false,

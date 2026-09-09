@@ -169,6 +169,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       showHealthCheck(providerManager);
     }),
 
+    vscode.commands.registerCommand('ag-universal-ai.refreshModels', async () => {
+      const result = await providerManager.refreshModels();
+      if (result) {
+        sidebarWebviewProvider.postStateUpdate();
+        vscode.window.showInformationMessage(
+          `AG AI: Discovered ${result.models.length} models (source: ${result.source})`
+        );
+      }
+    }),
+
     vscode.commands.registerCommand('ag-universal-ai.showDashboard', () => {
       AGWebviewDashboard.show(context.extensionUri, providerManager);
     }),

@@ -12,7 +12,7 @@ import type { ToolRegistry } from '../tools/tool-registry';
 import type { AgentEngine } from '../agent/engine';
 import type { AgentPlanner } from '../agent/planner';
 import { PersonaRegistry } from '../agent/personas';
-import { getAllPresets, getPreset } from '../providers/provider-registry';
+import { getAllPresets } from '../providers/provider-registry';
 import { buildSystemPrompt, buildSlashCommandPrompt } from '../chat/prompt-builder';
 import { AGDiffProvider } from './diff-provider';
 import type { DomainRulesManager } from '../domains/domain-rules-manager';
@@ -99,6 +99,14 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
               await this.providerManager.setModel(this.providerManager.getActiveProviderId()!, msg.model);
             }
             break;
+          case 'refreshModels': {
+            const activeProviderId = this.providerManager.getActiveProviderId();
+            if (activeProviderId) {
+              await this.providerManager.refreshModels(activeProviderId);
+              await this.postStateUpdate();
+            }
+            break;
+          }
           case 'saveKey':
             await this.providerManager.setApiKey(msg.id, msg.key.trim());
             vscode.window.showInformationMessage(`API Key saved for ${msg.id}`);
@@ -671,14 +679,14 @@ Execute the planned steps systematically using available tools. Be concise, veri
       messageCount: s.messages.length,
     }));
 
-    // 1. Post immediate state update (optimistic UI response)
-    const preset = getPreset(activeId);
-    const presetModels = preset?.availableModels ? Array.from(preset.availableModels) : [];
+    // 1. Post immediate state update with cached models (optimistic UI)
+    const cachedModels = this.providerManager.getCachedModels(activeId);
     const initialModels = Array.from(new Set([
       ...(ap?.config.model ? [ap.config.model] : []),
-      ...presetModels,
+      ...cachedModels.map(m => m.id),
     ]));
     const ruleCount = this.domainRulesManager?.getRuleSummary().totalRules || 0;
+    const cachedSource = this.providerManager.getModelDiscoverySource(activeId);
     this.post({
       type: 'state',
       activeId,
@@ -687,17 +695,20 @@ Execute the planned steps systematically using available tools. Be concise, veri
       history: activeSession.messages,
       active: ap ? { id: ap.id, name: ap.name, model: ap.config.model, url: ap.config.baseUrl, hasKey: !!ap.config.apiKey } : null,
       models: initialModels,
+      modelSource: cachedSource || 'preset-fallback',
       providers: presets,
       ruleCount,
     });
 
     if (!ap) { return; }
 
-    // 2. Fetch full model list asynchronously
+    // 2. Live discovery fetch (async, non-blocking)
     let models: string[] = [];
+    let modelSource = 'preset-fallback';
     try {
       const modelInfos = await this.providerManager.listModels(ap.id);
       models = modelInfos.map((m) => m.id);
+      modelSource = this.providerManager.getModelDiscoverySource(ap.id) || 'live';
     } catch {
       models = [];
     }
@@ -723,6 +734,7 @@ Execute the planned steps systematically using available tools. Be concise, veri
       history: activeSession.messages,
       active: { id: ap.id, name: ap.name, model: ap.config.model, url: ap.config.baseUrl, hasKey: !!ap.config.apiKey },
       models,
+      modelSource,
       providers: presets,
       ruleCount,
     });
