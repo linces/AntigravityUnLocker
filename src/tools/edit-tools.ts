@@ -7,6 +7,7 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
+import type { CheckpointManager } from '../agent/checkpoint-manager';
 
 export interface ReplacementChunk {
   targetContent: string;
@@ -14,7 +15,13 @@ export interface ReplacementChunk {
 }
 
 export class EditTools {
+  private checkpointManager?: CheckpointManager;
+
   constructor(private readonly outputChannel: vscode.OutputChannel) {}
+
+  public setCheckpointManager(manager: CheckpointManager): void {
+    this.checkpointManager = manager;
+  }
 
   /**
    * Replace a specific target string in a file with replacement string.
@@ -40,6 +47,10 @@ export class EditTools {
       }
       if (occurrences > 1) {
         return `Error: Target content found ${occurrences} times in "${filePath}". Include more surrounding code context to make targetContent unique.`;
+      }
+
+      if (this.checkpointManager) {
+        await this.checkpointManager.captureFileBeforeMutation(filePath);
       }
 
       const updatedText = fullText.replace(targetContent, replacementContent);
@@ -87,6 +98,10 @@ export class EditTools {
 
         updatedText = updatedText.replace(targetContent, replacementContent);
         appliedCount++;
+      }
+
+      if (this.checkpointManager) {
+        await this.checkpointManager.captureFileBeforeMutation(filePath);
       }
 
       const encoder = new TextEncoder();

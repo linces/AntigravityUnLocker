@@ -16,3 +16,4 @@ import './domain-rules.test';
 import './tool-approval.test';
 import './subagent.test';
 import './model-discovery.test';
+import './checkpoint-manager.test';

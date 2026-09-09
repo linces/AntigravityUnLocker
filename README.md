@@ -4,14 +4,14 @@
   <img src="https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Platform-VS%20Code%20%7C%20Antigravity%20IDE-blue?style=for-the-badge&logo=visualstudiocode" alt="Platform" />
   <img src="https://img.shields.io/badge/Providers-13-purple?style=for-the-badge&logo=openai" alt="Providers" />
-  <img src="https://img.shields.io/badge/Tests-68%20passing-brightgreen?style=for-the-badge&logo=mocha" alt="Tests" />
-  <img src="https://img.shields.io/badge/Version-0.12.0-green?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Tests-83%20passing-brightgreen?style=for-the-badge&logo=mocha" alt="Tests" />
+  <img src="https://img.shields.io/badge/Version-0.13.0-green?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-brightgreen?style=for-the-badge&logo=opensourceinitiative" alt="License" />
 </p>
 
 <p align="center">
   <b>A powerful, multi-provider AI coding assistant & agent engine for VS Code & Antigravity IDE.</b><br />
-  Runtime Model Auto-Discovery, Parallel Subagents & Swarm Delegation, Human-in-the-Loop Diff Approval, Universal Rules (.agents, Cursor, Windsurf, Copilot, Claude), and Direct MCP.
+  Workspace Checkpointing & Time-Travel Rollback, Runtime Model Auto-Discovery, Parallel Subagents & Swarm Delegation, Human-in-the-Loop Diff Approval, Universal Rules, and Direct MCP.
 </p>
 
 > [!IMPORTANT]
@@ -168,6 +168,13 @@ Para consumo direto pelo AG Universal AI sem necessidade de daemons intermediár
 - **Higienização de Modelos Obsoletos**: Sanitização automática de modelos obsoletos herdados de configurações anteriores (como `nemotron-4-340b-instruct` e `llama-3.1-nemotron-70b-instruct` na NVIDIA NIM), migrando-os automaticamente para modelos atuais válidos (`meta/llama-3.3-70b-instruct`).
 - **Transparência na UI**: Rótulos claros no QuickPick e Sidebar Webview identificando a origem (`✓ Live`, `⚡ Cached`, `💾 Saved`, `📋 Preset`) e botão de atualização manual (`🔄 Refresh Models`).
 
+### ⏪ Workspace Checkpointing & Time-Travel Rollback (`CheckpointManager`)
+- **Snapshots Copy-on-Write (CoW)**: Captura automática e instantânea do estado original de arquivos antes de qualquer mutação física pelo agente ou ferramentas (`ag_writeFile`, `ag_replaceInFile`, `ag_multiReplaceInFile`).
+- **Reversão com 1 Clique (`⏪ Reverter Tarefa`)**: Restaura arquivos modificados para seu conteúdo exato pré-tarefa e remove arquivos temporários ou criados pelo agente.
+- **Inspeção Visual de Mudanças (`🔍 Inspecionar Mudanças`)**: Integração com `ag-diff://` para comparar lado a lado o estado original do checkpoint contra as alterações atuais no disco.
+- **Ferramentas Nativas para Agentes**: Suporte a `ag_createCheckpoint`, `ag_rollbackToCheckpoint` e `ag_listCheckpoints` permitindo auto-reversão e salvaguarda em execuções arriscadas.
+- **Comandos no VS Code**: `AG AI: Create Workspace Checkpoint`, `AG AI: Revert Workspace to Checkpoint`, `AG AI: List Workspace Checkpoints`.
+
 ### 📊 Telemetria & Dashboard Interativo
 - Métricas em tempo real (requisições, taxa de sucesso %, latência ms e uso de tokens).
 - Troca de provedor ativo com 1 clique diretamente no Dashboard (`AG AI: Show Dashboard`).
@@ -197,4 +204,4 @@ Abra a barra lateral de IA e digite `@ag` ou interaja diretamente pelo painel in
 
 ---
 
-**Versão:** 0.12.0 | **Última Revisão:** 2026-09-09 07:51:00
+**Versão:** 0.13.0 | **Última Revisão:** 2026-09-09 08:30:00

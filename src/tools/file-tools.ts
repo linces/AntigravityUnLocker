@@ -6,9 +6,16 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
+import type { CheckpointManager } from '../agent/checkpoint-manager';
 
 export class FileTools {
+  private checkpointManager?: CheckpointManager;
+
   constructor(private readonly outputChannel: vscode.OutputChannel) {}
+
+  public setCheckpointManager(manager: CheckpointManager): void {
+    this.checkpointManager = manager;
+  }
 
   /**
    * Read file contents from the workspace.
@@ -56,6 +63,10 @@ export class FileTools {
     }
 
     try {
+      if (this.checkpointManager) {
+        await this.checkpointManager.captureFileBeforeMutation(filePath);
+      }
+
       const encoder = new TextEncoder();
       const data = encoder.encode(content);
       await vscode.workspace.fs.writeFile(uri, data);

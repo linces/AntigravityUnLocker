@@ -14,6 +14,7 @@ import { WorkspaceTools } from './workspace-tools';
 import { WorkspaceIndexer } from '../agent/workspace-indexer';
 import type { DomainRulesManager } from '../domains/domain-rules-manager';
 import type { SubagentManager } from '../agent/subagent-manager';
+import type { CheckpointManager } from '../agent/checkpoint-manager';
 import type { AgentRunOptions } from '../agent/approval';
 
 export class ToolRegistry implements vscode.Disposable {
@@ -21,6 +22,7 @@ export class ToolRegistry implements vscode.Disposable {
   private outputChannel: vscode.OutputChannel;
   private domainRulesManager?: DomainRulesManager;
   private subagentManager?: SubagentManager;
+  private checkpointManager?: CheckpointManager;
 
   public readonly fileTools: FileTools;
   public readonly editTools: EditTools;
@@ -57,6 +59,12 @@ export class ToolRegistry implements vscode.Disposable {
 
   public setSubagentManager(manager: SubagentManager): void {
     this.subagentManager = manager;
+  }
+
+  public setCheckpointManager(manager: CheckpointManager): void {
+    this.checkpointManager = manager;
+    this.fileTools.setCheckpointManager(manager);
+    this.editTools.setCheckpointManager(manager);
   }
 
   /**
@@ -427,6 +435,56 @@ export class ToolRegistry implements vscode.Disposable {
           },
         },
       },
+      // ─── Checkpoint & Rollback Tools ─────────────────────────────────────
+      {
+        type: 'function' as const,
+        function: {
+          name: 'ag_createCheckpoint',
+          description:
+            'Create a rollback checkpoint of the workspace before performing risky, multi-file or complex mutations.',
+          parameters: {
+            type: 'object',
+            properties: {
+              label: {
+                type: 'string',
+                description: 'Description or reason for the checkpoint (e.g. "Before refactoring auth module").',
+              },
+            },
+            required: ['label'],
+          },
+        },
+      },
+      {
+        type: 'function' as const,
+        function: {
+          name: 'ag_rollbackToCheckpoint',
+          description:
+            'Rollback workspace changes to a previous checkpoint. Reverts all modified files to original content and removes newly created files.',
+          parameters: {
+            type: 'object',
+            properties: {
+              checkpointId: {
+                type: 'string',
+                description: 'Optional checkpoint ID to revert to. If omitted, reverts the most recent active/completed checkpoint.',
+              },
+            },
+            required: [],
+          },
+        },
+      },
+      {
+        type: 'function' as const,
+        function: {
+          name: 'ag_listCheckpoints',
+          description:
+            'List all available workspace checkpoints, their status (active, completed, reverted) and affected files.',
+          parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+          },
+        },
+      },
     ];
 
     const dynamic = [...this.dynamicTools.values()].map((d) => d.definition);
@@ -622,6 +680,41 @@ export class ToolRegistry implements vscode.Disposable {
             null,
             2
           );
+        }
+
+        case 'ag_createCheckpoint': {
+          if (!this.checkpointManager) {
+            return 'Error: CheckpointManager is not configured on ToolRegistry.';
+          }
+          const label = (args.label as string) || 'Manual Checkpoint';
+          const ckpt = this.checkpointManager.createCheckpoint(label, 'agent');
+          return `Successfully created checkpoint "${ckpt.id}" (${ckpt.label}). Workspace modifications will now be tracked with Copy-on-Write rollback capability.`;
+        }
+
+        case 'ag_rollbackToCheckpoint': {
+          if (!this.checkpointManager) {
+            return 'Error: CheckpointManager is not configured on ToolRegistry.';
+          }
+          const res = await this.checkpointManager.rollbackCheckpoint(args.checkpointId as string | undefined);
+          return JSON.stringify(
+            {
+              status: res.success ? 'success' : 'partial_error',
+              checkpointId: res.checkpointId,
+              restoredFiles: res.restoredFiles,
+              deletedFiles: res.deletedFiles,
+              errors: res.errors,
+            },
+            null,
+            2
+          );
+        }
+
+        case 'ag_listCheckpoints': {
+          if (!this.checkpointManager) {
+            return 'Error: CheckpointManager is not configured on ToolRegistry.';
+          }
+          const list = this.checkpointManager.listCheckpoints();
+          return JSON.stringify(list, null, 2);
         }
 
         default:

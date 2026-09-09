@@ -118,6 +118,19 @@ O AG Universal AI consome os principais servidores MCP da comunidade via `stdio`
 - **Higienização de Modelos Obsoletos (`OBSOLETE_MODEL_MIGRATIONS`)**: Migração automática e transparente de configurações herdadas com IDs descontinuados para substitutos válidos.
 - **Transparência de Origem na UI**: Badges visuais e tooltips no QuickPick e Sidebar Webview identificando a procedência (`✓ Live`, `⚡ Cached`, `💾 Saved`, `📋 Preset`) e botão de disparo manual `🔄 Refresh Models`.
 
+### 4.7 Workspace Checkpointing & Time-Travel Rollback Layer
+- **Checkpoint Manager (`src/agent/checkpoint-manager.ts`)**: Motor de proteção transacional e restauração atômica do workspace para execuções agênticas.
+- **Mecanismo Copy-on-Write (CoW)**:
+  - Captura o estado original de arquivos sob demanda exclusivamente antes da primeira mutação física em disco por ferramentas (`ag_writeFile`, `ag_replaceInFile`, `ag_multiReplaceInFile`).
+  - Idempotência de preservação: múltiplas edições no mesmo arquivo durante a mesma tarefa preservam o estado original inicial do checkpoint.
+  - Zero impacto em performance: elimina overhead de duplicação integral de diretórios em repositórios massivos.
+- **Restauração e Limpeza Bimodal**:
+  - Arquivos pré-existentes são reescritos com seu conteúdo original.
+  - Arquivos criados durante a execução do agente são excluídos automaticamente no rollback.
+- **Inspeção de Diff pré-reversão**: Integração com `ag-diff://` para visualização side-by-side de modificações antes da decisão de desfazer.
+- **Ferramentas Nativas para Agentes**: Exposição de `ag_createCheckpoint`, `ag_rollbackToCheckpoint` e `ag_listCheckpoints` no `ToolRegistry`.
+- **UI Webview & Comandos**: Card visual pós-tarefa na Sidebar com botão `⏪ Reverter Tarefa`, e comandos dedicados na Command Palette (`ag-universal-ai.createCheckpoint`, `ag-universal-ai.revertCheckpoint`, `ag-universal-ai.listCheckpoints`).
+
 ---
 
 ## 5. Diretrizes de Segurança & Telemetria
@@ -128,4 +141,4 @@ O AG Universal AI consome os principais servidores MCP da comunidade via `stdio`
 
 ---
 
-**Versão:** 0.12.0 | **Última Revisão:** 2026-09-09 07:49:00
+**Versão:** 0.13.0 | **Última Revisão:** 2026-09-09 08:32:00

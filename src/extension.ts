@@ -33,6 +33,7 @@ import {
 import { SessionManager } from './chat/session-manager';
 import { MCPClientManager } from './mcp/client';
 import { AGDiffProvider } from './ui/diff-provider';
+import { CheckpointManager } from './agent/checkpoint-manager';
 
 let outputChannel: vscode.OutputChannel;
 
@@ -94,14 +95,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   mcpServer.start();
   log('Embedded Model Context Protocol (MCP) server running');
 
-  // ─── 7. Agent Engine, Planner & Subagent Swarm Manager ─────────────────
-  const agentEngine = new AgentEngine(providerManager, toolRegistry, outputChannel);
+  // ─── 7. Checkpoint Engine, Agent Engine, Planner & Subagent Swarm Manager ──
+  const checkpointManager = new CheckpointManager(outputChannel, context.storageUri);
+  context.subscriptions.push(checkpointManager);
+  toolRegistry.setCheckpointManager(checkpointManager);
+
+  const agentEngine = new AgentEngine(providerManager, toolRegistry, outputChannel, checkpointManager);
   const agentPlanner = new AgentPlanner(providerManager);
   const _planExecutor = new PlanExecutor(toolRegistry);
-  const subagentManager = new SubagentManager(providerManager, toolRegistry, outputChannel);
+  const subagentManager = new SubagentManager(providerManager, toolRegistry, outputChannel, checkpointManager);
   toolRegistry.setSubagentManager(subagentManager);
   context.subscriptions.push(agentEngine, subagentManager);
-  log('Agent engine, planner & subagent manager activated');
+  log('Agent engine, planner, subagent manager & checkpoint engine activated (Time-Travel CoW)');
 
   // ─── 8. Chat Participant (@ag) ──────────────────────────────────────────
   const chatParticipant = new AGChatParticipant(lmProvider, providerManager, outputChannel, domainRulesManager);
@@ -122,7 +127,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     agentEngine,
     agentPlanner,
     outputChannel,
-    domainRulesManager
+    domainRulesManager,
+    checkpointManager
   );
   context.subscriptions.push(
     sidebarWebviewProvider,
@@ -249,6 +255,66 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       vscode.window.showInformationMessage(
         `AG AI: ${statuses.length} MCP server(s) configured (${connected} connected, ${toolRegistry.getToolDefinitions().length} total tools available).`
       );
+    }),
+
+    // Workspace Checkpointing & Rollback Commands
+    vscode.commands.registerCommand('ag-universal-ai.createCheckpoint', async () => {
+      const label = await vscode.window.showInputBox({
+        prompt: 'Enter label for this workspace checkpoint',
+        placeHolder: 'e.g., "Before refactoring auth module"',
+      });
+      if (label && label.trim()) {
+        const ckpt = checkpointManager.createCheckpoint(label.trim(), 'user');
+        vscode.window.showInformationMessage(`AG AI: Checkpoint created: "${ckpt.id}" (${ckpt.label})`);
+      }
+    }),
+
+    vscode.commands.registerCommand('ag-universal-ai.revertCheckpoint', async () => {
+      const list = checkpointManager.listCheckpoints();
+      if (list.length === 0) {
+        vscode.window.showInformationMessage('AG AI: No checkpoints available to revert.');
+        return;
+      }
+      const items = list.map((c) => ({
+        label: `${c.status === 'reverted' ? '↩️' : '📌'} ${c.id}: ${c.label}`,
+        description: `${c.filesCount} file(s) • ${new Date(c.timestamp).toLocaleTimeString()}`,
+        checkpointId: c.id,
+      }));
+      const pick = await vscode.window.showQuickPick(items, {
+        placeHolder: 'Select a checkpoint to rollback workspace changes',
+      });
+      if (pick) {
+        const confirm = await vscode.window.showWarningMessage(
+          `Revert workspace to checkpoint "${pick.checkpointId}"? All modified files will be restored and created files deleted.`,
+          { modal: true },
+          'Revert Now'
+        );
+        if (confirm === 'Revert Now') {
+          const res = await checkpointManager.rollbackCheckpoint(pick.checkpointId);
+          if (res.success) {
+            vscode.window.showInformationMessage(
+              `AG AI: Reverted ${res.restoredFiles.length} file(s) and removed ${res.deletedFiles.length} file(s).`
+            );
+          } else {
+            vscode.window.showErrorMessage(`AG AI: Revert error: ${res.errors.map((e) => e.error).join('; ')}`);
+          }
+        }
+      }
+    }),
+
+    vscode.commands.registerCommand('ag-universal-ai.listCheckpoints', async () => {
+      const list = checkpointManager.listCheckpoints();
+      if (list.length === 0) {
+        vscode.window.showInformationMessage('AG AI: No checkpoints recorded yet.');
+        return;
+      }
+      const items = list.map((c) => ({
+        label: `[${c.status.toUpperCase()}] ${c.id}`,
+        detail: `${c.label} (${c.filesCount} files) - ${new Date(c.timestamp).toLocaleString()}`,
+      }));
+      await vscode.window.showQuickPick(items, {
+        placeHolder: 'Workspace Checkpoints History',
+      });
     }),
 
     // Show Workspace & Domain Rules

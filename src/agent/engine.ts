@@ -18,6 +18,7 @@ import type {
   DiffPreviewData,
 } from './approval';
 import { AGDiffProvider } from '../ui/diff-provider';
+import type { CheckpointManager } from './checkpoint-manager';
 
 const MAX_ITERATIONS = 10;
 
@@ -25,18 +26,26 @@ export interface AgentResult {
   response: string;
   toolCalls: Array<{ name: string; args: Record<string, unknown>; result: string }>;
   iterations: number;
+  checkpointId?: string;
 }
 
 export class AgentEngine implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
   private outputChannel: vscode.OutputChannel;
+  private checkpointManager?: CheckpointManager;
 
   constructor(
     private readonly providerManager: ProviderManager,
     private readonly toolRegistry: ToolRegistry,
-    outputChannel: vscode.OutputChannel
+    outputChannel: vscode.OutputChannel,
+    checkpointManager?: CheckpointManager
   ) {
     this.outputChannel = outputChannel;
+    this.checkpointManager = checkpointManager;
+  }
+
+  public setCheckpointManager(manager: CheckpointManager): void {
+    this.checkpointManager = manager;
   }
 
   /**
@@ -96,7 +105,16 @@ export class AgentEngine implements vscode.Disposable {
       options?.alwaysApproveReadOnly ??
       config.get<boolean>('agent.alwaysApproveReadOnly', true);
 
-    while (iterations < MAX_ITERATIONS) {
+    let checkpointId: string | undefined;
+    if (this.checkpointManager && (!options?.currentDepth || options.currentDepth === 0)) {
+      const cleanGoal = userMessage.trim().replace(/\r?\n/g, ' ').slice(0, 60);
+      const ckpt = this.checkpointManager.createCheckpoint(`Agent: ${cleanGoal}`, 'agent');
+      checkpointId = ckpt.id;
+      emit(`📌 *Checkpoint criado: \`${ckpt.id}\` antes de iniciar tarefas.*\n\n`);
+    }
+
+    try {
+      while (iterations < MAX_ITERATIONS) {
       iterations++;
 
       if (token?.isCancellationRequested) {
@@ -292,8 +310,14 @@ export class AgentEngine implements vscode.Disposable {
       response: finalResponse,
       toolCalls: toolCallLog,
       iterations,
+      checkpointId,
     };
+  } finally {
+    if (checkpointId && this.checkpointManager) {
+      this.checkpointManager.completeCheckpoint(checkpointId);
+    }
   }
+}
 
   // ─── Private ──────────────────────────────────────────────────────────────
 

@@ -13,6 +13,7 @@ import type { ToolRegistry } from '../tools/tool-registry';
 import { AgentEngine, AgentResult } from './engine';
 import { PersonaRegistry } from './personas';
 import type { AgentRunOptions } from './approval';
+import type { CheckpointManager } from './checkpoint-manager';
 
 export interface SubagentTaskConfig {
   taskId?: string;
@@ -45,13 +46,20 @@ export interface SubagentParallelReport {
 export class SubagentManager implements vscode.Disposable {
   private outputChannel: vscode.OutputChannel;
   private disposables: vscode.Disposable[] = [];
+  private checkpointManager?: CheckpointManager;
 
   constructor(
     private readonly providerManager: ProviderManager,
     private readonly toolRegistry: ToolRegistry,
-    outputChannel: vscode.OutputChannel
+    outputChannel: vscode.OutputChannel,
+    checkpointManager?: CheckpointManager
   ) {
     this.outputChannel = outputChannel;
+    this.checkpointManager = checkpointManager;
+  }
+
+  public setCheckpointManager(manager: CheckpointManager): void {
+    this.checkpointManager = manager;
   }
 
   /**
@@ -115,7 +123,7 @@ Task Mission: ${config.taskDescription}`;
     };
 
     try {
-      const subEngine = new AgentEngine(this.providerManager, this.toolRegistry, this.outputChannel);
+      const subEngine = new AgentEngine(this.providerManager, this.toolRegistry, this.outputChannel, this.checkpointManager);
       const result: AgentResult = await subEngine.run(
         config.taskDescription,
         subagentPrompt,

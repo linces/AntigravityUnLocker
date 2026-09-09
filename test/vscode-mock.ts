@@ -136,6 +136,25 @@ export const workspace = {
       }
       return Array.from(entries.entries()) as [string, number][];
     },
+    delete: async (uri: any, _options?: { recursive?: boolean; useTrash?: boolean }) => {
+      const norm = (uri.fsPath || uri.path || String(uri)).replace(/\\/g, '/');
+      if (!mockFileStore.has(norm)) {
+        // Also check if prefix directory
+        let found = false;
+        const prefix = norm.endsWith('/') ? norm : norm + '/';
+        for (const k of Array.from(mockFileStore.keys())) {
+          if (k.startsWith(prefix)) {
+            mockFileStore.delete(k);
+            found = true;
+          }
+        }
+        if (!found) {
+          throw new Error(`File not found: ${norm}`);
+        }
+        return;
+      }
+      mockFileStore.delete(norm);
+    },
   },
   createFileSystemWatcher: () => ({
     onDidCreate: () => ({ dispose: () => {} }),

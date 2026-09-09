@@ -12,16 +12,18 @@ import type { ToolRegistry } from '../tools/tool-registry';
 import type { AgentEngine } from '../agent/engine';
 import type { AgentPlanner } from '../agent/planner';
 import { PersonaRegistry } from '../agent/personas';
-import { getAllPresets } from '../providers/provider-registry';
+import { getAllPresets, getPreset } from '../providers/provider-registry';
 import { buildSystemPrompt, buildSlashCommandPrompt } from '../chat/prompt-builder';
 import { AGDiffProvider } from './diff-provider';
 import type { DomainRulesManager } from '../domains/domain-rules-manager';
 import type { ToolApprovalRequest, ToolApprovalDecision } from '../agent/approval';
+import type { CheckpointManager } from '../agent/checkpoint-manager';
 
 export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vscode.Disposable {
   private view?: vscode.WebviewView;
   private disposables: vscode.Disposable[] = [];
   private domainRulesManager?: DomainRulesManager;
+  private checkpointManager?: CheckpointManager;
   private pendingApprovals = new Map<string, (decision: ToolApprovalDecision) => void>();
   private sessionAutoApprove = false;
 
@@ -33,9 +35,11 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     private readonly agentEngine: AgentEngine,
     private readonly agentPlanner: AgentPlanner,
     private readonly outputChannel: vscode.OutputChannel,
-    domainRulesManager?: DomainRulesManager
+    domainRulesManager?: DomainRulesManager,
+    checkpointManager?: CheckpointManager
   ) {
     this.domainRulesManager = domainRulesManager;
+    this.checkpointManager = checkpointManager;
     this.disposables.push(
       this.providerManager.onDidChangeProvider(() => this.postStateUpdate()),
       this.sessionManager.onDidChangeSession(() => {
@@ -44,6 +48,18 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         this.postStateUpdate();
       }),
       this.sessionManager.onDidChangeSessionList(() => this.postStateUpdate())
+    );
+    if (this.checkpointManager) {
+      this.disposables.push(
+        this.checkpointManager.onDidChangeCheckpoints(() => this.postStateUpdate())
+      );
+    }
+  }
+
+  public setCheckpointManager(manager: CheckpointManager): void {
+    this.checkpointManager = manager;
+    this.disposables.push(
+      manager.onDidChangeCheckpoints(() => this.postStateUpdate())
     );
   }
 
@@ -252,6 +268,52 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
                 }
               } catch (e) {
                 this.log(`Error opening newly created file: ${e}`);
+              }
+            }
+            break;
+          }
+          case 'rollbackCheckpoint': {
+            if (!this.checkpointManager) {
+              vscode.window.showErrorMessage('AG AI: CheckpointManager is not initialized.');
+              break;
+            }
+            const res = await this.checkpointManager.rollbackCheckpoint(msg.checkpointId);
+            if (res.success) {
+              vscode.window.showInformationMessage(
+                `AG AI: Reverted ${res.restoredFiles.length} file(s) and removed ${res.deletedFiles.length} file(s).`
+              );
+              this.post({
+                type: 'chunk',
+                text: `\n\n⏪ **[Time-Travel Rollback]** Revertido com sucesso para o checkpoint \`${res.checkpointId}\`!\n- Arquivos restaurados: ${res.restoredFiles.length}\n- Arquivos criados removidos: ${res.deletedFiles.length}\n\n`,
+              });
+            } else {
+              const errs = res.errors.map((e) => e.error).join('; ');
+              vscode.window.showErrorMessage(`AG AI: Rollback error: ${errs}`);
+            }
+            break;
+          }
+          case 'inspectCheckpointDiff': {
+            if (!this.checkpointManager) { break; }
+            const diffs = await this.checkpointManager.getCheckpointDiff(msg.checkpointId);
+            if (diffs.length === 0) {
+              vscode.window.showInformationMessage('AG AI: No differences found between checkpoint and current disk state.');
+              break;
+            }
+            const diffProvider = AGDiffProvider.getInstance();
+            if (diffProvider) {
+              if (diffs.length === 1) {
+                await diffProvider.showDiff(diffs[0].filePath, diffs[0].currentContent);
+              } else {
+                const pick = await vscode.window.showQuickPick(
+                  diffs.map((d) => ({
+                    label: `${d.status === 'added' ? '➕' : d.status === 'deleted' ? '❌' : '📝'} ${d.filePath}`,
+                    diff: d,
+                  })),
+                  { placeHolder: 'Select file to inspect diff against checkpoint' }
+                );
+                if (pick) {
+                  await diffProvider.showDiff(pick.diff.filePath, pick.diff.currentContent);
+                }
               }
             }
             break;
@@ -630,6 +692,14 @@ Execute the planned steps systematically using available tools. Be concise, veri
         model
       );
       this.post({ type: 'done', text: result.response });
+
+      if (result.checkpointId) {
+        this.post({
+          type: 'checkpointBanner',
+          id: result.checkpointId,
+          label: goal.slice(0, 50),
+        });
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       this.log(`Agent error: ${msg}`);
@@ -840,6 +910,17 @@ Execute the planned steps systematically using available tools. Be concise, veri
       code { font-family: var(--vscode-editor-font-family, monospace); font-size: 11px; }
       .cbtn { background: #222; border: 1px solid #444; color: #ccc; padding: 3px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; display: inline-block; }
       .cbtn:hover { background: var(--accent); color: #fff; }
+
+      .checkpoint-card { background: rgba(0, 122, 204, 0.08); border: 1px solid rgba(0, 122, 204, 0.3); border-radius: 8px; padding: 8px 12px; margin: 6px 0; display: flex; flex-direction: column; gap: 8px; animation: fi .2s ease; }
+      .ckpt-hdr { display: flex; justify-content: space-between; align-items: center; font-size: 11px; }
+      .ckpt-hdr code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+      .ckpt-label { font-size: 10px; color: var(--fg); opacity: 0.8; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .ckpt-actions { display: flex; gap: 6px; }
+      .btn-ckpt { padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; border: 1px solid transparent; font-weight: 500; transition: all 0.15s ease; }
+      .btn-ckpt-rollback { background: #5a1e1e; border-color: #8b2e2e; color: #ffcccc; }
+      .btn-ckpt-rollback:hover { background: #7a2828; color: #ffffff; }
+      .btn-ckpt-diff { background: #1e3a5a; border-color: #2e5a8b; color: #cce5ff; }
+      .btn-ckpt-diff:hover { background: #284f7a; color: #ffffff; }
 
       .input-card { margin: 8px 10px 10px 10px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; box-shadow: 0 4px 16px rgba(0,0,0,0.25); transition: border-color 0.15s ease; }
       .input-card:focus-within { border-color: var(--accent); }
@@ -1398,6 +1479,24 @@ Execute the planned steps systematically using available tools. Be concise, veri
       }
       return;
     }
+
+    var ckptRollbackBtn = t.classList && t.classList.contains('btn-ckpt-rollback') ? t : t.closest('.btn-ckpt-rollback');
+    if(ckptRollbackBtn){
+      e.preventDefault();
+      var id = ckptRollbackBtn.getAttribute('data-id');
+      window.__agPost('rollbackCheckpoint', { checkpointId: id });
+      ckptRollbackBtn.textContent = '⏪ Revertendo...';
+      ckptRollbackBtn.disabled = true;
+      return;
+    }
+
+    var ckptDiffBtn = t.classList && t.classList.contains('btn-ckpt-diff') ? t : t.closest('.btn-ckpt-diff');
+    if(ckptDiffBtn){
+      e.preventDefault();
+      var id = ckptDiffBtn.getAttribute('data-id');
+      window.__agPost('inspectCheckpointDiff', { checkpointId: id });
+      return;
+    }
   });
 
   // ─── Clipboard Paste Handler - Screenshots ───
@@ -1828,6 +1927,26 @@ Execute the planned steps systematically using available tools. Be concise, veri
         if(m.hasDiff && m.proposedContent){
           card.__proposedContent = m.proposedContent;
         }
+        chatEl.appendChild(card);
+        bot();
+      }
+      else if(m.type === 'checkpointBanner'){
+        var chatEl = getChat();
+        if(!chatEl) return;
+        var card = document.createElement('div');
+        card.className = 'checkpoint-card';
+        card.id = 'ckpt-card-' + m.id;
+
+        var html = '<div class="ckpt-hdr">' +
+          '<span>📌 Checkpoint: <code>' + esc(m.id) + '</code></span>' +
+          '<span class="ckpt-label">' + esc(m.label || '') + '</span>' +
+          '</div>' +
+          '<div class="ckpt-actions">' +
+          '<button type="button" class="btn-ckpt btn-ckpt-rollback" data-id="' + esc(m.id) + '">⏪ Reverter Tarefa</button>' +
+          '<button type="button" class="btn-ckpt btn-ckpt-diff" data-id="' + esc(m.id) + '">🔍 Inspecionar Mudanças</button>' +
+          '</div>';
+
+        card.innerHTML = html;
         chatEl.appendChild(card);
         bot();
       }

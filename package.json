@@ -2,7 +2,7 @@
    "name": "ag-universal-ai",
    "displayName": "AG Universal AI",
    "description": "Universal multi-provider AI assistant for VS Code & Antigravity IDE — Code completion, chat, agent workflows, MCP, and tool calling powered by any OpenAI-compatible backend.",
-   "version": "0.12.0",
+   "version": "0.13.0",
    "publisher": "linces",
    "icon": "resources/icons/ag-icon.png",
    "license": "MIT",
@@ -138,6 +138,21 @@
             "command": "ag-universal-ai.refreshModels",
             "title": "AG AI: Refresh Model List (Auto-Discovery)",
             "icon": "$(search)"
+         },
+         {
+            "command": "ag-universal-ai.createCheckpoint",
+            "title": "AG AI: Create Workspace Checkpoint",
+            "icon": "$(pin)"
+         },
+         {
+            "command": "ag-universal-ai.revertCheckpoint",
+            "title": "AG AI: Revert Workspace to Checkpoint",
+            "icon": "$(history)"
+         },
+         {
+            "command": "ag-universal-ai.listCheckpoints",
+            "title": "AG AI: List Workspace Checkpoints",
+            "icon": "$(list-unordered)"
          }
       ],
       "menus": {
