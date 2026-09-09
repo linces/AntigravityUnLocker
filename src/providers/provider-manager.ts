@@ -49,15 +49,27 @@ const ENV_KEY_MAP: Record<string, string> = {
 };
 
 /**
- * Obsolete or discontinued model IDs mapped to active drop-in replacements
- * to prevent 404 Model Not Found errors from stale workspace settings.
+ * Obsolete, decommissioned or non-chat model IDs mapped to active drop-in replacements
+ * to prevent 404 Model Not Found and 400 parameter errors from stale workspace settings.
  */
 const OBSOLETE_MODEL_MIGRATIONS: Record<string, string> = {
-  'nemotron-4-340b-instruct': 'meta/llama-3.3-70b-instruct',
-  'llama-3.1-nemotron-70b-instruct': 'meta/llama-3.3-70b-instruct',
-  'meta/llama-3.1-nemotron-70b-instruct': 'meta/llama-3.3-70b-instruct',
-  'mistral-large-2-instruct': 'meta/llama-3.3-70b-instruct',
-  'mistralai/mistral-large-2-instruct': 'meta/llama-3.3-70b-instruct',
+  // NVIDIA NIM decommissioned or phantom models -> Verified working Mistral Large 2
+  'nvidia/llama-3.1-nemotron-51b-instruct': 'mistralai/mistral-large-2-instruct',
+  'nvidia/llama-3.1-nemotron-70b-instruct': 'mistralai/mistral-large-2-instruct',
+  'meta/llama-3.1-nemotron-70b-instruct': 'mistralai/mistral-large-2-instruct',
+  'nemotron-4-340b-instruct': 'mistralai/mistral-large-2-instruct',
+  'nvidia/nemotron-4-340b-instruct': 'mistralai/mistral-large-2-instruct',
+  'meta/llama-3.3-70b-instruct': 'mistralai/mistral-large-2-instruct',
+  'meta/llama-guard-4-12b': 'mistralai/mistral-large-2-instruct',
+  'nvidia/llama-3.1-nemoguard-8b-content-safety': 'mistralai/mistral-large-2-instruct',
+  'mistral-large-2-instruct': 'mistralai/mistral-large-2-instruct',
+
+  // Groq decommissioned / non-chat models -> Verified working OSS 120B / 20B
+  'llama-3.3-70b-versatile': 'openai/gpt-oss-120b',
+  'llama-3.1-8b-instant': 'openai/gpt-oss-20b',
+  'meta-llama/llama-prompt-guard-2-22m': 'openai/gpt-oss-120b',
+  'meta-llama/llama-prompt-guard-2-86m': 'openai/gpt-oss-120b',
+  'openai/gpt-oss-safeguard-20b': 'openai/gpt-oss-120b',
 };
 
 
@@ -240,10 +252,12 @@ export class ProviderManager implements vscode.Disposable {
       return;
     }
 
+    const effectiveModel = OBSOLETE_MODEL_MIGRATIONS[model] || model;
+
     if (provider instanceof OpenAIAdapter) {
-      provider.updateModel(model);
+      provider.updateModel(effectiveModel);
     } else {
-      provider.config.model = model;
+      provider.config.model = effectiveModel;
     }
 
     this.isUpdatingConfig = true;
@@ -251,7 +265,7 @@ export class ProviderManager implements vscode.Disposable {
     try {
       const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
       if (providerId === this.activeProviderId) {
-        await config.update('activeModel', model, vscode.ConfigurationTarget.Global);
+        await config.update('activeModel', effectiveModel, vscode.ConfigurationTarget.Global);
       }
 
       const userOverrides = config.get<Record<string, { baseUrl?: string; model?: string; timeoutMs?: number }>>(
@@ -263,7 +277,7 @@ export class ProviderManager implements vscode.Disposable {
         'providers',
         {
           ...userOverrides,
-          [providerId]: { ...currentOverride, model },
+          [providerId]: { ...currentOverride, model: effectiveModel },
         },
         vscode.ConfigurationTarget.Global
       );
@@ -281,7 +295,24 @@ export class ProviderManager implements vscode.Disposable {
       provider,
     });
 
-    this.log(`Model for provider "${providerId}" updated to: ${model}`);
+    this.log(`Model for provider "${providerId}" updated to: ${effectiveModel}`);
+  }
+
+  /**
+   * Automatically heals from model failure (e.g. 404 Function Not Found or 400 prompt-guard error):
+   * Invalidates discovery cache, auto-migrates to verified safe preset default model,
+   * updates active model in settings, and returns safe model.
+   */
+  public async handleModelFailure(providerId: string, failedModel: string): Promise<string | undefined> {
+    const preset = getPreset(providerId);
+    if (!preset?.defaultModel || preset.defaultModel === failedModel) {
+      return undefined;
+    }
+    const safeModel = preset.defaultModel;
+    this.log(`[Auto-Healing] Model "${failedModel}" failed on ${providerId}. Auto-migrating to safe preset default "${safeModel}"`);
+    this.discoveryService.invalidateCache(providerId);
+    await this.setModel(providerId, safeModel);
+    return safeModel;
   }
 
   /**

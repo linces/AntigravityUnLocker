@@ -48,6 +48,25 @@ const MEMORY_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const DISCOVERY_TIMEOUT_MS = 8000;           // 8 second timeout per endpoint
 const PERSISTENT_CACHE_KEY = 'ag.modelDiscovery.cache';
 
+/**
+ * Rigorous filter to ensure only chat/generative capable models are exposed to the user.
+ * Filters out guardrails, safety classifiers, embeddings, rerankers, speech/audio/TTS,
+ * reward models, parsers, and known decommissioned cloud function IDs.
+ */
+export function isChatGenerativeModel(modelId: string): boolean {
+  const lower = modelId.toLowerCase();
+  const nonChatPatterns = [
+    'guard', 'safety', 'moderation', 'safeguard',
+    'embed', 'retriever', 'nv-embed',
+    'whisper', 'tts', 'audio', 'orpheus', 'voice', 'speech',
+    'dall-e', 'flux', 'cogview', 'diffusion',
+    'reward', 'parse', 'detector', 'clip',
+    'calibration', 'synthetic', 'video-detector',
+    '51b-instruct', '51b'
+  ];
+  return !nonChatPatterns.some((p) => lower.includes(p));
+}
+
 // ─── Service ────────────────────────────────────────────────────────────────
 
 export class ModelDiscoveryService {
@@ -170,8 +189,12 @@ export class ModelDiscoveryService {
       }
 
       if (liveModels.length > 0) {
+        // Filter out non-chat, safety-guards, embeddings, voice, audio and junk functions
+        const chatCapable = liveModels.filter((m) => isChatGenerativeModel(m.id));
+        const finalModels = chatCapable.length > 0 ? chatCapable : liveModels;
+
         // Enrich, deduplicate, and sort
-        const merged = this.mergeWithPreset(providerId, liveModels);
+        const merged = this.mergeWithPreset(providerId, finalModels);
         const deduped = this.deduplicateModels(merged);
         const sorted = this.sortModels(deduped, provider.config.model);
 
@@ -181,7 +204,7 @@ export class ModelDiscoveryService {
         // Persist for offline use
         this.persistCache(providerId, sorted);
 
-        this.log(`[${providerId}] Live discovery: ${sorted.length} models found`);
+        this.log(`[${providerId}] Live discovery: ${sorted.length} models found (filtered from ${liveModels.length})`);
         return {
           providerId,
           models: sorted,
@@ -345,22 +368,24 @@ export class ModelDiscoveryService {
       return [];
     }
 
-    return Array.from(preset.availableModels).map((m) => ({
-      id: m,
-      name: m,
-      vendor: providerId,
-      maxInputTokens: 128000,
-      maxOutputTokens: 4096,
-      supportsTools: true,
-      supportsVision: this.looksLikeVisionModel(m),
-    }));
+    return Array.from(preset.availableModels)
+      .filter((m) => isChatGenerativeModel(m))
+      .map((m) => ({
+        id: m,
+        name: m,
+        vendor: providerId,
+        maxInputTokens: 128000,
+        maxOutputTokens: 4096,
+        supportsTools: true,
+        supportsVision: this.looksLikeVisionModel(m),
+      }));
   }
 
   // ─── Private: Model Processing ──────────────────────────────────────────
 
   /**
    * Merge live-discovered models with static preset models.
-   * Live models take precedence; preset-only models are appended.
+   * Live models take precedence; verified preset models are appended to guarantee stable fallbacks.
    */
   private mergeWithPreset(providerId: string, liveModels: ModelInfo[]): ModelInfo[] {
     const preset = getPreset(providerId);
@@ -371,8 +396,20 @@ export class ModelDiscoveryService {
     const liveIds = new Set(liveModels.map((m) => m.id.toLowerCase()));
     const merged = [...liveModels];
 
-    // Only add preset models that were also found live (validates they still exist)
-    // We do NOT add preset-only models that weren't found live — those are likely stale
+    for (const presetModel of preset.availableModels) {
+      if (!liveIds.has(presetModel.toLowerCase()) && isChatGenerativeModel(presetModel)) {
+        merged.push({
+          id: presetModel,
+          name: presetModel,
+          vendor: providerId,
+          maxInputTokens: 128000,
+          maxOutputTokens: 4096,
+          supportsTools: true,
+          supportsVision: this.looksLikeVisionModel(presetModel),
+        });
+      }
+    }
+
     return merged;
   }
 

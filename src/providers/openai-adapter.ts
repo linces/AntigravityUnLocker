@@ -16,6 +16,7 @@ import type {
   ModelInfo,
 } from './types';
 import { getPreset } from './provider-registry';
+import { isChatGenerativeModel } from './model-discovery';
 
 export class OpenAIAdapter implements ILLMProvider {
   public readonly id: string;
@@ -129,7 +130,14 @@ export class OpenAIAdapter implements ILLMProvider {
     const payload = this.buildPayload(request, true);
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), Math.max(this.timeoutMs, 120000));
+    let isFirstChunkTimeout = false;
+    const FIRST_CHUNK_TIMEOUT_MS = 25000;
+    let firstChunkTimer: NodeJS.Timeout | undefined = setTimeout(() => {
+      isFirstChunkTimeout = true;
+      controller.abort();
+    }, FIRST_CHUNK_TIMEOUT_MS);
+
+    const globalTimer = setTimeout(() => controller.abort(), Math.max(this.timeoutMs, 120000));
 
     const abortHandler = () => controller.abort();
     if (signal) {
@@ -192,8 +200,11 @@ export class OpenAIAdapter implements ILLMProvider {
       let inReasoning = false;
 
       for await (const chunk of asyncChunks) {
-        // Clear connection timeout once data starts streaming
-        clearTimeout(timer);
+        // Clear first chunk connection timeout once data starts streaming
+        if (firstChunkTimer) {
+          clearTimeout(firstChunkTimer);
+          firstChunkTimer = undefined;
+        }
 
         buffer += decoder.decode(chunk, { stream: true });
         const lines = buffer.split('\n');
@@ -250,8 +261,18 @@ export class OpenAIAdapter implements ILLMProvider {
         yield '\n</think>\n\n';
         inReasoning = false;
       }
+    } catch (err: unknown) {
+      if (isFirstChunkTimeout) {
+        throw new Error(
+          `O provedor ${this.name} (${payload.model}) não respondeu nos primeiros 25 segundos (conexão travada ou fila sobrecarregada). Selecione outro modelo no menu abaixo.`
+        );
+      }
+      throw err;
     } finally {
-      clearTimeout(timer);
+      if (firstChunkTimer) {
+        clearTimeout(firstChunkTimer);
+      }
+      clearTimeout(globalTimer);
       if (signal) {
         signal.removeEventListener('abort', abortHandler);
       }
@@ -330,15 +351,17 @@ export class OpenAIAdapter implements ILLMProvider {
           continue;
         }
 
-        return data.data.map((m) => ({
-          id: m.id,
-          name: m.id,
-          vendor: m.owned_by || this.id,
-          maxInputTokens: 128000,
-          maxOutputTokens: 4096,
-          supportsTools: this.looksLikeToolCapable(m.id),
-          supportsVision: this.looksLikeVisionCapable(m.id),
-        }));
+        return data.data
+          .filter((m) => isChatGenerativeModel(m.id))
+          .map((m) => ({
+            id: m.id,
+            name: m.id,
+            vendor: m.owned_by || this.id,
+            maxInputTokens: 128000,
+            maxOutputTokens: 4096,
+            supportsTools: this.looksLikeToolCapable(m.id),
+            supportsVision: this.looksLikeVisionCapable(m.id),
+          }));
       } catch {
         continue; // Try next endpoint
       }
@@ -385,11 +408,9 @@ export class OpenAIAdapter implements ILLMProvider {
       messages: this.normalizeMessages(request.messages),
       temperature: request.temperature ?? 0.7,
       stream,
+      // Default to 4096 tokens if not specified to prevent TensorRT/vLLM deadlocks
+      max_tokens: request.max_tokens ?? 4096,
     };
-
-    if (request.max_tokens) {
-      payload.max_tokens = request.max_tokens;
-    }
     if (request.top_p !== undefined) {
       payload.top_p = request.top_p;
     }

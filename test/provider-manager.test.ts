@@ -48,7 +48,7 @@ describe('ProviderManager', () => {
     assert.strictEqual(providerManager.getActiveProviderId(), 'groq');
     const groq = providerManager.getActiveProvider();
     assert.ok(groq);
-    assert.strictEqual(groq?.config.model, 'llama-3.3-70b-versatile');
+    assert.strictEqual(groq?.config.model, 'openai/gpt-oss-120b');
 
     // Switch to OpenAI
     await providerManager.setActiveProvider('openai');
@@ -72,12 +72,12 @@ describe('ProviderManager', () => {
 
     // Check that groq model remains unchanged
     const groq = providerManager.getProvider('groq');
-    assert.strictEqual(groq?.config.model, 'llama-3.3-70b-versatile');
+    assert.strictEqual(groq?.config.model, 'openai/gpt-oss-120b');
 
     // Switch to groq and change its model
     await providerManager.setActiveProvider('groq');
-    await providerManager.setModel('groq', 'mixtral-8x7b-32768');
-    assert.strictEqual(groq?.config.model, 'mixtral-8x7b-32768');
+    await providerManager.setModel('groq', 'qwen/qwen3.8-27b');
+    assert.strictEqual(groq?.config.model, 'qwen/qwen3.8-27b');
 
     // Switch back to openai and verify its model is still gpt-4o-mini
     await providerManager.setActiveProvider('openai');

@@ -5,6 +5,26 @@ All notable changes to the **AG Universal AI** extension will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.1] - 2026-09-09
+
+### Fixed
+- **Filtro Inteligente de Modelos de Chat (`isChatGenerativeModel`)**:
+  - Elimina modelos não-conversacionais (guardrails, prompt-guards, classificadores de segurança, embeddings, rerankers, modelos de áudio whisper, síntese de voz TTS e detectores de vídeo sintético) das listas de auto-descoberta.
+  - Corrige erros `HTTP 400: Please reduce the length of the messages or completion` causados por modelos como `meta-llama/llama-prompt-guard-2-22m` no Groq.
+- **Fail-Fast & Timeout Amigável de Primeiro Token (25s)**:
+  - Substitui o congelamento cego de 120 segundos por um timeout de primeiro token de 25 segundos no streaming (`OpenAIAdapter.stream`).
+  - Emite diagnóstico claro e acionável em caso de fila sobrecarregada ou modelos em cold-start (ex: `meta/llama-3.2-90b-vision-instruct`).
+- **Injeção de `max_tokens: 4096` Padrão**:
+  - Evita deadlocks de backends de inferência (como TensorRT-LLM e vLLM na NVIDIA NIM) que congelam quando `max_tokens` não é explicitado no payload de `/chat/completions`.
+- **Presets Atualizados com Endpoints Ativos**:
+  - **NVIDIA NIM**: Atualizado para `mistralai/mistral-large-2-instruct` (128k contexto, estável), `mistralai/codestral-22b-instruct-v0.1`, `mistralai/mistral-7b-instruct-v0.3`, `deepseek-ai/deepseek-coder-6.7b-instruct` e `google/gemma-3-12b-it`.
+  - **Groq**: Atualizado para `openai/gpt-oss-120b`, `qwen/qwen3.8-27b`, `openai/gpt-oss-20b`, `groq/compound`, `groq/compound-mini`.
+- **Auto-Healing & Migração Automática de Modelos Mortos**:
+  - Sanitização automática de modelos obsoletos (`nvidia/llama-3.1-nemotron-51b-instruct`, `llama-3.1-nemotron-70b-instruct`, `meta/llama-3.3-70b-instruct`) redirecionando para `mistralai/mistral-large-2-instruct`.
+  - Recuperação automática em tempo de execução quando a API retorna erro 404 (`Function not found for account`) ou erro 400 (prompt-guard), migrando a sessão para o modelo padrão estável e notificando o usuário.
+
+---
+
 ## [0.13.0] - 2026-09-09
 
 ### Added
@@ -314,4 +334,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-**Versão:** 0.13.0 | **Última Revisão:** 2026-09-09 08:31:00
+**Versão:** 0.13.1 | **Última Revisão:** 2026-09-09 08:58:00

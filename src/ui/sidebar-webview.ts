@@ -526,7 +526,23 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       } else if (rawMsg.includes('ECONNREFUSED') || rawMsg.toLowerCase().includes('fetch failed')) {
         formattedMsg = `🔌 **Connection Refused**: Could not reach **${provider.name}** at \`${provider.config.baseUrl}\`.\n\nMake sure the local server (e.g. Ollama / LM Studio) is running and accessible on your machine.`;
       } else if (rawMsg.includes('404') || rawMsg.toLowerCase().includes('not found')) {
-        formattedMsg = `❓ **Model Not Found**: The model \`${provider.config.model}\` was not recognized by **${provider.name}**.\n\nSelect a different model using the model dropdown below.`;
+        const healed = await this.providerManager.handleModelFailure(provider.id, provider.config.model);
+        if (healed) {
+          formattedMsg = `❓ **Model Not Found**: The model \`${provider.config.model}\` was not recognized or has been decommissioned by **${provider.name}**.\n\n🔄 **Auto-Healed**: Switched automatically to verified default model \`${healed}\`. Please retry your message!`;
+          await this.postStateUpdate();
+        } else {
+          formattedMsg = `❓ **Model Not Found**: The model \`${provider.config.model}\` was not recognized by **${provider.name}**.\n\nSelect a different model using the model dropdown below.`;
+        }
+      } else if (rawMsg.includes('400') && (rawMsg.toLowerCase().includes('reduce the length') || rawMsg.toLowerCase().includes('prompt-guard'))) {
+        const healed = await this.providerManager.handleModelFailure(provider.id, provider.config.model);
+        if (healed) {
+          formattedMsg = `⚠️ **Non-Chat Model Error**: The selected model \`${provider.config.model}\` is a security/classification guardrail, not a generative chat model.\n\n🔄 **Auto-Healed**: Switched automatically to verified chat model \`${healed}\`. Please retry your message!`;
+          await this.postStateUpdate();
+        } else {
+          formattedMsg = `⚠️ **Non-Chat Model Error**: The selected model \`${provider.config.model}\` does not support chat completion.\n\nPlease select a chat model from the dropdown.`;
+        }
+      } else if (rawMsg.toLowerCase().includes('aborted') || rawMsg.toLowerCase().includes('não respondeu nos primeiros')) {
+        formattedMsg = `⏱️ **Timeout / Unresponsive Model**: ${rawMsg}\n\nThe provider queue may be saturated or the model is cold-starting. Try selecting a lighter or more stable model in the dropdown.`;
       }
 
       const latencyMs = Date.now() - startTime;

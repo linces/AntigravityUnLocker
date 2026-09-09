@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { ModelDiscoveryService, type DiscoveryResult } from '../src/providers/model-discovery';
+import { ModelDiscoveryService, isChatGenerativeModel, type DiscoveryResult } from '../src/providers/model-discovery';
 import type { ILLMProvider, ModelInfo, ProviderConfig, ProviderCapabilities, HealthStatus, ChatCompletionRequest, ChatCompletionResponse } from '../src/providers/types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -265,7 +265,7 @@ describe('ModelDiscoveryService', () => {
     const models = service.getCachedModels('groq');
 
     assert.ok(models.length > 0, 'Should have preset models for known provider');
-    assert.ok(models.some((m) => m.id.includes('llama')), 'Groq preset should contain llama models');
+    assert.ok(models.some((m) => m.id.includes('gpt-oss') || m.id.includes('qwen')), 'Groq preset should contain active models');
   });
 
   it('getCachedModels should return empty for unknown provider', () => {
@@ -338,5 +338,24 @@ describe('ModelDiscoveryService', () => {
 
     await service.discoverModels(provider);
     assert.strictEqual(service.getLastSource('source-test'), 'live');
+  });
+
+  // ─── Non-Chat Model Filtering ───────────────────────────────────────────
+
+  it('should filter out guardrails, whisper, audio, embeddings, and non-chat models', () => {
+    assert.strictEqual(isChatGenerativeModel('meta-llama/llama-prompt-guard-2-22m'), false);
+    assert.strictEqual(isChatGenerativeModel('meta-llama/llama-prompt-guard-2-86m'), false);
+    assert.strictEqual(isChatGenerativeModel('whisper-large-v3-turbo'), false);
+    assert.strictEqual(isChatGenerativeModel('canopylabs/orpheus-arabic-saudi'), false);
+    assert.strictEqual(isChatGenerativeModel('openai/gpt-oss-safeguard-20b'), false);
+    assert.strictEqual(isChatGenerativeModel('nvidia/llama-3.1-nemoguard-8b-content-safety'), false);
+    assert.strictEqual(isChatGenerativeModel('nvidia/llama-3.2-nemoretriever-1b-vlm-embed-v1'), false);
+    assert.strictEqual(isChatGenerativeModel('nvidia/llama-3.1-nemotron-51b-instruct'), false);
+
+    // Legitimate chat models must pass
+    assert.strictEqual(isChatGenerativeModel('mistralai/mistral-large-2-instruct'), true);
+    assert.strictEqual(isChatGenerativeModel('openai/gpt-oss-120b'), true);
+    assert.strictEqual(isChatGenerativeModel('qwen/qwen3.8-27b'), true);
+    assert.strictEqual(isChatGenerativeModel('deepseek-ai/deepseek-coder-6.7b-instruct'), true);
   });
 });
