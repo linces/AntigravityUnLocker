@@ -10,19 +10,28 @@ import type { AGLanguageModelChatProvider } from '../lm/chat-provider';
 import type { ProviderManager } from '../providers/provider-manager';
 import { buildSystemPrompt, buildSlashCommandPrompt } from './prompt-builder';
 
+import type { DomainRulesManager } from '../domains/domain-rules-manager';
+
 const PARTICIPANT_ID = 'ag-universal-ai.chat';
 
 export class AGChatParticipant implements vscode.Disposable {
   private participant: vscode.ChatParticipant | undefined;
   private disposables: vscode.Disposable[] = [];
   private outputChannel: vscode.OutputChannel;
+  private domainRulesManager?: DomainRulesManager;
 
   constructor(
     private readonly lmProvider: AGLanguageModelChatProvider,
     private readonly providerManager: ProviderManager,
-    outputChannel: vscode.OutputChannel
+    outputChannel: vscode.OutputChannel,
+    domainRulesManager?: DomainRulesManager
   ) {
     this.outputChannel = outputChannel;
+    this.domainRulesManager = domainRulesManager;
+  }
+
+  public setDomainRulesManager(manager: DomainRulesManager): void {
+    this.domainRulesManager = manager;
   }
 
   /**
@@ -58,14 +67,28 @@ export class AGChatParticipant implements vscode.Disposable {
       return {};
     }
 
+    if (request.command === 'rules') {
+      if (this.domainRulesManager) {
+        stream.markdown(this.domainRulesManager.renderMarkdownSummary());
+      } else {
+        stream.markdown('ℹ️ No DomainRulesManager is currently configured.');
+      }
+      return {};
+    }
+
     try {
       // Build message array
       const messages: vscode.LanguageModelChatMessage[] = [];
 
+      // Determine active editor file path for pattern-matched rules
+      const activeEditor = vscode.window.activeTextEditor;
+      const activeFilePath = activeEditor ? vscode.workspace.asRelativePath(activeEditor.document.uri) : undefined;
+      const rulesPrompt = this.domainRulesManager?.getAggregatedRulesPrompt(activeFilePath);
+
       // System prompt
       const systemPrompt = request.command
-        ? buildSlashCommandPrompt(request.command)
-        : buildSystemPrompt();
+        ? buildSlashCommandPrompt(request.command, rulesPrompt)
+        : buildSystemPrompt(rulesPrompt);
 
       messages.push(vscode.LanguageModelChatMessage.User(systemPrompt));
 

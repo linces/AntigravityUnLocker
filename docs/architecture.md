@@ -86,6 +86,18 @@ O AG Universal AI consome os principais servidores MCP da comunidade via `stdio`
 - **Agent Planner (`src/agent/planner.ts`)**: Integração visual com o modo `🤖 Agent` na Webview, decompondo metas do usuário em planos estruturados (`### 📋 Execution Plan`) antes da execução de ferramentas.
 - **Tool Registry (`src/tools/tool-registry.ts`)**: Coleção de ferramentas nativas de arquivos, terminal, workspace e edições substring de código (`ag_replaceInFile`, `ag_multiReplaceInFile`, `ag_workspaceDigest`).
 
+### 4.4 Universal Domain & Rule Engine Layer
+- **Domain Rules Manager (`src/domains/domain-rules-manager.ts`)**: Motor centralizado de auto-descoberta e injeção de diretrizes de projeto para todos os ecossistemas líderes:
+  - `.agents/AGENTS.md`, `AGENTS.md`, `.agents/rules/*.md`, `.gemini/GEMINI.md`, `GEMINI.md` (Antigravity & Gemini).
+  - `.cursorrules`, `.cursor/rules/*.md`, `.cursor/rules/*.mdc` com frontmatter YAML, globs e flags `alwaysApply` (Cursor).
+  - `.windsurfrules`, `.windsurf/rules/*.md` (Windsurf / Codeium).
+  - `.github/copilot-instructions.md` (GitHub Copilot).
+  - `CLAUDE.md`, `.claude/rules/*.md` (Claude Code / Anthropic).
+  - Repositório central transversal (`ag-universal-ai.domainRepositoryPath`).
+- **Precedência Ponderada**: Ordenação determinística de instruções (`agents` (100) > `cursor` (90) > `windsurf` (80) > `copilot` (70) > `claude` (65) > `transversal-domain` (60)).
+- **Matching Dinâmico de Globs**: Compilação de padrões de wildcard e subdiretórios (`**/*.tsx`, `src/api/**/*.ts`) avaliados dinamicamente contra o arquivo ativo no editor.
+- **Ferramenta Nativa `ag_getWorkspaceRules`**: Inspeção estruturada e programática em JSON para agentes autônomos.
+
 ---
 
 ## 5. Diretrizes de Segurança & Telemetria
@@ -96,4 +108,4 @@ O AG Universal AI consome os principais servidores MCP da comunidade via `stdio`
 
 ---
 
-**Versão:** 0.8.0 | **Última Revisão:** 2026-09-09 01:48:00
+**Versão:** 0.9.0 | **Última Revisão:** 2026-09-09 03:02:00

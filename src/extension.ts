@@ -17,6 +17,7 @@ import { MCPServer } from './mcp/server';
 import { AgentEngine } from './agent/engine';
 import { AgentPlanner } from './agent/planner';
 import { PlanExecutor } from './agent/executor';
+import { DomainRulesManager } from './domains/domain-rules-manager';
 import { AGStatusBar } from './ui/status-bar';
 import { AGTreeDataProvider } from './ui/tree-view';
 import { AGWebviewDashboard } from './ui/webview-dashboard';
@@ -58,11 +59,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   inlineProvider.register(context);
   log('Inline completion provider activated (Ghost Text FIM)');
 
+  // ─── 4.5. Universal Domain & Rule Engine ─────────────────────────────────
+  const domainRulesManager = new DomainRulesManager(outputChannel);
+  context.subscriptions.push(domainRulesManager);
+  domainRulesManager.initialize().catch((err: unknown) => {
+    const msg = err instanceof Error ? err.message : String(err);
+    log(`Domain Rules Manager background initialization warning: ${msg}`);
+  });
+  log('Universal Domain & Rule Engine activated (.agents, .cursor, .windsurf, copilot, claude)');
+
   // ─── 5. Tool Registry ──────────────────────────────────────────────────
-  const toolRegistry = new ToolRegistry(outputChannel);
+  const toolRegistry = new ToolRegistry(outputChannel, domainRulesManager);
   context.subscriptions.push(toolRegistry);
   toolRegistry.register(context);
-  log('Tool registry activated (workspace/file/terminal tools)');
+  log('Tool registry activated (workspace/file/terminal/rules tools)');
 
   // ─── 5.5. Diff Provider & Direct MCP Client Manager ───────────────────────
   const diffProvider = new AGDiffProvider();
@@ -91,7 +101,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   log('Agent engine & planner activated');
 
   // ─── 8. Chat Participant (@ag) ──────────────────────────────────────────
-  const chatParticipant = new AGChatParticipant(lmProvider, providerManager, outputChannel);
+  const chatParticipant = new AGChatParticipant(lmProvider, providerManager, outputChannel, domainRulesManager);
   context.subscriptions.push(chatParticipant);
   chatParticipant.register();
 
@@ -108,7 +118,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     toolRegistry,
     agentEngine,
     agentPlanner,
-    outputChannel
+    outputChannel,
+    domainRulesManager
   );
   context.subscriptions.push(
     sidebarWebviewProvider,
@@ -224,6 +235,57 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const connected = statuses.filter((s) => s.status === 'connected').length;
       vscode.window.showInformationMessage(
         `AG AI: ${statuses.length} MCP server(s) configured (${connected} connected, ${toolRegistry.getToolDefinitions().length} total tools available).`
+      );
+    }),
+
+    // Show Workspace & Domain Rules
+    vscode.commands.registerCommand('ag-universal-ai.showRules', async () => {
+      const summary = domainRulesManager.getSummary();
+      const rules = domainRulesManager.getAllRules();
+      const markdown = [
+        `# 📜 AG Universal AI - Workspace & Domain Rules`,
+        ``,
+        `**Total Rules Discovered:** ${summary.totalRules} | **Active Sources:** ${summary.activeSources.join(', ') || 'None'}`,
+        ``,
+        `---`,
+        ``,
+        `## 📋 Summary by Ecosystem`,
+        `- **Antigravity / Gemini:** ${summary.sources.agents} rules`,
+        `- **Cursor:** ${summary.sources.cursor} rules`,
+        `- **Windsurf / Codeium:** ${summary.sources.windsurf} rules`,
+        `- **GitHub Copilot:** ${summary.sources.copilot} rules`,
+        `- **Claude Code:** ${summary.sources.claude} rules`,
+        `- **Transversal Domain:** ${summary.sources['transversal-domain']} rules`,
+        ``,
+        `---`,
+        ``,
+        `## 📁 Discovered Rules Detail`,
+        ...rules.map((r, i) => [
+          `### ${i + 1}. [${r.source.toUpperCase()}] ${r.title}`,
+          `- **Path:** \`${r.path}\``,
+          `- **Priority:** ${r.priority} | **Always Apply:** ${r.alwaysApply ? 'Yes' : 'No'}${r.globs && r.globs.length ? ` | **Globs:** \`${r.globs.join(', ')}\`` : ''}`,
+          ...(r.description ? [`- **Description:** ${r.description}`] : []),
+          ``,
+          `\`\`\`markdown`,
+          r.content.length > 500 ? r.content.slice(0, 500) + '\n... [truncated]' : r.content,
+          `\`\`\``,
+          ``,
+        ].join('\n')),
+      ].join('\n');
+
+      const doc = await vscode.workspace.openTextDocument({
+        content: markdown,
+        language: 'markdown',
+      });
+      await vscode.window.showTextDocument(doc, { preview: true });
+    }),
+
+    // Reload Workspace & Domain Rules
+    vscode.commands.registerCommand('ag-universal-ai.reloadRules', async () => {
+      const rules = await domainRulesManager.discoverRules();
+      sidebarWebviewProvider.postStateUpdate();
+      vscode.window.showInformationMessage(
+        `AG AI: Discovered ${rules.length} rule(s) across .agents, Cursor, Windsurf, Copilot, Claude & Domain repos.`
       );
     })
   );

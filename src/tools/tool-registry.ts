@@ -12,10 +12,12 @@ import { EditTools, ReplacementChunk } from './edit-tools';
 import { TerminalTools } from './terminal-tools';
 import { WorkspaceTools } from './workspace-tools';
 import { WorkspaceIndexer } from '../agent/workspace-indexer';
+import type { DomainRulesManager } from '../domains/domain-rules-manager';
 
 export class ToolRegistry implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
   private outputChannel: vscode.OutputChannel;
+  private domainRulesManager?: DomainRulesManager;
 
   public readonly fileTools: FileTools;
   public readonly editTools: EditTools;
@@ -34,12 +36,20 @@ export class ToolRegistry implements vscode.Disposable {
     }
   >();
 
-  constructor(outputChannel: vscode.OutputChannel) {
+  constructor(
+    outputChannel: vscode.OutputChannel,
+    domainRulesManager?: DomainRulesManager
+  ) {
     this.outputChannel = outputChannel;
+    this.domainRulesManager = domainRulesManager;
     this.fileTools = new FileTools(outputChannel);
     this.editTools = new EditTools(outputChannel);
     this.terminalTools = new TerminalTools(outputChannel);
     this.workspaceTools = new WorkspaceTools(outputChannel);
+  }
+
+  public setDomainRulesManager(manager: DomainRulesManager): void {
+    this.domainRulesManager = manager;
   }
 
   /**
@@ -328,6 +338,24 @@ export class ToolRegistry implements vscode.Disposable {
           },
         },
       },
+      {
+        type: 'function' as const,
+        function: {
+          name: 'ag_getWorkspaceRules',
+          description:
+            'Inspect active workspace rules, domain directives, and coding guidelines (.agents, .cursor, .windsurf, Copilot, Claude).',
+          parameters: {
+            type: 'object',
+            properties: {
+              activeFilePath: {
+                type: 'string',
+                description: 'Optional relative file path to filter pattern-matched rules (globs).',
+              },
+            },
+            required: [],
+          },
+        },
+      },
     ];
 
     const dynamic = [...this.dynamicTools.values()].map((d) => d.definition);
@@ -413,6 +441,45 @@ export class ToolRegistry implements vscode.Disposable {
             (args.maxFiles as number) || 60
           );
           return digest.summaryText;
+        }
+
+        case 'ag_getWorkspaceRules': {
+          if (!this.domainRulesManager) {
+            return JSON.stringify({
+              totalRulesInWorkspace: 0,
+              activeRulesCount: 0,
+              error: 'No DomainRulesManager instance is configured.',
+              rules: [],
+            });
+          }
+          const activeFilePath = args.activeFilePath as string | undefined;
+          const activeRules = this.domainRulesManager.getActiveRules(activeFilePath);
+          const summary = this.domainRulesManager.getSummary();
+          const prompt = this.domainRulesManager.getAggregatedRulesPrompt(activeFilePath);
+
+          return JSON.stringify(
+            {
+              totalRulesInWorkspace: summary.totalRules,
+              activeRulesCount: activeRules.length,
+              filteredForFile: activeFilePath || 'all',
+              sourcesFound: summary.sources,
+              rules: activeRules.map((r) => ({
+                id: r.id,
+                source: r.source,
+                name: r.name,
+                title: r.title || r.name,
+                filePath: r.filePath,
+                path: r.filePath,
+                alwaysApply: r.alwaysApply,
+                globs: r.globs,
+                description: r.description,
+                content: r.content,
+              })),
+              prompt,
+            },
+            null,
+            2
+          );
         }
 
         default:

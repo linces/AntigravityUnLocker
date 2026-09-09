@@ -8,8 +8,8 @@
 /**
  * Default system prompt for general chat interactions.
  */
-export function buildSystemPrompt(): string {
-  return `You are AG Universal AI, a powerful and knowledgeable AI coding assistant integrated into VS Code.
+export function buildSystemPrompt(rulesPrompt?: string): string {
+  const base = `You are AG Universal AI, a powerful and knowledgeable AI coding assistant integrated into VS Code.
 
 Your key traits:
 - You are an expert programmer proficient in all programming languages, frameworks, and tools.
@@ -26,17 +26,36 @@ Response format:
 - Use code blocks with language identifiers for all code.
 - Use bullet points for lists.
 - Be concise but thorough.`;
+
+  if (rulesPrompt && rulesPrompt.trim()) {
+    return `${base}\n\n${rulesPrompt.trim()}`;
+  }
+  return base;
+}
+
+function appendRules(base: string, rulesPrompt?: string): string {
+  if (rulesPrompt && rulesPrompt.trim()) {
+    return `${base}\n\n${rulesPrompt.trim()}`;
+  }
+  return base;
 }
 
 /**
  * Build a specialized system prompt for a slash command.
  */
-export function buildSlashCommandPrompt(command: string): string {
+export function buildSlashCommandPrompt(command: string, rulesPrompt?: string): string {
   const baseContext = 'You are AG Universal AI, an expert coding assistant in VS Code.';
 
   switch (command) {
+    case 'rules':
+      return appendRules(
+        `${baseContext}\n\nYour task is to SUMMARIZE, EXPLAIN, and REFERENCE the active workspace rules, domain directives, and coding standards currently loaded in this project.\nPresent each rule clearly, noting its origin ecosystem and core mandates.`,
+        rulesPrompt
+      );
+
     case 'explain':
-      return `${baseContext}
+      return appendRules(
+        `${baseContext}
 
 Your task is to EXPLAIN the provided code clearly and thoroughly.
 
@@ -47,10 +66,13 @@ Guidelines:
 - Identify the design patterns or algorithms used.
 - Note any potential issues, edge cases, or performance considerations.
 - Use simple language accessible to developers of all levels.
-- If the code uses specific libraries or frameworks, briefly explain their role.`;
+- If the code uses specific libraries or frameworks, briefly explain their role.`,
+        rulesPrompt
+      );
 
     case 'refactor':
-      return `${baseContext}
+      return appendRules(
+        `${baseContext}
 
 Your task is to REFACTOR the provided code to improve its quality.
 
@@ -62,10 +84,13 @@ Guidelines:
 - Reduce code duplication and complexity.
 - Improve naming conventions and code organization.
 - Preserve the original behavior (don't change functionality unless asked).
-- Explain WHY each change improves the code.`;
+- Explain WHY each change improves the code.`,
+        rulesPrompt
+      );
 
     case 'test':
-      return `${baseContext}
+      return appendRules(
+        `${baseContext}
 
 Your task is to GENERATE comprehensive unit tests for the provided code.
 
@@ -77,10 +102,13 @@ Guidelines:
 - Mock external dependencies appropriately.
 - Aim for high code coverage without redundant tests.
 - Follow AAA pattern (Arrange, Act, Assert).
-- Include both positive and negative test cases.`;
+- Include both positive and negative test cases.`,
+        rulesPrompt
+      );
 
     case 'fix':
-      return `${baseContext}
+      return appendRules(
+        `${baseContext}
 
 Your task is to FIX bugs or errors in the provided code.
 
@@ -90,10 +118,13 @@ Guidelines:
 - Show the corrected code with clear diff-style before/after.
 - Consider edge cases that might cause similar issues.
 - Suggest preventive measures (types, validation, tests) to avoid recurrence.
-- If the issue is unclear, list the most likely problems and their fixes.`;
+- If the issue is unclear, list the most likely problems and their fixes.`,
+        rulesPrompt
+      );
 
     case 'docs':
-      return `${baseContext}
+      return appendRules(
+        `${baseContext}
 
 Your task is to GENERATE documentation for the provided code.
 
@@ -104,10 +135,13 @@ Guidelines:
 - Document complex algorithms or business logic inline.
 - Generate a README section if appropriate.
 - Follow the documentation conventions of the language.
-- Include usage examples where helpful.`;
+- Include usage examples where helpful.`,
+        rulesPrompt
+      );
 
     case 'review':
-      return `${baseContext}
+      return appendRules(
+        `${baseContext}
 
 Your task is to perform a thorough CODE REVIEW of the provided code.
 
@@ -120,9 +154,11 @@ Guidelines:
 - Verify type safety and null handling.
 - Suggest specific improvements with code examples.
 - Rate the overall code quality (1-5 stars) with justification.
-- Be constructive and educational in your feedback.`;
+- Be constructive and educational in your feedback.`,
+        rulesPrompt
+      );
 
     default:
-      return buildSystemPrompt();
+      return buildSystemPrompt(rulesPrompt);
   }
 }

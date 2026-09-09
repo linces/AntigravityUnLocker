@@ -157,7 +157,8 @@ graph TD
 - **v0.6.7**: Concluído (ESLint 9, segurança de caminho, 26 testes).
 - **v0.7.0**: Concluído (Reasoner UX, thinking blocks, histórico de prompts, 28 testes).
 - **v0.8.0**: Concluído (Remote MCP SSE, SynAI Multi-Persona Swarm, Workspace Digest, 36 testes).
+- **v0.9.0**: Concluído (Universal Domain & Rule Engine: `.agents`, `.cursor`, `.windsurf`, Copilot, Claude, repositório transversal, matching dinâmico de globs, precedência ponderada, ferramenta `ag_getWorkspaceRules`, slash `/rules`, 40 testes).
 
 ---
 
-**Versão:** 0.8.0 | **Última Revisão:** 2026-09-09 01:48:00
+**Versão:** 0.9.0 | **Última Revisão:** 2026-09-09 03:02:00

@@ -5,6 +5,30 @@ All notable changes to the **AG Universal AI** extension will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-09-09
+
+### Added
+- **Universal Domain & Rule Engine (`src/domains/domain-rules-manager.ts`)**: Suporte unificado e transparente a regras de projeto em todos os ecossistemas líderes de IA:
+  - 🤖 **Antigravity / Gemini**: `.agents/AGENTS.md`, `AGENTS.md`, `.agents/rules/*.md`, `.gemini/GEMINI.md`, `GEMINI.md`.
+  - ⚡ **Cursor**: `.cursorrules`, `.cursor/rules/*.md`, `.cursor/rules/*.mdc` (com parsing de frontmatter YAML, `description`, `globs` e `alwaysApply`).
+  - 🏄 **Windsurf / Codeium**: `.windsurfrules`, `.windsurf/rules/*.md`.
+  - 🐙 **GitHub Copilot**: `.github/copilot-instructions.md`.
+  - 🧠 **Claude Code**: `CLAUDE.md`, `.claude/rules/*.md`.
+  - 🌐 **Domínios Transversais**: Repositório central com scripts DEE (`ag-universal-ai.domainRepositoryPath`).
+- **Injeção de Contexto & Precedência Ponderada**: Regras agregadas são injetadas automaticamente no System Prompt do Chat (`@ag`), Sidebar Webview e `AgentEngine`, com ordenação de prioridade (`agents (100)` > `cursor (90)` > `windsurf (80)` > `copilot (70)` > `claude (65)` > `transversal-domain (60)`).
+- **Matching Dinâmico de Globs em Tempo Real**: Avaliação dinâmica de padrões de arquivo (`*.ts`, `src/api/**/*.ts`, `**/*.tsx`) contra o documento ativo no editor, garantindo que regras específicas de tecnologia sejam aplicadas apenas quando relevante.
+- **Ferramenta Nativa `ag_getWorkspaceRules`**: Inspeção estruturada e programática de diretivas de workspace para agentes autônomos e automações de engenharia.
+- **Comandos & Slash Command `/rules`**:
+  - `/rules` no Chat e Sidebar para exibir resumo tabular de regras ativas.
+  - `AG AI: Show Workspace & Domain Rules` (`ag-universal-ai.showRules`): Visualização em documento Markdown detalhado.
+  - `AG AI: Reload Rules & Domains` (`ag-universal-ai.reloadRules`): Recarga instantânea de regras sem reiniciar a janela.
+- **Webview Rule Indicator & Badge**: Badge interativo no cabeçalho da Webview (`📜 X Rules`) com tooltip e chip rápido `📜 /rules`.
+
+### Tests
+- Adicionada suíte de testes unitários `test/domain-rules.test.ts` cobrindo descoberta multi-ecossistema, parsing MDC, globs em caminhos aninhados, precedência e ferramenta de regras, elevando a suíte para **40 testes automatizados 100% aprovados**.
+
+---
+
 ## [0.8.0] - 2026-09-09
 
 ### Added
@@ -205,4 +229,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-**Versão:** 0.8.0 | **Última Revisão:** 2026-09-09 01:48:00
+**Versão:** 0.9.0 | **Última Revisão:** 2026-09-09 03:02:00

@@ -2,7 +2,7 @@
    "name": "ag-universal-ai",
    "displayName": "AG Universal AI",
    "description": "Universal multi-provider AI assistant for VS Code & Antigravity IDE — Code completion, chat, agent workflows, MCP, and tool calling powered by any OpenAI-compatible backend.",
-   "version": "0.8.0",
+   "version": "0.9.0",
    "publisher": "linces",
    "icon": "resources/icons/ag-icon.png",
    "license": "MIT",
@@ -75,6 +75,10 @@
                {
                   "name": "review",
                   "description": "Review the selected code for issues and improvements"
+               },
+               {
+                  "name": "rules",
+                  "description": "Display all active workspace rules, .agents, .cursor, .windsurf and domain instructions"
                }
             ]
          }
@@ -119,6 +123,16 @@
             "command": "ag-universal-ai.reloadMcpServers",
             "title": "AG AI: Reload External MCP Servers",
             "icon": "$(sync)"
+         },
+         {
+            "command": "ag-universal-ai.showRules",
+            "title": "AG AI: Show Workspace & Domain Rules",
+            "icon": "$(book)"
+         },
+         {
+            "command": "ag-universal-ai.reloadRules",
+            "title": "AG AI: Reload Rules & Domains",
+            "icon": "$(refresh)"
          }
       ],
       "menus": {
@@ -305,6 +319,16 @@
                      "command"
                   ]
                }
+            },
+            "ag-universal-ai.domainRepositoryPath": {
+               "type": "string",
+               "default": "",
+               "description": "Optional path to a central cross-domain knowledge/rules repository (e.g. transversal domains, DEE). Defaults to standard domain repository if left blank."
+            },
+            "ag-universal-ai.enableDomainRules": {
+               "type": "boolean",
+               "default": true,
+               "description": "Enable automatic discovery and prompt injection of workspace and cross-domain rules (.agents, .cursor, .windsurf, Copilot, Claude)."
             }
          }
       },

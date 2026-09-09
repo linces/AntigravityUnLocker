@@ -4,13 +4,13 @@
   <img src="https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Platform-VS%20Code%20%7C%20Antigravity%20IDE-blue?style=for-the-badge&logo=visualstudiocode" alt="Platform" />
   <img src="https://img.shields.io/badge/Providers-13-purple?style=for-the-badge&logo=openai" alt="Providers" />
-  <img src="https://img.shields.io/badge/Version-0.8.0-green?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-0.9.0-green?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-brightgreen?style=for-the-badge" alt="License" />
 </p>
 
 <p align="center">
   <b>A powerful, multi-provider AI coding assistant & agent engine for VS Code & Antigravity IDE.</b><br />
-  Code completion, multi-session chat, Direct MCP integration, embedded model routing, real-time telemetry, and tool calling.
+  Universal Domain & Rule Engine (.agents, Cursor, Windsurf, Copilot, Claude), Direct MCP, multi-session chat, model routing, and agent swarm.
 </p>
 
 > [!IMPORTANT]
@@ -124,6 +124,23 @@ Para consumo direto pelo AG Universal AI sem necessidade de daemons intermediár
 - **Seletor de Personas na UI**: Alternância com 1 clique no Input Card ou chips rápidos (`👑 @supervisor`, `💻 @coder`, `🛡️ @security`).
 - **Workspace Context Indexer (`ag_workspaceDigest`)**: Mapeamento inteligente da topologia do workspace excluindo ruído (`node_modules`, `.git`, `.vsix`).
 
+### 📜 Universal Domain & Rule Engine (`DomainRulesManager`)
+- **Descoberta Multi-Ecossistema Transparente**: Auto-detecção de diretrizes e regras nos padrões:
+  - 🤖 **Antigravity / Gemini**: `.agents/AGENTS.md`, `AGENTS.md`, `.agents/rules/*.md`, `.gemini/GEMINI.md`, `GEMINI.md`.
+  - ⚡ **Cursor**: `.cursorrules`, `.cursor/rules/*.md`, `.cursor/rules/*.mdc` (com parsing de frontmatter YAML, `description`, `globs` e `alwaysApply`).
+  - 🏄 **Windsurf / Codeium**: `.windsurfrules`, `.windsurf/rules/*.md`.
+  - 🐙 **GitHub Copilot**: `.github/copilot-instructions.md`.
+  - 🧠 **Claude Code**: `CLAUDE.md`, `.claude/rules/*.md`.
+  - 🌐 **Domínios Transversais**: Repositório central com scripts DEE (`ag-universal-ai.domainRepositoryPath`).
+- **Injeção de Contexto & Precedência Ponderada**: Regras agregadas são injetadas automaticamente no System Prompt (`@ag`, Sidebar e `AgentEngine`) respeitando pesos de precedência (`agents` > `cursor` > `windsurf` > `copilot` > `claude` > `transversal-domain`).
+- **Filtro Dinâmico por Globs**: Regras de tecnologia específicas (`*.ts`, `src/api/**/*.ts`, `**/*.tsx`) são avaliadas contra o arquivo aberto no editor ativo em tempo real.
+- **Ferramenta Nativa `ag_getWorkspaceRules`**: Inspeção estruturada e programática para agentes autônomos.
+- **Comandos & Slash Command `/rules`**:
+  - `/rules`: Exibe tabela das regras detectadas diretamente no Chat e Sidebar.
+  - `AG AI: Show Workspace & Domain Rules`: Abre documento Markdown completo com todas as diretivas.
+  - `AG AI: Reload Rules & Domains`: Recarrega as regras em tempo de execução.
+- **Badge Dinâmico na Webview**: Indicador interativo `📜 X Rules` no cabeçalho com tooltip e chip rápido.
+
 ### 📊 Telemetria & Dashboard Interativo
 - Métricas em tempo real (requisições, taxa de sucesso %, latência ms e uso de tokens).
 - Troca de provedor ativo com 1 clique diretamente no Dashboard (`AG AI: Show Dashboard`).
@@ -153,4 +170,4 @@ Abra a barra lateral de IA e digite `@ag` ou interaja diretamente pelo painel in
 
 ---
 
-**Versão:** 0.8.0 | **Última Revisão:** 2026-09-09 01:48:00
+**Versão:** 0.9.0 | **Última Revisão:** 2026-09-09 03:02:00

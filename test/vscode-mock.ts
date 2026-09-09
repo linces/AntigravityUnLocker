@@ -100,9 +100,51 @@ export const workspace = {
     },
     readFile: async (uri: any) => {
       const norm = (uri.fsPath || uri.path || String(uri)).replace(/\\/g, '/');
-      const content = mockFileStore.get(norm) || '';
+      const content = mockFileStore.get(norm);
+      if (content === undefined) {
+        throw new Error(`File not found: ${norm}`);
+      }
       return new TextEncoder().encode(content);
     },
+    stat: async (uri: any) => {
+      const norm = (uri.fsPath || uri.path || String(uri)).replace(/\\/g, '/');
+      if (mockFileStore.has(norm)) {
+        return { type: FileType.File, size: (mockFileStore.get(norm) || '').length, ctime: 0, mtime: 0 };
+      }
+      const prefix = norm.endsWith('/') ? norm : norm + '/';
+      for (const k of mockFileStore.keys()) {
+        if (k.startsWith(prefix)) {
+          return { type: FileType.Directory, size: 0, ctime: 0, mtime: 0 };
+        }
+      }
+      throw new Error(`File not found: ${norm}`);
+    },
+    readDirectory: async (uri: any) => {
+      const norm = (uri.fsPath || uri.path || String(uri)).replace(/\\/g, '/');
+      const prefix = norm.endsWith('/') ? norm : norm + '/';
+      const entries = new Map<string, number>();
+      for (const k of mockFileStore.keys()) {
+        if (k.startsWith(prefix)) {
+          const rest = k.slice(prefix.length);
+          const slashIdx = rest.indexOf('/');
+          if (slashIdx === -1) {
+            entries.set(rest, FileType.File);
+          } else {
+            entries.set(rest.slice(0, slashIdx), FileType.Directory);
+          }
+        }
+      }
+      return Array.from(entries.entries()) as [string, number][];
+    },
+  },
+  createFileSystemWatcher: () => ({
+    onDidCreate: () => ({ dispose: () => {} }),
+    onDidChange: () => ({ dispose: () => {} }),
+    onDidDelete: () => ({ dispose: () => {} }),
+    dispose: () => {},
+  }),
+  RelativePattern: class {
+    constructor(public base: any, public pattern: string) {}
   },
   openTextDocument: async (uri: any) => {
     const norm = (uri.fsPath || uri.path || String(uri)).replace(/\\/g, '/');
@@ -184,6 +226,10 @@ export const Uri = {
       }),
     };
   },
+};
+
+export const RelativePattern = class {
+  constructor(public base: any, public pattern: string) {}
 };
 
 export const EventEmitter = class {

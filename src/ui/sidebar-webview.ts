@@ -15,10 +15,12 @@ import { PersonaRegistry } from '../agent/personas';
 import { getAllPresets, getPreset } from '../providers/provider-registry';
 import { buildSystemPrompt, buildSlashCommandPrompt } from '../chat/prompt-builder';
 import { AGDiffProvider } from './diff-provider';
+import type { DomainRulesManager } from '../domains/domain-rules-manager';
 
 export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vscode.Disposable {
   private view?: vscode.WebviewView;
   private disposables: vscode.Disposable[] = [];
+  private domainRulesManager?: DomainRulesManager;
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -27,13 +29,20 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     private readonly toolRegistry: ToolRegistry,
     private readonly agentEngine: AgentEngine,
     private readonly agentPlanner: AgentPlanner,
-    private readonly outputChannel: vscode.OutputChannel
+    private readonly outputChannel: vscode.OutputChannel,
+    domainRulesManager?: DomainRulesManager
   ) {
+    this.domainRulesManager = domainRulesManager;
     this.disposables.push(
       this.providerManager.onDidChangeProvider(() => this.postStateUpdate()),
       this.sessionManager.onDidChangeSession(() => this.postStateUpdate()),
       this.sessionManager.onDidChangeSessionList(() => this.postStateUpdate())
     );
+  }
+
+  public setDomainRulesManager(manager: DomainRulesManager): void {
+    this.domainRulesManager = manager;
+    this.postStateUpdate();
   }
 
   public resolveWebviewView(
@@ -264,6 +273,20 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         return this.handleAgent(text, personaId);
       }
 
+      // Handle slash command /rules or query
+      if (slash === 'rules' || text.trim().toLowerCase() === '/rules') {
+        const summary = this.domainRulesManager?.renderMarkdownSummary() ||
+          'ℹ️ No active workspace rules detected.';
+        await this.sessionManager.addMessage(
+          'assistant',
+          summary,
+          activeProvider?.id,
+          activeProvider?.config.model
+        );
+        this.post({ type: 'done', text: summary });
+        return;
+      }
+
       const provider = activeProvider;
       if (!provider) {
         this.post({ type: 'done', text: '⚠️ No provider active. Select one from the dropdown.' });
@@ -279,14 +302,18 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         return;
       }
 
-    let sysPrompt = slash ? buildSlashCommandPrompt(slash) : buildSystemPrompt();
+    // Determine active file for contextual rules
+    const ed = vscode.window.activeTextEditor;
+    const activeFile = ed ? vscode.workspace.asRelativePath(ed.document.uri) : undefined;
+    const rulesPrompt = this.domainRulesManager?.getAggregatedRulesPrompt(activeFile);
+
+    let sysPrompt = slash ? buildSlashCommandPrompt(slash, rulesPrompt) : buildSystemPrompt(rulesPrompt);
     if (personaId) {
       sysPrompt = PersonaRegistry.buildSystemPrompt(personaId, sysPrompt);
     }
 
     // Add editor context
     let ctx = '';
-    const ed = vscode.window.activeTextEditor;
     if (ed) {
       const rel = vscode.workspace.asRelativePath(ed.document.uri);
       const sel = ed.document.getText(ed.selection);
@@ -505,13 +532,21 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
       this.post({ type: 'chunk', text: planDisplay });
 
-      const agentSystemPrompt = `You are AG Universal AI Autonomous Agent operating under the ${persona.name} persona (${persona.title}).
+      const activeEd = vscode.window.activeTextEditor;
+      const activeFile = activeEd ? vscode.workspace.asRelativePath(activeEd.document.uri) : undefined;
+      const rulesPrompt = this.domainRulesManager?.getAggregatedRulesPrompt(activeFile);
+
+      let agentSystemPrompt = `You are AG Universal AI Autonomous Agent operating under the ${persona.name} persona (${persona.title}).
 Goal: ${goal}
 High-level Strategy: ${plan.rationale}
 Planned Steps:
 ${planSummary}
 
 Execute the planned steps systematically using available tools. Be concise, verify edits, and output a clear summary when finished.`;
+
+      if (rulesPrompt && rulesPrompt.trim()) {
+        agentSystemPrompt += '\n\n' + rulesPrompt.trim();
+      }
 
       const result = await this.agentEngine.run(
         goal,
@@ -569,7 +604,7 @@ Execute the planned steps systematically using available tools. Be concise, veri
 
   private stateSeq = 0;
 
-  private async postStateUpdate(): Promise<void> {
+  public async postStateUpdate(): Promise<void> {
     const currentSeq = ++this.stateSeq;
     const ap = this.providerManager.getActiveProvider();
     const activeId = this.providerManager.getActiveProviderId() || 'ollama-local';
@@ -594,6 +629,7 @@ Execute the planned steps systematically using available tools. Be concise, veri
       ...(ap?.config.model ? [ap.config.model] : []),
       ...presetModels,
     ]));
+    const ruleCount = this.domainRulesManager?.getRuleSummary().totalRules || 0;
     this.post({
       type: 'state',
       activeId,
@@ -603,6 +639,7 @@ Execute the planned steps systematically using available tools. Be concise, veri
       active: ap ? { id: ap.id, name: ap.name, model: ap.config.model, url: ap.config.baseUrl, hasKey: !!ap.config.apiKey } : null,
       models: initialModels,
       providers: presets,
+      ruleCount,
     });
 
     if (!ap) { return; }
@@ -638,6 +675,7 @@ Execute the planned steps systematically using available tools. Be concise, veri
       active: { id: ap.id, name: ap.name, model: ap.config.model, url: ap.config.baseUrl, hasKey: !!ap.config.apiKey },
       models,
       providers: presets,
+      ruleCount,
     });
   }
 
@@ -805,6 +843,7 @@ Execute the planned steps systematically using available tools. Be concise, veri
         <button type="button" class="ibtn" id="btnDelSession" title="Delete Session (🗑️)">🗑️</button>
       </div>
       <div class="hdr-btns">
+        <span class="badge" id="ruleBadge" style="background: rgba(139,92,246,0.2); color: #c4b5fd; font-size: 9px; cursor: pointer; padding: 2px 6px; display: none;" title="Active Workspace Rules & Domains">📜 Rules</span>
         <button type="button" class="ibtn" id="btnClear" title="Clear Messages">🧹</button>
         <button type="button" class="ibtn" id="btnDash" title="Dashboard">📊</button>
       </div>
@@ -818,6 +857,7 @@ Execute the planned steps systematically using available tools. Be concise, veri
   <div class="input-card">
     <div class="chips" id="chips">
       <span class="chip" data-c="@workspace ">@workspace</span>
+      <span class="chip" data-c="/rules ">📜 /rules</span>
       <span class="chip" data-c="@supervisor ">👑 @supervisor</span>
       <span class="chip" data-c="@coder ">💻 @coder</span>
       <span class="chip" data-c="@security ">🛡️ @security</span>
@@ -1107,6 +1147,13 @@ Execute the planned steps systematically using available tools. Be concise, veri
   bindClick('btnClear', function() { window.__agPost('clear'); });
   bindClick('btnNewSession', function() { window.__agPost('newSession'); });
   bindClick('btnDelSession', function() { window.__agPost('deleteSession'); });
+  bindClick('ruleBadge', function() {
+    var inputEl = getInp();
+    if (inputEl) {
+      inputEl.value = '/rules';
+      doSend();
+    }
+  });
   bindClick('btnSend', function() { doSend(); });
   bindClick('btnAttachFile', function() { window.__agPost('pickFile'); });
 
@@ -1466,6 +1513,13 @@ Execute the planned steps systematically using available tools. Be concise, veri
 
         isUpdatingUI = true;
         try {
+          var rBadge = document.getElementById('ruleBadge');
+          if (rBadge && m.ruleCount !== undefined) {
+            rBadge.textContent = '📜 ' + m.ruleCount + ' Rules';
+            rBadge.title = m.ruleCount + ' active workspace rules (.agents, .cursor, .windsurf, Copilot, Claude)';
+            rBadge.style.display = m.ruleCount > 0 ? 'inline-block' : 'none';
+          }
+
           var sSession = document.getElementById('selSession');
           if(sSession && m.sessions && Array.isArray(m.sessions)){
             sSession.innerHTML = '';

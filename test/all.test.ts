@@ -12,3 +12,4 @@ import './reasoner-stream.test';
 import './personas.test';
 import './mcp-sse.test';
 import './workspace-indexer.test';
+import './domain-rules.test';
