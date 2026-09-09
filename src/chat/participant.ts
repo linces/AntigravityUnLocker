@@ -137,21 +137,23 @@ export class AGChatParticipant implements vscode.Disposable {
 
     for (const ref of references) {
       if (ref.value instanceof vscode.Uri) {
+        const relPath = vscode.workspace.asRelativePath(ref.value);
         try {
           const doc = await vscode.workspace.openTextDocument(ref.value);
           const content = doc.getText();
           const langId = doc.languageId;
-          parts.push(`### File: ${ref.value.fsPath}\n\`\`\`${langId}\n${content}\n\`\`\`\n`);
+          parts.push(`### File: ${relPath}\n\`\`\`${langId}\n${content}\n\`\`\`\n`);
         } catch {
-          parts.push(`### File: ${ref.value.fsPath}\n(Could not read file)\n`);
+          parts.push(`### File: ${relPath}\n(Could not read file)\n`);
         }
       } else if (ref.value instanceof vscode.Location) {
+        const relPath = vscode.workspace.asRelativePath(ref.value.uri);
         try {
           const doc = await vscode.workspace.openTextDocument(ref.value.uri);
           const content = doc.getText(ref.value.range);
           const langId = doc.languageId;
           parts.push(
-            `### Selection from ${ref.value.uri.fsPath} ` +
+            `### Selection from ${relPath} ` +
             `(lines ${ref.value.range.start.line + 1}-${ref.value.range.end.line + 1})\n` +
             `\`\`\`${langId}\n${content}\n\`\`\`\n`
           );

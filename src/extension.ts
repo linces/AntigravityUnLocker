@@ -86,7 +86,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // ─── 7. Agent Engine & Planner ─────────────────────────────────────────
   const agentEngine = new AgentEngine(providerManager, toolRegistry, outputChannel);
   const agentPlanner = new AgentPlanner(providerManager);
-  const planExecutor = new PlanExecutor(toolRegistry);
+  const _planExecutor = new PlanExecutor(toolRegistry);
   context.subscriptions.push(agentEngine);
   log('Agent engine & planner activated');
 

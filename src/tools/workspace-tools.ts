@@ -6,6 +6,7 @@
  */
 
 import * as vscode from 'vscode';
+import * as path from 'path';
 
 export class WorkspaceTools {
   constructor(private readonly outputChannel: vscode.OutputChannel) {}
@@ -151,13 +152,28 @@ export class WorkspaceTools {
     return `${summary}\n${lines.join('\n')}`;
   }
 
-  // ─── Private ──────────────────────────────────────────────────────────────
-
   private resolveUri(filePath: string): vscode.Uri | undefined {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
       return undefined;
     }
-    return vscode.Uri.joinPath(workspaceFolders[0].uri, filePath);
+
+    const workspaceRoot = workspaceFolders[0].uri;
+    const cleanPath = filePath.replace(/^[/\\]+/, '');
+    const uri = vscode.Uri.joinPath(workspaceRoot, cleanPath);
+
+    // Confinement check: ensure the resolved path stays within workspaceRoot
+    const rootPath = path.posix.normalize(workspaceRoot.fsPath.replace(/\\/g, '/')).toLowerCase().replace(/\/$/, '');
+    const targetPath = path.posix.normalize(uri.fsPath.replace(/\\/g, '/')).toLowerCase();
+    if (targetPath !== rootPath && !targetPath.startsWith(rootPath + '/')) {
+      this.log(`Path traversal attempt blocked: "${filePath}" resolves outside workspace`);
+      return undefined;
+    }
+
+    return uri;
+  }
+
+  private log(message: string): void {
+    this.outputChannel.appendLine(`[WorkspaceTools] ${message}`);
   }
 }

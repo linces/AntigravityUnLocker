@@ -5,7 +5,6 @@
  * and feeding progress back to the user/LLM.
  */
 
-import * as vscode from 'vscode';
 import type { ToolRegistry } from '../tools/tool-registry';
 import type { ExecutionPlan, PlanStep } from './planner';
 

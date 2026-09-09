@@ -31,7 +31,6 @@ export class AGTreeDataProvider implements vscode.TreeDataProvider<AGTreeItem>, 
   async getChildren(element?: AGTreeItem): Promise<AGTreeItem[]> {
     if (!element) {
       // Root items
-      const activeId = this.providerManager.getActiveProviderId();
       const activeProvider = this.providerManager.getActiveProvider();
 
       return [

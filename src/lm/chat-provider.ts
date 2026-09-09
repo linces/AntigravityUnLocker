@@ -68,8 +68,8 @@ export class AGLanguageModelChatProvider implements vscode.Disposable {
     const startTime = Date.now();
     const promptChars = chatMessages.reduce((acc, m) => acc + (typeof m.content === 'string' ? m.content.length : 0), 0);
     const promptTokensEst = Math.ceil(promptChars / 4);
+    const providerManager = this.providerManager;
 
-    const self = this;
     async function* streamWrapper() {
       let full = '';
       try {
@@ -78,7 +78,7 @@ export class AGLanguageModelChatProvider implements vscode.Disposable {
           full += chunk;
           yield chunk;
         }
-        self.providerManager.recordMetric({
+        providerManager.recordMetric({
           providerId: provider!.id,
           model: request.model,
           isStream: true,
@@ -89,7 +89,7 @@ export class AGLanguageModelChatProvider implements vscode.Disposable {
         });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        self.providerManager.recordMetric({
+        providerManager.recordMetric({
           providerId: provider!.id,
           model: request.model,
           isStream: true,

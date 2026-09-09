@@ -5,6 +5,24 @@ All notable changes to the **AG Universal AI** extension will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.7] - 2026-09-09
+
+### Added & Fixed
+- **ESLint 9 Flat Configuration (`eslint.config.mjs`)**: Configured flat config for ESLint v9 integrated with `typescript-eslint`, eliminating the deprecated `--ext ts` invocation and restoring 100% green linter pass (`npm run lint`).
+- **Path Traversal Security Hardening**: Enforced strict workspace root containment validation on `cwd` in `TerminalTools.runCommand` and on `filePath` in `WorkspaceTools.resolveUri`, blocking directory traversal attempts (`../../`).
+- **Zero Exposure Policy Compliance**: Sanitized file references in `ChatParticipant.buildReferencesContext` by replacing raw system `fsPath` with `vscode.workspace.asRelativePath`, preventing local environment paths from leaking into LLM prompts.
+- **Provider Registry & Manifest Alignment**: Added `nvidia` (NVIDIA NIM) to `package.json` under `ag-universal-ai.activeProvider` (`enum` and `enumDescriptions`).
+- **Expanded Security Test Suite**: Added dedicated tests in `test/security-containment.test.ts` bringing the automated test suite to 26 passing tests.
+
+---
+
+## [0.6.6] - 2026-08-31
+
+### Fixed
+- **Template String Escape Immunization**: Immunized Webview template string generator using `String.fromCharCode(92)` and `String.fromCharCode(96)` to prevent compiler and bundler backslash de-escaping errors in client script.
+
+---
+
 ## [0.6.3] - 2026-08-31
 
 ### Fixed

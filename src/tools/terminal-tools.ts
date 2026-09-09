@@ -6,6 +6,7 @@
 
 import * as vscode from 'vscode';
 import { exec } from 'child_process';
+import * as path from 'path';
 
 const MAX_OUTPUT_LENGTH = 8000;
 const DEFAULT_TIMEOUT_MS = 30000;
@@ -22,8 +23,23 @@ export class TerminalTools {
       return 'Error: No workspace folder open.';
     }
 
-    const workspaceRoot = workspaceFolders[0].uri.fsPath;
-    const workingDir = cwd ? `${workspaceRoot}/${cwd}` : workspaceRoot;
+    const workspaceRoot = workspaceFolders[0].uri;
+    let workingDir = workspaceRoot.fsPath;
+
+    if (cwd && cwd.trim()) {
+      const cleanCwd = cwd.trim().replace(/^[/\\]+/, '');
+      const candidateUri = vscode.Uri.joinPath(workspaceRoot, cleanCwd);
+
+      // Confinement check: ensure cwd stays within workspaceRoot
+      const rootPath = path.posix.normalize(workspaceRoot.fsPath.replace(/\\/g, '/')).toLowerCase().replace(/\/$/, '');
+      const targetPath = path.posix.normalize(candidateUri.fsPath.replace(/\\/g, '/')).toLowerCase();
+
+      if (targetPath !== rootPath && !targetPath.startsWith(rootPath + '/')) {
+        this.log(`Path traversal attempt blocked: cwd "${cwd}" resolves outside workspace`);
+        return `Error: Working directory "${cwd}" resolves outside the active workspace. Execution blocked.`;
+      }
+      workingDir = candidateUri.fsPath;
+    }
 
     // Security: basic command sanitization
     if (this.isDangerous(command)) {
@@ -86,8 +102,11 @@ export class TerminalTools {
     const lower = command.toLowerCase().trim();
     const dangerous = [
       'rm -rf /',
+      'rm -rf *',
       'format c:',
       'del /s /q c:',
+      'rmdir /s /q c:',
+      'del /f /s /q',
       'mkfs',
       ':(){:|:&};:',
       'dd if=/dev/zero',

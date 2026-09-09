@@ -92,4 +92,4 @@ O AG Universal AI consome os principais servidores MCP da comunidade via `stdio`
 
 ---
 
-**Versão:** 0.6.1 | **Última Revisão:** 2026-08-30 18:22:00
+**Versão:** 0.6.7 | **Última Revisão:** 2026-09-09 00:48:00

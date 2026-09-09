@@ -150,7 +150,7 @@ export class AGWebviewDashboard {
     return r;
   }
 
-  private static getHtml(webview: vscode.Webview, providerManager: ProviderManager): string {
+  private static getHtml(webview: vscode.Webview, _providerManager: ProviderManager): string {
     const nonce = AGWebviewDashboard.getNonce();
     const csp = webview.cspSource;
 

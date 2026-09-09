@@ -1,98 +1,162 @@
 # 🏛️ AG Universal AI — Parecer Geral do Conselho & Roadmap Estratégico
 
-## 📊 1. Sumário Executivo & Índice de Maturidade
+> **Projeto:** `AG Universal AI` (`ag-universal-ai`)  
+> **Escopo da Análise:** Auditoria de Arquitetura, Segurança, Performance, Orquestração Agêntica, Frontend Webview, Qualidade/DevOps e Visão de Produto.  
+> **Diretriz:** Protocolo Transversal `[dev]` & Cognitive Harness (`Checar -> Refazer -> Recontextualizar -> Refazer -> Rechecar -> Aprovar`).
 
-O **Conselho de Engenharia e Arquitetura de Software** realizou uma auditoria completa, profunda e multidimensional no projeto **AG Universal AI**.
+---
 
-O projeto atua como uma **extensão unificada para VS Code e Antigravity IDE**, integrando:
-1. **Embedded AI Gateway** com 12+ provedores (Ollama, LM Studio, OpenAI, Groq, NVIDIA NIM, OpenRouter, DashScope Qwen, Moonshot Kimi, DeepSeek, SiliconFlow, Together AI, Fireworks AI e Z.ai GLM-5.2).
-2. **Assistente de Chat Híbrido** (Webview estilo Cursor/Kimi + Participante Nativo `@ag`).
-3. **Ghost Text Inline Completion (FIM)**.
-4. **Embedded SynAI Agent Engine** (Plan-Then-Act com ferramentas de workspace/edição).
-5. **Servidor MCP Embarcado (JSON-RPC 2.0)** e fundação para Direct MCP Client.
+## 📊 1. Sumário Executivo & Scorecard de Maturidade
+
+O **Conselho de Arquitetura e Engenharia de Software** realizou uma varredura minuciosa e multidimensional no estado atual da base de código do **AG Universal AI** (versão `0.6.6`).
+
+O projeto consolidou-se como um assistente de IA multi-provedor (12+ backends locais e em nuvem), com cliente e servidor MCP nativos (JSON-RPC 2.0 via `stdio`), visualizador de diff interativo (`ag-diff://`), completude de código via Ghost Text (FIM), motor agêntico com extração de ferramentas via fallback JSON e interface Webview resiliente com captura de teclado e imagens do clipboard.
 
 ### 🎯 Scorecard Dimensional do Conselho
 
-| Dimensão Auditada | Nota (0 a 10) | Status | Parecer do Conselho |
+| Dimensão Auditada | Nota (0 a 10) | Status | Parecer Consolidado do Conselho |
 | :--- | :---: | :---: | :--- |
-| **1. Arquitetura & Design de Sistemas** | **8.8** | 🟢 Sólido | Excelente desacoplamento e ciclo de vida, com redundância residual em `ToolRegistry`. |
-| **2. Segurança & Zero Trust** | **8.5** | 🟢 Seguro | `SecretStorage` robusto e CSP rígido; sanitização de terminal e path traversal demandam hardening. |
-| **3. Performance, Concorrência & Streams** | **8.7** | 🟢 Otimizado | Streaming híbrido (Node/Web) de alta resiliência; spinlocks de config podem evoluir para Mutex. |
-| **4. Orquestração de IA & Agentes** | **8.2** | 🟡 Bom com Alerta | Loop Plan-Then-Act funcional; fallback de function-calling em modelos sem ferramentas nativas tem gap de parse. |
-| **5. Frontend Webview & UX/DX** | **9.2** | 🟢 Excelente | Resolução definitiva de IPC, auto-recuperação e suporte a clipboard/imagens de alto nível. |
-| **6. Qualidade, Testabilidade & DevOps** | **8.5** | 🟢 Confiável | Suíte rápida com bundle esbuild e mock nativo (14 testes passando em 1s); gaps em testes agênticos. |
-| **7. Visão de Produto & Ecossistema** | **9.0** | 🟢 Competitivo | Paridade com ferramentas comerciais de ponta (Cursor, Roo Code, Cline) com soberania local (Ollama). |
-| **ÍNDICE GERAL DE MATURIDADE (SSOT)** | **8.7 / 10** | 🟢 **PRODUÇÃO COM RECOMENDAÇÕES** |
+| **1. Arquitetura & Design de Sistemas** | **8.8** | 🟢 Sólido | Desacoplamento limpo em camadas. Identificada orfandade parcial de `PlanExecutor` e discrepância de presets no manifesto. |
+| **2. Segurança, Zero Trust & Contenção** | **8.4** | 🟡 Bom c/ Ressalvas | `SecretStorage` e contenção de arquivos excelentes. Brechas de sanitização em `cwd` no terminal e `resolveUri` em workspace tools. |
+| **3. Performance & Engenharia de Streams** | **8.7** | 🟢 Otimizado | Streaming híbrido (Node/Web) resiliente. Monólogo de raciocínio de modelos Reasoner (DeepSeek R1) necessita de isolamento visual. |
+| **4. Orquestração Agêntica & Protocolo MCP** | **8.6** | 🟢 Robusto | Direct MCP Client funcional via `stdio` com binding dinâmico. Falta suporte a transporte remoto (SSE/HTTP) e confirmação interativa de ferramentas. |
+| **5. Frontend Webview & UX/DX** | **9.0** | 🟢 Alta Fidelidade | Singleton IPC (`window.__agVscApi`) e rotina de retentativas eliminaram congelamentos. Oportunidade de blocos colapsáveis de pensamento (`<think>`). |
+| **6. Qualidade, Testabilidade & DevOps** | **7.9** | 🔴 Alerta | 22 testes passam em 1s e build limpo, mas `npm run lint` quebra devido à incompatibilidade do ESLint 9 (falta de `eslint.config.mjs`). |
+| **7. Visão de Produto & Ecossistema** | **9.2** | 🟢 Competitivo | Paridade com Cursor, Cline e Roo Code, oferecendo soberania de privacidade local (Ollama) e suporte a modelos de ponta. |
+| **ÍNDICE GERAL DE MATURIDADE (SSOT)** | **8.65 / 10** | 🟢 **PRODUÇÃO COM RECOMENDAÇÕES** |
 
 ---
 
-## 🔍 2. Tribunal do Conselho: Análise Dimensional Detalhada
+## 🔍 2. Tribunal do Conselho: Auditoria Dimensional Detalhada
 
-### 🏛️ DIMENSÃO 1: ARQUITETURA DE SOFTWARE & DESIGN DE SISTEMAS
-- **Single Core Engine & Lifecycle**: `extension.ts` orquestra todas as camadas de forma limpa, garantindo registro em `context.subscriptions`.
-- **Desacoplamento do Gateway**: `ProviderManager` atua como SSOT para seleção de modelos, health checks, fallback e persistência de credenciais.
-- **Identificação de Código Órfão**: `ToolRegistry` continha propriedades duplicadas e método fantasma `getCachedCompletion` com chamada para `buildCompletionPrompt` inexistente.
-
-### 🔒 DIMENSÃO 2: SEGURANÇA OFENSIVA, DEFENSIVA & PRIVACIDADE
-- **Credenciais em SecretStorage**: Chaves armazenadas no Keyring nativo com migração automática a partir do `.env` local (gitignored).
-- **Hardening de Path Traversal**: `resolveUri` em `FileTools` e `EditTools` necessita de contenção estrita (`fsPath.startsWith(workspaceRoot.fsPath)`).
-- **Sanitização de Terminal**: `TerminalTools` implementa blocklist básica de comandos destrutivos e confirmação modal em execuções de risco.
-
-### ⚡ DIMENSÃO 3: PERFORMANCE, CONCORRÊNCIA & ENGENHARIA DE STREAMS
-- **Adaptador Universal de Streaming**: Suporte duplo a `body.getReader()` e `Symbol.asyncIterator in body` em `OpenAIAdapter`, eliminando falhas de streaming em Node 18+/Electron.
-- **Sincronização Atômica de Configurações**: Prevenção de race conditions durante a troca de provedor ativo e modelo.
-
-### 🤖 DIMENSÃO 4: ORQUESTRAÇÃO AGÊNTICA, LLMS & PROTOCOLO MCP
-- **Ciclo Plan-Then-Act**: Decomposição em etapas estruturadas com rationale e harness de autocorreção em tempo real.
-- **Fallback de Tool Calling**: Gap identificado em modelos sem suporte a function calling nativo; necessidade de extrator robusto de JSON/Regex a partir de `assistantMessage.content`.
-- **Propagação de Cancelamento em Inline Completion**: Adicionar suporte a `AbortSignal` no `ChatCompletionRequest`.
-
-### 🎨 DIMENSÃO 5: FRONTEND WEBVIEW, UX/DX & RESILIÊNCIA DE UI
-- **Singleton IPC (`window.__agVscApi`)**: Eliminação de falhas de re-aquisição de API no Chromium.
-- **Prevenção de Colisão de Backticks**: Construção segura de expressões regulares dentro de templates do Webview via `String.fromCharCode(96)`.
-- **Auto-recuperação e Handshake**: Loop de retentativas para sinal `{ type: 'ready' }` e desbloqueio de estado de streaming.
-
-### 🧪 DIMENSÃO 6: QUALIDADE, TESTABILIDADE & ENGENHARIA DE DEVOPS
-- **Suíte de Testes Instantânea**: 14 testes cobrindo presets, MCP, adapters e session management rodando em ~1 segundo.
-- **Gaps a Cobrir**: Criação de testes unitários dedicados para `EditTools` (`replaceInFile`, `multiReplaceInFile`) e `AgentEngine`.
-
-### 💼 DIMENSÃO 7: VISÃO DE PRODUTO & ECOSSISTEMA
-- **Soberania Local + Nuvem Global**: 100% de privacidade com Ollama/LM Studio e suporte a modelos de fronteira (DeepSeek R1/V3, Qwen 2.5 Coder, Kimi, OpenAI o1/o3-mini).
+### 🏛️ Dimensão 1: Arquitetura de Software & Design de Sistemas
+- **Pontos Fortes**:
+  - O [`src/extension.ts`](./src/extension.ts) orquestra todas as 12 camadas de forma assíncrona, registrando rigorosamente todas as instâncias em `context.subscriptions`.
+  - [`ProviderManager`](./src/providers/provider-manager.ts) atua como SSOT para credenciais, seleção de modelo, métricas de consumo de tokens e fallback automático.
+  - [`MCPClientManager`](./src/mcp/client.ts) implementa carregamento desacoplado em segundo plano (`catch` não bloqueante), evitando travamento na inicialização da barra lateral.
+- **Problemas & Inconsistências**:
+  - **Orfandade de `PlanExecutor`**: A classe [`PlanExecutor`](./src/agent/executor.ts) é instanciada no [`src/extension.ts`](./src/extension.ts), mas nunca é utilizada no fluxo de execução. O comando `runAgent` invoca diretamente `agentEngine.run` passando a descrição em texto.
+  - **Desacoplamento do Planner na Webview**: Quando o usuário clica no pill `🤖 Agent` na Webview lateral, o manipulador `handleAgent` invoca `agentEngine.run(goal, 'Use tools to accomplish the goal.')` sem acionar o [`AgentPlanner`](./src/agent/planner.ts).
 
 ---
 
-## 📋 3. Matriz Consolidada de Vulnerabilidades, Gaps & Correções
+### 🔒 Dimensão 2: Segurança Ofensiva, Defensiva & Zero Trust
+- **Pontos Fortes**:
+  - Armazenamento em `SecretStorage` nativo do VS Code, com leitura limpa do `.env` local sem persistir dados sensíveis no repositório público.
+  - Hardening contra Path Traversal em [`EditTools.resolveUri`](./src/tools/edit-tools.ts) e [`FileTools.resolveUri`](./src/tools/file-tools.ts) com normalização de caminhos e verificação de raiz (`targetPath.startsWith(rootPath)`).
+- **Vulnerabilidades Detectadas**:
+  - **Falta de Contenção no `cwd` do Terminal**: Em [`TerminalTools.runCommand`](./src/tools/terminal-tools.ts), a interpolação `cwd ? \`\${workspaceRoot}/\${cwd}\` : workspaceRoot` não valida se `cwd` contém sequências como `../../` ou caminhos absolutos para diretórios externos do sistema operacional.
+  - **Inconsistência em `WorkspaceTools`**: O método [`WorkspaceTools.resolveUri`](./src/tools/workspace-tools.ts) não executa a checagem de confinamento que existe em `FileTools` e `EditTools`.
+  - **Exposição de Caminho Local no Chat Participant**: Em [`ChatParticipant.buildReferencesContext`](./src/chat/participant.ts), utiliza-se `ref.value.fsPath` diretamente no cabeçalho do prompt, expondo o caminho de sistema local em vez do caminho relativo (`vscode.workspace.asRelativePath(ref.value)`).
 
-| ID | Componente | Severidade | Descrição do Diagnóstico | Ação Corretiva |
+---
+
+### ⚡ Dimensão 3: Performance, Concorrência & Engenharia de Streams
+- **Pontos Fortes**:
+  - Suporte duplo a `body.getReader()` e `Symbol.asyncIterator in body` no [`OpenAIAdapter`](./src/providers/openai-adapter.ts), eliminando incompatibilidades entre Electron e Node.js.
+  - Propagação de cancelamento instantâneo via `AbortSignal` em requisições de completude inline e streaming.
+- **Oportunidades de Melhoria**:
+  - **Tratamento de Tokens de Raciocínio (Reasoning)**: Em [`OpenAIAdapter.stream`](./src/providers/openai-adapter.ts), deltas de `reasoning_content` (DeepSeek R1 / Kimi) são concatenados no mesmo fluxo de texto da resposta final, misturando o raciocínio interno com o resultado para o desenvolvedor.
+  - **Renderização Incremental de Markdown**: O re-parseamento integral de Markdown a cada chunk SSE na Webview pode causar micro-engasgos visuais em respostas longas com múltiplos blocos de código.
+
+---
+
+### 🤖 Dimensão 4: Orquestração Agêntica, LLMs & Protocolo MCP
+- **Pontos Fortes**:
+  - O [`AgentEngine`](./src/agent/engine.ts) possui extrator de fallback (`extractToolCallsFromText`) para modelos locais (Ollama / DeepSeek R1) que não suportam function calling nativo no formato OpenAI.
+  - Servidor MCP embarcado expõe 9 ferramentas com schemas padronizados em [`src/mcp/tools.ts`](./src/mcp/tools.ts).
+  - Suporte a servidores MCP externos dinâmicos configurados no `.vscode/mcp.json`.
+- **Próximos Passos**:
+  - **Suporte a MCP via Transporte SSE/HTTP**: O cliente atual suporta apenas processos locais via `stdio`. Servidores remotos de documentação ou infraestrutura demandam transporte SSE.
+  - **Confirmação Modal de Ações Destrutivas**: Ferramentas que modificam arquivos em lote ou executam comandos no terminal devem oferecer pré-visualização de diff ou confirmação antes da execução pelo agente.
+
+---
+
+### 🎨 Dimensão 5: Frontend Webview, UX/DX & Resiliência de Interface
+- **Pontos Fortes**:
+  - Eliminação de erros de escape de template strings e backticks via regra `String.fromCharCode(92)` e `String.fromCharCode(96)`.
+  - Handshake auto-regenerativo (`ready` com retentativas a cada 1000ms) que garante hidratação mesmo sob latência de montagem do iframe.
+  - Funcionalidade de inspeção de alterações com botão `Diff 🔍` integrado nos blocos de código.
+  - Suporte a múltiplos anexos de arquivo e colagem de imagens diretamente da área de transferência (`Ctrl+V`).
+- **Gaps Identificados**:
+  - Falta de histórico de comandos no `<textarea>` com as teclas `Seta para Cima` / `Seta para Baixo` (DX padrão de terminais e do Cursor).
+  - Exibição de custos e métricas detalhadas de tokens apenas no Dashboard externo, sem resumo no rodapé da mensagem da barra lateral.
+
+---
+
+### 🧪 Dimensão 6: Qualidade, Testabilidade & Engenharia de DevOps
+- **Pontos Fortes**:
+  - Suíte de 22 testes unitários em [`test/runUnitTests.mjs`](./test/runUnitTests.mjs) executando em ~1 segundo com empacotamento ultrarrápido via esbuild.
+  - Tipagem estrita: `npx tsc --noEmit` compila com **0 erros**.
+- **Problemas Críticos**:
+  - **Quebra do Linter (`npm run lint`)**: O ESLint v9 requer o formato de configuração plana (`eslint.config.mjs`). A execução atual de `eslint src --ext ts` falha imediatamente com código 1 por falta do arquivo de configuração e parâmetro descontinuado.
+
+---
+
+### 💼 Dimensão 7: Visão de Produto & Ecossistema
+- **Posicionamento**:
+  - Oferece total soberania de dados para ambientes corporativos que proíbem envio de código para a nuvem através de modelos locais no Ollama ou LM Studio, sem abrir mão da capacidade de utilizar modelos de fronteira (DeepSeek V3/R1, Qwen 2.5 Coder, GPT-4o, Claude 3.5 Sonnet via OpenRouter).
+
+---
+
+## ⚠️ 3. Matriz Consolidada de Gaps e Vulnerabilidades Detectadas
+
+| ID | Componente | Severidade | Diagnóstico do Conselho | Ação Recomendada |
 | :---: | :--- | :---: | :--- | :--- |
-| **G-01** | `src/agent/engine.ts` | 🔴 **ALTA** | Modelos sem tool calling nativo não tinham JSON de `content` parseado. | Implementar extrator de JSON/Regex no `content` do assistente para execução de ferramentas. |
-| **G-02** | `src/tools/tool-registry.ts` | 🟡 **MÉDIA** | Propriedades duplicadas e método órfão `getCachedCompletion` com chamada inválida. | Remover propriedades duplicadas e método órfão em `ToolRegistry`. |
-| **G-03** | `src/tools/file-tools.ts` & `edit-tools.ts` | 🟡 **MÉDIA** | `resolveUri` não validava contenção estrita dentro do workspace. | Adicionar validação de contenção de path (`fsPath.startsWith(root.fsPath)`). |
-| **G-04** | `src/completion/inline-provider.ts` | 🔵 **BAIXA** | `AbortController` criado no token de cancelamento não era propagado no `chat()`. | Suportar `signal?: AbortSignal` em `ChatCompletionRequest` e no adaptador. |
-| **G-05** | `src/lm/chat-provider.ts` | 🔵 **BAIXA** | `register()` era no-op logging. | Manter documentado e desacoplado via Chat Participant `@ag`. |
+| **BUG-01** | `package.json` & Lint | 🔴 **ALTA** | `npm run lint` quebra no ESLint 9 por ausência de `eslint.config.mjs` e uso do parâmetro legado `--ext`. | Criar `eslint.config.mjs` plano e ajustar o script `lint` no `package.json`. |
+| **BUG-02** | `package.json` vs Presets | 🟡 **MÉDIA** | Provedor `nvidia` (NIM) existe no `provider-registry.ts` mas está ausente no `enum` do `package.json`. | Adicionar `nvidia` ao `ag-universal-ai.activeProvider` no `package.json`. |
+| **SEC-01** | `src/tools/terminal-tools.ts` | 🔴 **ALTA** | Parâmetro `cwd` não possui validação de contenção contra path traversal (`../../`). | Implementar verificação estrita de contenção dentro do workspace para o diretório de execução. |
+| **SEC-02** | `src/tools/workspace-tools.ts` | 🟡 **MÉDIA** | `WorkspaceTools.resolveUri` não verifica se o caminho resolve para fora da raiz do workspace. | Replicar a rotina de segurança de `FileTools.resolveUri`. |
+| **SEC-03** | `src/chat/participant.ts` | 🔵 **BAIXA** | Referências de arquivo injetam caminhos absolutos (`fsPath`) no prompt do LLM. | Substituir por `vscode.workspace.asRelativePath(uri)`. |
+| **ARC-01** | `src/agent/executor.ts` | 🟡 **MÉDIA** | `PlanExecutor` instanciado mas sem uso prático no ciclo de vida da extensão. | Integrar `PlanExecutor` no fluxo do agente ou unificar seu papel dentro do `AgentEngine`. |
+| **UX-01** | `src/providers/openai-adapter.ts` | 🟡 **MÉDIA** | Tokens de `reasoning_content` são misturados diretamente no texto da resposta. | Estruturar os blocos de raciocínio com tags `<think>...</think>` e renderizá-los colapsáveis na UI. |
 
 ---
 
-## 🚀 4. Roadmap Tático (v0.5.8+)
+## 🗺️ 4. Roadmap Estratégico do Conselho (v0.6.7 ➔ v1.0.0)
 
-- [x] **v0.5.8**:
-  - [x] Correção de `AgentEngine` com parser JSON fallback para modelos sem tools nativas.
-  - [x] Limpeza e saneamento de `ToolRegistry`.
-  - [x] Hardening de contenção de caminhos (`resolveUri`) em ferramentas de arquivo e edição.
-  - [x] Propagação de `AbortSignal` em `ChatCompletionRequest`.
-  - [x] Expansão da suíte de testes unitários para `EditTools` e `AgentEngine`.
-- [x] **v0.6.0**:
-  - [x] Direct MCP Client Engine nativo (`MCPClientManager`) via stdio JSON-RPC 2.0 com descoberta dinâmica de ferramentas.
-  - [x] Visualização de Diff interativo side-by-side (`AGDiffProvider` no esquema `ag-diff://`) com `vscode.diff`.
-  - [x] Alinhamento total de schemas de ferramentas no servidor MCP embarcado (9 ferramentas de workspace).
-  - [x] Suíte de testes automatizados expandida para 22 testes unitários.
-- [x] **v0.6.3**:
-  - [x] Eliminação definitiva do erro de sintaxe de expressão regular (`Unterminated group`) em `sidebar-webview.ts` através de construtor `RegExp` seguro.
-  - [x] Revalidação completa do script cliente do Webview em runtime VM e restauração total de cliques e botões de ação.
-- [ ] **v0.7.0**:
-  - [ ] Suporte a transportes SSE / HTTP remotos no MCP Client Engine.
-  - [ ] Multi-persona Agent Swarm com delegação paralela de sub-tarefas.
+```mermaid
+graph TD
+    A["v0.6.7: Hardening & Saneamento"] --> B["v0.7.0: Reasoner UX & Interactive Tools"]
+    B --> C["v0.8.0: Multi-Persona Swarm & Remote MCP"]
+    C --> D["v1.0.0: Enterprise Polish & Marketplace"]
+    
+    style A fill:#1e3a8a,stroke:#3b82f6,color:#fff
+    style B fill:#065f46,stroke:#10b981,color:#fff
+    style C fill:#581c87,stroke:#a855f7,color:#fff
+    style D fill:#78350f,stroke:#f59e0b,color:#fff
+```
+
+### 🎯 Fase 1: Hardening Imediato & Saneamento (`v0.6.7`)
+- [ ] Criar configuração plana [`eslint.config.mjs`](./eslint.config.mjs) e restaurar a execução de `npm run lint`.
+- [ ] Adicionar `nvidia` ao enum de provedores do [`package.json`](./package.json).
+- [ ] Corrigir contenção de caminho em [`TerminalTools`](./src/tools/terminal-tools.ts) (`cwd`) e [`WorkspaceTools`](./src/tools/workspace-tools.ts).
+- [ ] Sanear vazamento de caminhos absolutos em [`ChatParticipant`](./src/chat/participant.ts).
+- [ ] Conectar o [`AgentPlanner`](./src/agent/planner.ts) ao modo Agente da Webview.
+
+### 🚀 Fase 2: Reasoner UX & Interactive Tool Approval (`v0.7.0`)
+- [ ] Suporte nativo a Thinking Blocks: identificar deltas de raciocínio de DeepSeek R1 e renderizar um container retrátil estilizado (`Pensamento do Modelo`).
+- [ ] Modal ou banner de aprovação prévia com diff antes da aplicação de ferramentas de alteração de código pelo agente.
+- [ ] Histórico de prompts na Webview via teclas `Seta para Cima` e `Seta para Baixo`.
+
+### 🌐 Fase 3: Multi-Persona Swarm & Remote MCP (`v0.8.0`)
+- [ ] Suporte a transporte remoto SSE (`text/event-stream`) no [`MCPClientManager`](./src/mcp/client.ts).
+- [ ] Ativação de personas especializadas no motor agêntico (Supervisor, Planner, Security Reviewer, Coder).
+- [ ] Indexação semântica leve do workspace via AST / ripgrep para enriquecer o contexto automático de `@workspace`.
+
+### 🏆 Fase 4: Enterprise Polish & Marketplace (`v1.0.0`)
+- [ ] Configuração de pipeline CI/CD no GitHub Actions com verificação de testes, linter e build automático de `.vsix`.
+- [ ] Sincronização completa e unificada de documentação e changelog.
 
 ---
 
-**Versão:** 0.6.3 | **Última Revisão:** 2026-08-31 09:07:00
+## 💡 5. Plano de Ação Imediato Recomendado
+
+Recomenda-se iniciar pelo ciclo de saneamento e conformidade técnica (`v0.6.7`):
+1. **Sanear o Linter**: Configurar o [`eslint.config.mjs`](./eslint.config.mjs) compatível com ESLint 9 para restabelecer a esteira de qualidade verde.
+2. **Blindagem de Segurança nos Caminhos**: Aplicar a validação de confinamento de workspace no `cwd` do [`TerminalTools`](./src/tools/terminal-tools.ts) e no [`WorkspaceTools`](./src/tools/workspace-tools.ts).
+3. **Alinhamento do Manifesto**: Atualizar o [`package.json`](./package.json) com o preset `nvidia` e enriquecer o modo Agente da barra lateral com o gerador de planos estruturados.
+
+---
+
+**Versão:** 0.6.6 | **Última Revisão:** 2026-09-09 00:41:00
