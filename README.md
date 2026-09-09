@@ -4,13 +4,14 @@
   <img src="https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Platform-VS%20Code%20%7C%20Antigravity%20IDE-blue?style=for-the-badge&logo=visualstudiocode" alt="Platform" />
   <img src="https://img.shields.io/badge/Providers-13-purple?style=for-the-badge&logo=openai" alt="Providers" />
-  <img src="https://img.shields.io/badge/Version-0.9.0-green?style=for-the-badge" alt="Version" />
-  <img src="https://img.shields.io/badge/License-MIT-brightgreen?style=for-the-badge" alt="License" />
+  <img src="https://img.shields.io/badge/Tests-47%20passing-brightgreen?style=for-the-badge&logo=mocha" alt="Tests" />
+  <img src="https://img.shields.io/badge/Version-0.10.0-green?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/License-MIT-brightgreen?style=for-the-badge&logo=opensourceinitiative" alt="License" />
 </p>
 
 <p align="center">
   <b>A powerful, multi-provider AI coding assistant & agent engine for VS Code & Antigravity IDE.</b><br />
-  Universal Domain & Rule Engine (.agents, Cursor, Windsurf, Copilot, Claude), Direct MCP, multi-session chat, model routing, and agent swarm.
+  Human-in-the-Loop Diff Approval (Cline/Cursor style), Universal Rules (.agents, Cursor, Windsurf, Copilot, Claude), Direct MCP, multi-session chat, and agent swarm.
 </p>
 
 > [!IMPORTANT]
@@ -141,6 +142,14 @@ Para consumo direto pelo AG Universal AI sem necessidade de daemons intermediár
   - `AG AI: Reload Rules & Domains`: Recarrega as regras em tempo de execução.
 - **Badge Dinâmico na Webview**: Indicador interativo `📜 X Rules` no cabeçalho com tooltip e chip rápido.
 
+### 🛡️ Human-in-the-Loop & Visualizador de Diff Inline antes de salvar no disco (estilo Cline/Cursor)
+- **Aprovação Interativa de Mutações**: Ferramentas de escrita e mutação (`ag_writeFile`, `ag_replaceInFile`, `ag_multiReplaceInFile`) e comandos de shell (`ag_runCommand`) solicitam aprovação humana explícita antes de qualquer alteração no disco.
+- **Pré-visualização Lado a Lado (`🔍 Ver Diff`)**: Cálculo de diff virtual em memória sem tocar no disco (`previewReplace`, `previewMultiReplace`, `previewWriteFile`) e inspeção side-by-side via `AGDiffProvider`.
+- **Ações Granulares na Sidebar**: Cards interativos com botões `✅ Aprovar`, `⏭️ Pular` e opção `Sempre nesta sessão` para auto-aprovação contínua.
+- **Feedback Adaptativo para o LLM**: Quando uma ação é pulada ou recusada, o motivo é injetado como observação no loop do agente para que o modelo formule planos ou abordagens alternativas.
+- **Políticas de Aprovação Configuráveis**: Opções `interactive` (padrão), `auto-edit` ou `always` via configuração `ag-universal-ai.agent.approvalPolicy`.
+- **Execução Automática de Somente Leitura**: Ferramentas de leitura (`ag_readFile`, `ag_listFiles`, `ag_searchWorkspace`, `ag_workspaceDigest`, `ag_getWorkspaceRules`, etc.) são executadas automaticamente sem interrupção.
+
 ### 📊 Telemetria & Dashboard Interativo
 - Métricas em tempo real (requisições, taxa de sucesso %, latência ms e uso de tokens).
 - Troca de provedor ativo com 1 clique diretamente no Dashboard (`AG AI: Show Dashboard`).
@@ -170,4 +179,4 @@ Abra a barra lateral de IA e digite `@ag` ou interaja diretamente pelo painel in
 
 ---
 
-**Versão:** 0.9.0 | **Última Revisão:** 2026-09-09 03:02:00
+**Versão:** 0.10.0 | **Última Revisão:** 2026-09-09 07:05:00

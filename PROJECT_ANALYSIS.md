@@ -146,7 +146,7 @@ graph TD
 - [x] Seletor de Personas e chips rápidos integrados diretamente no Input Card da Webview.
 
 ### 🏆 Fase 4: Enterprise Polish & Marketplace (`v1.0.0`)
-- [ ] Modal de aprovação prévia com diff inline antes de mutações de disco pelo agente.
+- [x] Modal e cards de aprovação prévia com visualizador de diff inline (`ag-diff://`) antes de mutações de disco pelo agente (`v0.10.0`).
 - [ ] Configuração de pipeline CI/CD no GitHub Actions com verificação de testes, linter e build automático de `.vsix`.
 - [ ] Telemetria de tokens e latência inline no rodapé da mensagem da barra lateral.
 
@@ -158,7 +158,8 @@ graph TD
 - **v0.7.0**: Concluído (Reasoner UX, thinking blocks, histórico de prompts, 28 testes).
 - **v0.8.0**: Concluído (Remote MCP SSE, SynAI Multi-Persona Swarm, Workspace Digest, 36 testes).
 - **v0.9.0**: Concluído (Universal Domain & Rule Engine: `.agents`, `.cursor`, `.windsurf`, Copilot, Claude, repositório transversal, matching dinâmico de globs, precedência ponderada, ferramenta `ag_getWorkspaceRules`, slash `/rules`, 40 testes).
+- **v0.10.0**: Concluído (Human-in-the-Loop: cards de aprovação interativa, diff inline side-by-side antes de mutações de disco, botão `🔍 Ver Diff`, ações `Aprovar`/`Pular`/`Sempre nesta sessão`, feedback reflexivo de recusa ao LLM, 47 testes).
 
 ---
 
-**Versão:** 0.9.0 | **Última Revisão:** 2026-09-09 03:02:00
+**Versão:** 0.10.0 | **Última Revisão:** 2026-09-09 07:05:00

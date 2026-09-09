@@ -99,6 +99,79 @@ export class EditTools {
     }
   }
 
+  /**
+   * Preview a replacement in a file without modifying disk.
+   */
+  async previewReplace(
+    filePath: string,
+    targetContent: string,
+    replacementContent: string
+  ): Promise<{ original: string; proposed: string } | { error: string }> {
+    const uri = this.resolveUri(filePath);
+    if (!uri) {
+      return { error: `Could not resolve path "${filePath}". Is a workspace folder open?` };
+    }
+
+    try {
+      const doc = await vscode.workspace.openTextDocument(uri);
+      const fullText = doc.getText();
+
+      const occurrences = fullText.split(targetContent).length - 1;
+      if (occurrences === 0) {
+        return { error: `Target content not found in "${filePath}". Ensure exact character-for-character matching.` };
+      }
+      if (occurrences > 1) {
+        return { error: `Target content found ${occurrences} times in "${filePath}". Include more surrounding code context.` };
+      }
+
+      const proposed = fullText.replace(targetContent, replacementContent);
+      return { original: fullText, proposed };
+    } catch (err: unknown) {
+      return { error: `Error opening "${filePath}": ${err instanceof Error ? err.message : String(err)}` };
+    }
+  }
+
+  /**
+   * Preview multiple non-contiguous replacements in a single file without modifying disk.
+   */
+  async previewMultiReplace(
+    filePath: string,
+    replacements: ReplacementChunk[]
+  ): Promise<{ original: string; proposed: string } | { error: string }> {
+    const uri = this.resolveUri(filePath);
+    if (!uri) {
+      return { error: `Could not resolve path "${filePath}". Is a workspace folder open?` };
+    }
+
+    if (!replacements || replacements.length === 0) {
+      return { error: `No replacements provided for "${filePath}".` };
+    }
+
+    try {
+      const doc = await vscode.workspace.openTextDocument(uri);
+      const original = doc.getText();
+      let updatedText = original;
+
+      for (let i = 0; i < replacements.length; i++) {
+        const { targetContent, replacementContent } = replacements[i];
+        const occurrences = updatedText.split(targetContent).length - 1;
+
+        if (occurrences === 0) {
+          return { error: `Error at replacement #${i + 1}: Target content not found in "${filePath}".` };
+        }
+        if (occurrences > 1) {
+          return { error: `Error at replacement #${i + 1}: Target content found ${occurrences} times in "${filePath}".` };
+        }
+
+        updatedText = updatedText.replace(targetContent, replacementContent);
+      }
+
+      return { original, proposed: updatedText };
+    } catch (err: unknown) {
+      return { error: `Error opening "${filePath}": ${err instanceof Error ? err.message : String(err)}` };
+    }
+  }
+
   // ─── Private ──────────────────────────────────────────────────────────────
 
   private resolveUri(filePath: string): vscode.Uri | undefined {

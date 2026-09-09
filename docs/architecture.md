@@ -98,6 +98,13 @@ O AG Universal AI consome os principais servidores MCP da comunidade via `stdio`
 - **Matching Dinâmico de Globs**: Compilação de padrões de wildcard e subdiretórios (`**/*.tsx`, `src/api/**/*.ts`) avaliados dinamicamente contra o arquivo ativo no editor.
 - **Ferramenta Nativa `ag_getWorkspaceRules`**: Inspeção estruturada e programática em JSON para agentes autônomos.
 
+### 4.5 Human-in-the-Loop & Interactive Diff Preview Layer
+- **Interactive Tool Approval (`src/agent/approval.ts`)**: Interrupção controlada do ciclo de execução do agente para validação humana de operações de escrita de disco (`ag_writeFile`, `ag_replaceInFile`, `ag_multiReplaceInFile`) e comandos de terminal (`ag_runCommand`).
+- **In-Memory Diff Simulation**: Os módulos `EditTools` e `FileTools` geram versões virtuais propostas (`previewReplace`, `previewMultiReplace`, `previewWriteFile`) sem persistir alterações no disco antes da aprovação do usuário.
+- **Side-by-Side Diff Inspector (`src/ui/diff-provider.ts`)**: Disparo de `vscode.diff` nativo através do esquema `ag-diff://` para comparação visual de código original vs. proposto (`🔍 Ver Diff`).
+- **Webview Approval Bridge**: Interface de cards com botões `✅ Aprovar`, `⏭️ Pular` e opção de auto-aprovação persistente na sessão (`Sempre nesta sessão`), destravando o loop assíncrono do agente via IPC (`toolApprovalResponse`).
+- **Adaptive LLM Reflection**: Injeção da justificativa de recusa como observação no diálogo para replanejamento dinâmico pelo modelo.
+
 ---
 
 ## 5. Diretrizes de Segurança & Telemetria
@@ -108,4 +115,4 @@ O AG Universal AI consome os principais servidores MCP da comunidade via `stdio`
 
 ---
 
-**Versão:** 0.9.0 | **Última Revisão:** 2026-09-09 03:02:00
+**Versão:** 0.10.0 | **Última Revisão:** 2026-09-09 07:05:00

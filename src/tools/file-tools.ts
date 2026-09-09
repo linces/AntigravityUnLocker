@@ -69,6 +69,38 @@ export class FileTools {
   }
 
   /**
+   * Preview a write operation returning original content (if file exists) and proposed content.
+   */
+  async previewWriteFile(
+    filePath: string,
+    content: string
+  ): Promise<{ original: string; proposed: string; isNew: boolean } | { error: string }> {
+    const uri = this.resolveUri(filePath);
+    if (!uri) {
+      return { error: `Could not resolve path "${filePath}". Is a workspace folder open?` };
+    }
+
+    try {
+      let original = '';
+      let isNew = true;
+      try {
+        await vscode.workspace.fs.stat(uri);
+        const doc = await vscode.workspace.openTextDocument(uri);
+        original = doc.getText();
+        isNew = false;
+      } catch {
+        // File does not exist yet (brand new file)
+        original = '';
+        isNew = true;
+      }
+
+      return { original, proposed: content, isNew };
+    } catch (err: unknown) {
+      return { error: `Error inspecting "${filePath}": ${err instanceof Error ? err.message : String(err)}` };
+    }
+  }
+
+  /**
    * List files in a directory.
    */
   async listFiles(dirPath: string, recursive: boolean): Promise<string> {

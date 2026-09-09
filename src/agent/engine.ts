@@ -10,6 +10,14 @@ import type { ProviderManager } from '../providers/provider-manager';
 import type { ToolRegistry } from '../tools/tool-registry';
 import type { ChatMessage } from '../providers/types';
 import { PersonaRegistry } from './personas';
+import type {
+  AgentRunOptions,
+  ToolApprovalRequest,
+  ToolApprovalDecision,
+  ApprovalPolicy,
+  DiffPreviewData,
+} from './approval';
+import { AGDiffProvider } from '../ui/diff-provider';
 
 const MAX_ITERATIONS = 10;
 
@@ -39,13 +47,15 @@ export class AgentEngine implements vscode.Disposable {
    * @param stream Optional stream to send intermediate progress to the chat UI
    * @param token Cancellation token
    * @param personaId Optional persona ID to specialize agent behavior
+   * @param options Optional configuration and approval callback
    */
   public async run(
     userMessage: string,
     systemPrompt: string,
     stream?: vscode.ChatResponseStream | ((text: string) => void),
     token?: vscode.CancellationToken,
-    personaId?: string
+    personaId?: string,
+    options?: AgentRunOptions
   ): Promise<AgentResult> {
     const provider = this.providerManager.getActiveProvider();
     if (!provider) {
@@ -77,6 +87,14 @@ export class AgentEngine implements vscode.Disposable {
 
     let useNativeTools = true;
     let fallbackPromptAppended = false;
+
+    const config = vscode.workspace.getConfiguration('ag-universal-ai');
+    const approvalPolicy: ApprovalPolicy =
+      options?.approvalPolicy ||
+      config.get<ApprovalPolicy>('agent.approvalPolicy', 'interactive');
+    const alwaysApproveReadOnly =
+      options?.alwaysApproveReadOnly ??
+      config.get<boolean>('agent.alwaysApproveReadOnly', true);
 
     while (iterations < MAX_ITERATIONS) {
       iterations++;
@@ -156,17 +174,57 @@ export class AgentEngine implements vscode.Disposable {
             toolArgs = { raw: toolCall.function.arguments };
           }
 
-          // Safety: confirm destructive actions if running in ChatResponseStream mode
-          if (this.isDestructive(toolName) && stream && typeof stream !== 'function') {
-            const confirmed = await this.confirmAction(toolName, toolArgs);
-            if (!confirmed) {
-              const skipMsg = `Tool "${toolName}" skipped by user.`;
+          // Safety / Human-in-the-Loop: check if tool requires approval
+          const isMutating = this.isMutatingTool(toolName);
+          let requiresApproval = false;
+
+          if (approvalPolicy === 'always') {
+            requiresApproval = false;
+          } else if (approvalPolicy === 'auto-edit') {
+            requiresApproval = toolName === 'ag_runCommand';
+          } else {
+            // 'interactive'
+            if (isMutating) {
+              requiresApproval = true;
+            } else if (!alwaysApproveReadOnly) {
+              requiresApproval = true;
+            }
+          }
+
+          if (requiresApproval) {
+            const { diff, summary } = await this.buildDiffPreview(toolName, toolArgs);
+            const approvalReq: ToolApprovalRequest = {
+              id: `appr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+              toolName,
+              args: toolArgs,
+              filePath: typeof toolArgs.path === 'string' ? toolArgs.path : undefined,
+              diff,
+              summary,
+            };
+
+            let decision: ToolApprovalDecision;
+            if (options?.onToolApproval) {
+              decision = await options.onToolApproval(approvalReq);
+            } else {
+              decision = await this.confirmActionWithDiff(approvalReq);
+            }
+
+            if (decision.action === 'abort') {
+              const abortMsg = `Agent execution aborted by user on tool "${toolName}".${decision.reason ? ` Reason: ${decision.reason}` : ''}`;
+              emit(`\n⚠️ **${abortMsg}**\n\n`);
+              finalResponse += `\n\n${abortMsg}`;
+              break;
+            }
+
+            if (decision.action === 'skip') {
+              const skipMsg = `[Tool Skipped by User] Tool "${toolName}" was declined.${decision.reason ? ` Reason: ${decision.reason}` : ''} Please propose an alternative approach or proceed with remaining tasks.`;
               messages.push({
                 role: 'tool',
                 content: skipMsg,
                 tool_call_id: toolCall.id,
               });
               toolCallLog.push({ name: toolName, args: toolArgs, result: skipMsg });
+              emit(`> ⏭️ *Tool \`${toolName}\` declined by user.*\n\n`);
               continue;
             }
           }
@@ -239,27 +297,125 @@ export class AgentEngine implements vscode.Disposable {
 
   // ─── Private ──────────────────────────────────────────────────────────────
 
-  private isDestructive(toolName: string): boolean {
-    return ['ag_writeFile', 'ag_replaceInFile', 'ag_multiReplaceInFile', 'ag_runCommand'].includes(toolName);
+  public isMutatingTool(toolName: string): boolean {
+    return [
+      'ag_writeFile',
+      'ag_replaceInFile',
+      'ag_multiReplaceInFile',
+      'ag_runCommand',
+    ].includes(toolName);
   }
 
-  private async confirmAction(
+  private async buildDiffPreview(
     toolName: string,
     args: Record<string, unknown>
-  ): Promise<boolean> {
-    const detail =
-      toolName === 'ag_writeFile'
-        ? `Write to file: ${args.path}`
-        : `Run command: ${args.command}`;
+  ): Promise<{ diff?: DiffPreviewData; summary: string }> {
+    const filePath = typeof args.path === 'string' ? args.path : undefined;
 
-    const result = await vscode.window.showWarningMessage(
-      `AG AI Agent wants to: ${detail}`,
+    if (
+      toolName === 'ag_replaceInFile' &&
+      filePath &&
+      typeof args.targetContent === 'string' &&
+      typeof args.replacementContent === 'string'
+    ) {
+      const preview = await this.toolRegistry.editTools.previewReplace(
+        filePath,
+        args.targetContent,
+        args.replacementContent
+      );
+      if ('original' in preview && preview.original !== undefined && preview.proposed !== undefined) {
+        return {
+          diff: {
+            filePath,
+            originalContent: preview.original,
+            proposedContent: preview.proposed,
+          },
+          summary: `Replace code block in "${filePath}"`,
+        };
+      }
+      return { summary: `Replace code block in "${filePath}"` };
+    }
+
+    if (
+      toolName === 'ag_multiReplaceInFile' &&
+      filePath &&
+      Array.isArray(args.replacements)
+    ) {
+      const preview = await this.toolRegistry.editTools.previewMultiReplace(
+        filePath,
+        args.replacements as any
+      );
+      if ('original' in preview && preview.original !== undefined && preview.proposed !== undefined) {
+        return {
+          diff: {
+            filePath,
+            originalContent: preview.original,
+            proposedContent: preview.proposed,
+          },
+          summary: `Apply ${args.replacements.length} replacement chunk(s) in "${filePath}"`,
+        };
+      }
+      return { summary: `Apply ${args.replacements.length} replacement chunk(s) in "${filePath}"` };
+    }
+
+    if (toolName === 'ag_writeFile' && filePath && typeof args.content === 'string') {
+      const preview = await this.toolRegistry.fileTools.previewWriteFile(
+        filePath,
+        args.content
+      );
+      if ('original' in preview && preview.original !== undefined && preview.proposed !== undefined) {
+        return {
+          diff: {
+            filePath,
+            originalContent: preview.original,
+            proposedContent: preview.proposed,
+          },
+          summary: preview.isNew
+            ? `Create new file "${filePath}" (${args.content.split('\n').length} lines)`
+            : `Overwrite file "${filePath}"`,
+        };
+      }
+      return { summary: `Write to file "${filePath}"` };
+    }
+
+    if (toolName === 'ag_runCommand') {
+      const cmd = typeof args.command === 'string' ? args.command : '';
+      const cwd = typeof args.cwd === 'string' ? ` in ${args.cwd}` : '';
+      return { summary: `Run terminal command: \`${cmd}\`${cwd}` };
+    }
+
+    return { summary: `Execute ${toolName}` };
+  }
+
+  private async confirmActionWithDiff(
+    req: ToolApprovalRequest
+  ): Promise<ToolApprovalDecision> {
+    const hasDiff = Boolean(req.diff);
+    const buttons = hasDiff ? ['Allow', 'Show Diff', 'Skip'] : ['Allow', 'Skip'];
+
+    let chosen = await vscode.window.showWarningMessage(
+      `AG AI Agent wants to execute: ${req.summary}`,
       { modal: true },
-      'Allow',
-      'Skip'
+      ...buttons
     );
 
-    return result === 'Allow';
+    if (chosen === 'Show Diff' && req.diff && req.filePath) {
+      const diffProvider = AGDiffProvider.getInstance();
+      if (diffProvider) {
+        await diffProvider.showDiff(req.filePath, req.diff.proposedContent);
+      }
+      chosen = await vscode.window.showWarningMessage(
+        `Review the proposed diff for ${req.filePath}. Allow AG AI Agent to execute?`,
+        { modal: true },
+        'Allow',
+        'Skip'
+      );
+    }
+
+    if (chosen === 'Allow') {
+      return { action: 'allow' };
+    }
+    return { action: 'skip', reason: 'User declined in confirmation dialog' };
   }
 
   private extractToolCallsFromText(

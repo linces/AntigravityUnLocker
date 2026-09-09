@@ -16,11 +16,14 @@ import { getAllPresets, getPreset } from '../providers/provider-registry';
 import { buildSystemPrompt, buildSlashCommandPrompt } from '../chat/prompt-builder';
 import { AGDiffProvider } from './diff-provider';
 import type { DomainRulesManager } from '../domains/domain-rules-manager';
+import type { ToolApprovalRequest, ToolApprovalDecision } from '../agent/approval';
 
 export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vscode.Disposable {
   private view?: vscode.WebviewView;
   private disposables: vscode.Disposable[] = [];
   private domainRulesManager?: DomainRulesManager;
+  private pendingApprovals = new Map<string, (decision: ToolApprovalDecision) => void>();
+  private sessionAutoApprove = false;
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -35,9 +38,20 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     this.domainRulesManager = domainRulesManager;
     this.disposables.push(
       this.providerManager.onDidChangeProvider(() => this.postStateUpdate()),
-      this.sessionManager.onDidChangeSession(() => this.postStateUpdate()),
+      this.sessionManager.onDidChangeSession(() => {
+        this.sessionAutoApprove = false;
+        this.cancelPendingApprovals('Session switched');
+        this.postStateUpdate();
+      }),
       this.sessionManager.onDidChangeSessionList(() => this.postStateUpdate())
     );
+  }
+
+  private cancelPendingApprovals(reason?: string): void {
+    for (const resolve of this.pendingApprovals.values()) {
+      resolve({ action: 'skip', reason: reason || 'Operation cancelled' });
+    }
+    this.pendingApprovals.clear();
   }
 
   public setDomainRulesManager(manager: DomainRulesManager): void {
@@ -174,6 +188,19 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
               vscode.window.showErrorMessage(`AG AI Dashboard: ${dErr}`);
             }
             break;
+          case 'toolApprovalResponse': {
+            const { id, action, reason, autoApproveSession } = msg;
+            if (autoApproveSession) {
+              this.sessionAutoApprove = true;
+              vscode.window.showInformationMessage('AG AI: Auto-approval enabled for the remainder of this session.');
+            }
+            const resolver = this.pendingApprovals.get(id);
+            if (resolver) {
+              this.pendingApprovals.delete(id);
+              resolver({ action: action || 'skip', reason });
+            }
+            break;
+          }
           case 'apply':
             this.applyCode(msg.code);
             break;
@@ -553,7 +580,29 @@ Execute the planned steps systematically using available tools. Be concise, veri
         agentSystemPrompt,
         (chunk: string) => this.post({ type: 'chunk', text: chunk }),
         undefined,
-        persona.id
+        persona.id,
+        {
+          approvalPolicy: this.sessionAutoApprove ? 'always' : undefined,
+          onToolApproval: async (req: ToolApprovalRequest): Promise<ToolApprovalDecision> => {
+            if (this.sessionAutoApprove) {
+              return { action: 'allow' };
+            }
+
+            return new Promise<ToolApprovalDecision>((resolve) => {
+              this.pendingApprovals.set(req.id, resolve);
+              this.post({
+                type: 'toolApprovalRequest',
+                id: req.id,
+                toolName: req.toolName,
+                args: req.args,
+                filePath: req.filePath,
+                summary: req.summary,
+                hasDiff: Boolean(req.diff),
+                proposedContent: req.diff?.proposedContent,
+              });
+            });
+          },
+        }
       );
       const latencyMs = Date.now() - startTime;
       const totalChars = result.response.length;
@@ -827,6 +876,27 @@ Execute the planned steps systematically using available tools. Be concise, veri
       .think-summary { cursor: pointer; color: #a78bfa; font-weight: 600; user-select: none; outline: none; display: flex; align-items: center; gap: 4px; }
       .think-summary:hover { color: #c4b5fd; }
       .think-content { margin-top: 6px; color: #94a3b8; font-style: italic; white-space: pre-wrap; line-height: 1.4; max-height: 220px; overflow-y: auto; padding-top: 4px; border-top: 1px dashed rgba(139, 92, 246, 0.2); }
+
+      .approval-card { background: rgba(30, 30, 35, 0.95); border: 1px solid rgba(255, 193, 7, 0.4); border-left: 4px solid #ffc107; border-radius: 8px; padding: 10px 12px; margin: 8px 0; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); animation: fi .2s ease; }
+      .approval-hdr { display: flex; align-items: center; justify-content: space-between; font-weight: 600; font-size: 11px; color: #ffc107; }
+      .approval-badge { background: rgba(255, 193, 7, 0.15); border: 1px solid rgba(255, 193, 7, 0.3); padding: 2px 6px; border-radius: 4px; font-family: monospace; color: #ffd54f; font-size: 10px; }
+      .approval-summary { font-size: 11px; color: var(--fg); line-height: 1.4; word-break: break-word; }
+      .approval-path { font-size: 10px; color: #888; font-family: monospace; }
+      .approval-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding-top: 4px; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+      .btn-appr { padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s ease; }
+      .btn-appr-allow { background: #2e7d32; color: #ffffff; }
+      .btn-appr-allow:hover { background: #388e3c; }
+      .btn-appr-diff { background: rgba(0, 122, 204, 0.2); border: 1px solid rgba(0, 122, 204, 0.4); color: #9cdcfe; }
+      .btn-appr-diff:hover { background: rgba(0, 122, 204, 0.4); color: #ffffff; }
+      .btn-appr-skip { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); color: #cccccc; }
+      .btn-appr-skip:hover { background: rgba(255, 255, 255, 0.15); color: #ffffff; }
+      .approval-auto { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: #888; cursor: pointer; margin-left: auto; }
+      .approval-auto input { cursor: pointer; }
+      .approval-resolved { opacity: 0.7; border-left-color: #4caf50; }
+      .approval-resolved .approval-actions { display: none; }
+      .approval-status-tag { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; }
+      .approval-status-tag.approved { background: rgba(76, 175, 80, 0.2); color: #81c784; }
+      .approval-status-tag.skipped { background: rgba(255, 152, 0, 0.2); color: #ffb74d; }
     `;
   }
 
@@ -1262,6 +1332,59 @@ Execute the planned steps systematically using available tools. Be concise, veri
       }
       return;
     }
+
+    var apprAllowBtn = t.classList && t.classList.contains('btn-appr-allow') ? t : t.closest('.btn-appr-allow');
+    if(apprAllowBtn){
+      e.preventDefault();
+      var id = apprAllowBtn.getAttribute('data-id');
+      var card = document.getElementById('approval-card-' + id);
+      var cb = card ? card.querySelector('.cb-auto-appr') : null;
+      var autoApprove = cb ? cb.checked : false;
+      window.__agPost('toolApprovalResponse', { id: id, action: 'allow', autoApproveSession: autoApprove });
+      if(card){
+        card.classList.add('approval-resolved');
+        var hdr = card.querySelector('.approval-hdr');
+        if(hdr){
+          var tag = document.createElement('span');
+          tag.className = 'approval-status-tag approved';
+          tag.textContent = '✅ Aprovado';
+          hdr.appendChild(tag);
+        }
+      }
+      return;
+    }
+
+    var apprSkipBtn = t.classList && t.classList.contains('btn-appr-skip') ? t : t.closest('.btn-appr-skip');
+    if(apprSkipBtn){
+      e.preventDefault();
+      var id = apprSkipBtn.getAttribute('data-id');
+      var card = document.getElementById('approval-card-' + id);
+      window.__agPost('toolApprovalResponse', { id: id, action: 'skip' });
+      if(card){
+        card.classList.add('approval-resolved');
+        var hdr = card.querySelector('.approval-hdr');
+        if(hdr){
+          var tag = document.createElement('span');
+          tag.className = 'approval-status-tag skipped';
+          tag.textContent = '⏭️ Pulado';
+          hdr.appendChild(tag);
+        }
+      }
+      return;
+    }
+
+    var apprDiffBtn = t.classList && t.classList.contains('btn-appr-diff') ? t : t.closest('.btn-appr-diff');
+    if(apprDiffBtn){
+      e.preventDefault();
+      var id = apprDiffBtn.getAttribute('data-id');
+      var filePath = apprDiffBtn.getAttribute('data-path');
+      var card = document.getElementById('approval-card-' + id);
+      var proposed = card && card.__proposedContent ? card.__proposedContent : '';
+      if(filePath){
+        window.__agPost('diff', { code: proposed, path: filePath });
+      }
+      return;
+    }
   });
 
   // ─── Clipboard Paste Handler - Screenshots ───
@@ -1642,6 +1765,39 @@ Execute the planned steps systematically using available tools. Be concise, veri
         if(chatEl) chatEl.innerHTML = '';
         streamEl = null;
         currentStreamText = '';
+      }
+      else if(m.type === 'toolApprovalRequest'){
+        var chatEl = getChat();
+        if(!chatEl) return;
+        var card = document.createElement('div');
+        card.className = 'approval-card';
+        card.id = 'approval-card-' + m.id;
+
+        var html = '<div class="approval-hdr">' +
+          '<span>⚠️ Approval Required</span>' +
+          '<span class="approval-badge">' + esc(m.toolName) + '</span>' +
+          '</div>' +
+          '<div class="approval-summary">' + esc(m.summary || m.toolName) + '</div>';
+
+        if(m.filePath){
+          html += '<div class="approval-path">📁 ' + esc(m.filePath) + '</div>';
+        }
+
+        html += '<div class="approval-actions">';
+        if(m.hasDiff){
+          html += '<button type="button" class="btn-appr btn-appr-diff" data-id="' + esc(m.id) + '" data-path="' + esc(m.filePath || '') + '">🔍 Ver Diff</button>';
+        }
+        html += '<button type="button" class="btn-appr btn-appr-allow" data-id="' + esc(m.id) + '">✅ Aprovar</button>' +
+          '<button type="button" class="btn-appr btn-appr-skip" data-id="' + esc(m.id) + '">⏭️ Pular</button>' +
+          '<label class="approval-auto"><input type="checkbox" class="cb-auto-appr" data-id="' + esc(m.id) + '"> Sempre nesta sessão</label>' +
+          '</div>';
+
+        card.innerHTML = html;
+        if(m.hasDiff && m.proposedContent){
+          card.__proposedContent = m.proposedContent;
+        }
+        chatEl.appendChild(card);
+        bot();
       }
     } catch(err) {
       console.error('[AG AI Webview Error]', err);

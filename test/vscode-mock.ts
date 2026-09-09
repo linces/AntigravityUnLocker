@@ -148,6 +148,9 @@ export const workspace = {
   },
   openTextDocument: async (uri: any) => {
     const norm = (uri.fsPath || uri.path || String(uri)).replace(/\\/g, '/');
+    if (!mockFileStore.has(norm)) {
+      throw new Error(`File not found: ${norm}`);
+    }
     const text = mockFileStore.get(norm) ?? '';
     const lines = text.split('\n');
     return {

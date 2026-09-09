@@ -13,3 +13,4 @@ import './personas.test';
 import './mcp-sse.test';
 import './workspace-indexer.test';
 import './domain-rules.test';
+import './tool-approval.test';

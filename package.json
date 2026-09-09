@@ -2,7 +2,7 @@
    "name": "ag-universal-ai",
    "displayName": "AG Universal AI",
    "description": "Universal multi-provider AI assistant for VS Code & Antigravity IDE — Code completion, chat, agent workflows, MCP, and tool calling powered by any OpenAI-compatible backend.",
-   "version": "0.9.0",
+   "version": "0.10.0",
    "publisher": "linces",
    "icon": "resources/icons/ag-icon.png",
    "license": "MIT",
@@ -329,6 +329,26 @@
                "type": "boolean",
                "default": true,
                "description": "Enable automatic discovery and prompt injection of workspace and cross-domain rules (.agents, .cursor, .windsurf, Copilot, Claude)."
+            },
+            "ag-universal-ai.agent.approvalPolicy": {
+               "type": "string",
+               "default": "interactive",
+               "enum": [
+                  "interactive",
+                  "auto-edit",
+                  "always"
+               ],
+               "enumDescriptions": [
+                  "Interactive: Ask confirmation with diff preview before executing file writes or terminal commands (Recommended)",
+                  "Auto-Edit: Automatically apply file edits, only ask for terminal commands",
+                  "Always: Execute all tools autonomously without prompting (High speed, zero interruption)"
+               ],
+               "description": "Human-in-the-Loop tool execution approval policy for autonomous agent tasks."
+            },
+            "ag-universal-ai.agent.alwaysApproveReadOnly": {
+               "type": "boolean",
+               "default": true,
+               "description": "Automatically approve non-mutating read-only tools (ag_readFile, ag_listFiles, ag_searchWorkspace, etc.)."
             }
          }
       },

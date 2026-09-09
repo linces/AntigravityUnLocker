@@ -5,6 +5,28 @@ All notable changes to the **AG Universal AI** extension will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-09-09
+
+### Added
+- **Human-in-the-Loop Tool Approval (`src/agent/approval.ts`)**: Sistema de aprovação interativa para controle humano de mutações de disco e comandos de shell, alinhado à experiência de ferramentas como Cline e Cursor:
+  - Interrupção segura do loop autônomo antes de executar ferramentas mutadoras (`ag_writeFile`, `ag_replaceInFile`, `ag_multiReplaceInFile`) ou comandos de terminal (`ag_runCommand`).
+  - Execução automática sem bloqueio de ferramentas somente leitura (`ag_readFile`, `ag_listFiles`, `ag_searchWorkspace`, `ag_workspaceDigest`, `ag_getWorkspaceRules`).
+  - Novas configurações no VS Code: `ag-universal-ai.agent.approvalPolicy` (`'interactive' | 'auto-edit' | 'always'`) e `ag-universal-ai.agent.alwaysApproveReadOnly` (`boolean`).
+- **Pré-visualização de Diff em Memória (`EditTools.previewReplace`, `EditTools.previewMultiReplace`, `FileTools.previewWriteFile`)**:
+  - Geração de diffs simulados em memória sem persistir alterações preliminares no disco.
+  - Integração com `AGDiffProvider` para abertura instantânea do editor side-by-side (`vscode.diff`) pelo botão `🔍 Ver Diff`.
+- **Interface de Aprovação na Webview (`AGSidebarWebviewProvider`)**:
+  - Cards visuais dedicados (`.approval-card`) exibindo nome da ferramenta, resumo dos argumentos e arquivo alvo.
+  - Ações diretas: `✅ Aprovar (Executar)`, `⏭️ Pular` e checkbox `Sempre nesta sessão` para habilitar auto-aprovação na sessão ativa.
+  - Resolução assíncrona por promessa em IPC (`toolApprovalResponse`), destravando o engine sem recarregar o estado.
+- **Feedback Adaptativo ao LLM em Recusas**:
+  - Caso o usuário decline ou pule uma ferramenta, o modelo recebe mensagem explicativa como observação (`[Tool Skipped by User] Tool declined. Reason: ...`) para replanejar ou tentar abordagens alternativas.
+
+### Tests
+- Adicionada suíte de testes unitários `test/tool-approval.test.ts` cobrindo cálculo in-memory de diffs, validação de arquivos novos/existentes e ciclo completo de aprovação/pulo/auto-aprovação no `AgentEngine`, elevando a suíte para **47 testes automatizados 100% aprovados**.
+
+---
+
 ## [0.9.0] - 2026-09-09
 
 ### Added
@@ -229,4 +251,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-**Versão:** 0.9.0 | **Última Revisão:** 2026-09-09 03:02:00
+**Versão:** 0.10.0 | **Última Revisão:** 2026-09-09 07:05:00
