@@ -13,11 +13,14 @@ import { TerminalTools } from './terminal-tools';
 import { WorkspaceTools } from './workspace-tools';
 import { WorkspaceIndexer } from '../agent/workspace-indexer';
 import type { DomainRulesManager } from '../domains/domain-rules-manager';
+import type { SubagentManager } from '../agent/subagent-manager';
+import type { AgentRunOptions } from '../agent/approval';
 
 export class ToolRegistry implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
   private outputChannel: vscode.OutputChannel;
   private domainRulesManager?: DomainRulesManager;
+  private subagentManager?: SubagentManager;
 
   public readonly fileTools: FileTools;
   public readonly editTools: EditTools;
@@ -50,6 +53,10 @@ export class ToolRegistry implements vscode.Disposable {
 
   public setDomainRulesManager(manager: DomainRulesManager): void {
     this.domainRulesManager = manager;
+  }
+
+  public setSubagentManager(manager: SubagentManager): void {
+    this.subagentManager = manager;
   }
 
   /**
@@ -356,6 +363,70 @@ export class ToolRegistry implements vscode.Disposable {
           },
         },
       },
+      {
+        type: 'function' as const,
+        function: {
+          name: 'ag_delegateTask',
+          description:
+            'Delegate an isolated mission to a specialized subagent (coder, security, reviewer, planner) with its own independent reasoning context.',
+          parameters: {
+            type: 'object',
+            properties: {
+              personaId: {
+                type: 'string',
+                enum: ['coder', 'security', 'reviewer', 'planner'],
+                description: 'The specialized persona to execute this sub-task.',
+              },
+              taskDescription: {
+                type: 'string',
+                description: 'Detailed instructions and mission objective for the subagent.',
+              },
+              contextSummary: {
+                type: 'string',
+                description: 'Optional relevant file snippets, context, or requirements to pass to the subagent.',
+              },
+            },
+            required: ['personaId', 'taskDescription'],
+          },
+        },
+      },
+      {
+        type: 'function' as const,
+        function: {
+          name: 'ag_delegateParallelTasks',
+          description:
+            'Delegate multiple tasks simultaneously to specialized subagents in parallel (e.g. running a security audit and a test review concurrently).',
+          parameters: {
+            type: 'object',
+            properties: {
+              tasks: {
+                type: 'array',
+                description: 'List of tasks to execute concurrently.',
+                items: {
+                  type: 'object',
+                  properties: {
+                    personaId: {
+                      type: 'string',
+                      enum: ['coder', 'security', 'reviewer', 'planner'],
+                      description: 'The persona for this sub-task.',
+                    },
+                    taskDescription: {
+                      type: 'string',
+                      description: 'Detailed mission instructions.',
+                    },
+                    contextSummary: {
+                      type: 'string',
+                      description: 'Optional context summary or file snippets.',
+                    },
+                  },
+                  required: ['personaId', 'taskDescription'],
+                },
+              },
+            },
+            required: ['tasks'],
+          },
+        },
+      },
     ];
 
     const dynamic = [...this.dynamicTools.values()].map((d) => d.definition);
@@ -367,7 +438,9 @@ export class ToolRegistry implements vscode.Disposable {
    */
   public async executeTool(
     name: string,
-    args: Record<string, unknown>
+    args: Record<string, unknown>,
+    stream?: vscode.ChatResponseStream | ((text: string) => void),
+    options?: AgentRunOptions
   ): Promise<string> {
     this.log(`Executing tool: ${name} with args: ${JSON.stringify(args)}`);
 
@@ -476,6 +549,75 @@ export class ToolRegistry implements vscode.Disposable {
                 content: r.content,
               })),
               prompt,
+            },
+            null,
+            2
+          );
+        }
+
+        case 'ag_delegateTask': {
+          if (!this.subagentManager) {
+            return 'Error: SubagentManager is not configured on ToolRegistry.';
+          }
+          const taskResult = await this.subagentManager.runSubagent(
+            {
+              personaId: (args.personaId as any) || 'coder',
+              taskDescription: args.taskDescription as string,
+              contextSummary: args.contextSummary as string | undefined,
+            },
+            stream,
+            options,
+            options?.currentDepth || 0
+          );
+
+          return JSON.stringify(
+            {
+              status: taskResult.status,
+              persona: taskResult.personaName,
+              summary: taskResult.summary,
+              toolCallsExecuted: taskResult.toolCallsCount,
+              durationMs: taskResult.durationMs,
+              error: taskResult.error,
+            },
+            null,
+            2
+          );
+        }
+
+        case 'ag_delegateParallelTasks': {
+          if (!this.subagentManager) {
+            return 'Error: SubagentManager is not configured on ToolRegistry.';
+          }
+          const rawTasks = (args.tasks as any[]) || [];
+          const configs = rawTasks.map((t, i) => ({
+            taskId: t.taskId || `parallel_${i + 1}`,
+            personaId: t.personaId || 'coder',
+            taskDescription: t.taskDescription || '',
+            contextSummary: t.contextSummary,
+          }));
+
+          const report = await this.subagentManager.runParallelSubagents(
+            configs,
+            stream,
+            options,
+            options?.currentDepth || 0
+          );
+
+          return JSON.stringify(
+            {
+              totalTasks: report.totalTasks,
+              successfulTasks: report.successfulTasks,
+              failedTasks: report.failedTasks,
+              totalDurationMs: report.totalDurationMs,
+              results: report.results.map((r) => ({
+                taskId: r.taskId,
+                persona: r.personaName,
+                status: r.status,
+                summary: r.summary,
+                toolsUsed: r.toolCallsCount,
+                durationMs: r.durationMs,
+                error: r.error,
+              })),
             },
             null,
             2

@@ -5,6 +5,22 @@ All notable changes to the **AG Universal AI** extension will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-09-09
+
+### Added
+- **Subagent Delegation & Parallel Swarm Manager (`src/agent/subagent-manager.ts`)**: Motor de orquestração hierárquica e execução concorrente de sub-agentes especializados:
+  - **Isolamento de Contexto**: Cada sub-agente executa em seu próprio histórico de diálogo (`messages[]`) e escopo de ferramentas, preservando o contexto principal do orquestrador livre de ruídos.
+  - **Delegação Especializada (`ag_delegateTask`)**: Permite ao Supervisor ou Planner delegar missões dedicadas para sub-agentes com personas especializadas (`coder`, `security`, `reviewer`, `planner`).
+  - **Execução Concorrente em Paralelo (`ag_delegateParallelTasks`)**: Orquestração simultânea de tarefas via `Promise.allSettled`, permitindo executar verificações independentes (ex: auditoria de segurança + QA de testes) de forma concorrente com agregação automática de relatórios.
+  - **Herança de Segurança & Human-in-the-Loop**: Sub-agentes herdam a política de aprovação interativa e pré-visualização de diff (`approvalPolicy`), garantindo que mutações de arquivo disparadas por sub-agentes continuem sob estrito controle humano.
+  - **Prevenção de Recursão Infinita**: Limite determinístico de profundidade com parâmetro configurável `ag-universal-ai.agent.maxSubagentDepth` (padrão: `2`).
+- **Enriquecimento de Personas Swarm (`src/agent/personas.ts`)**: Instruções e ferramentas sugeridas atualizadas nos perfis `supervisor` e `planner` para orientar a delegação modular de tarefas complexas.
+
+### Tests
+- Adicionada suíte de testes unitários `test/subagent.test.ts` cobrindo isolamento de contexto de personas, execução concorrente paralela, bloqueio de recursão infinita e invocação via `ToolRegistry`, elevando a suíte para **51 testes automatizados 100% aprovados**.
+
+---
+
 ## [0.10.0] - 2026-09-09
 
 ### Added
@@ -251,4 +267,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-**Versão:** 0.10.0 | **Última Revisão:** 2026-09-09 07:05:00
+**Versão:** 0.11.0 | **Última Revisão:** 2026-09-09 07:16:00

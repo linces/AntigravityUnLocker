@@ -2,7 +2,7 @@
    "name": "ag-universal-ai",
    "displayName": "AG Universal AI",
    "description": "Universal multi-provider AI assistant for VS Code & Antigravity IDE — Code completion, chat, agent workflows, MCP, and tool calling powered by any OpenAI-compatible backend.",
-   "version": "0.10.0",
+   "version": "0.11.0",
    "publisher": "linces",
    "icon": "resources/icons/ag-icon.png",
    "license": "MIT",
@@ -349,6 +349,11 @@
                "type": "boolean",
                "default": true,
                "description": "Automatically approve non-mutating read-only tools (ag_readFile, ag_listFiles, ag_searchWorkspace, etc.)."
+            },
+            "ag-universal-ai.agent.maxSubagentDepth": {
+               "type": "number",
+               "default": 2,
+               "description": "Maximum recursion depth for hierarchical subagent delegation (prevents infinite delegation loops)."
             }
          }
       },

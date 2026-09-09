@@ -232,7 +232,7 @@ export class AgentEngine implements vscode.Disposable {
           // Execute the tool
           emit(`> \`${toolName}\`(${this.summarizeArgs(toolArgs)})\n`);
 
-          const result = await this.toolRegistry.executeTool(toolName, toolArgs);
+          const result = await this.toolRegistry.executeTool(toolName, toolArgs, stream, options);
 
           const isErrorResult = result.startsWith('Error') || result.includes('SyntaxError') || result.includes('TS2339');
 

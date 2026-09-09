@@ -79,12 +79,13 @@ O AG Universal AI consome os principais servidores MCP da comunidade via `stdio`
 - **Fallback Chain Engine**: Alternância automática de provedor em caso de timeout ou indisponibilidade da API principal.
 - **Direct MCP Client Manager (`src/mcp/client.ts`)**: Suporte híbrido a servidores MCP via `stdio` e `sse` (Server-Sent Events) remoto com autenticação por headers.
 
-### 4.3 Embedded SynAI Agent Harness
+### 4.3 Embedded SynAI Agent Harness & Swarm Delegation
 - **Agent Engine (`src/agent/engine.ts`)**: Executa loops de raciocínio "Plan-Then-Act", decompondo instruções complexas e aplicando correções em tempo real com base no retorno de ferramentas.
+- **Subagent Manager (`src/agent/subagent-manager.ts`)**: Motor de orquestração hierárquica para delegação de missões dedicadas (`ag_delegateTask`) ou concorrentes em paralelo (`ag_delegateParallelTasks`) para sub-agentes com contextos e históricos de mensagens isolados.
 - **SynAI Multi-Persona Swarm (`src/agent/personas.ts`)**: Catálogo de 5 personas especializadas (Supervisor, Planner, Coder, Security, Reviewer) com políticas de prompt e escopo de ação dedicados.
 - **Workspace Indexer (`src/agent/workspace-indexer.ts`)**: Varredura e sumarização estruturada de arquivos do projeto para contextualização semântica leve (`ag_workspaceDigest`).
 - **Agent Planner (`src/agent/planner.ts`)**: Integração visual com o modo `🤖 Agent` na Webview, decompondo metas do usuário em planos estruturados (`### 📋 Execution Plan`) antes da execução de ferramentas.
-- **Tool Registry (`src/tools/tool-registry.ts`)**: Coleção de ferramentas nativas de arquivos, terminal, workspace e edições substring de código (`ag_replaceInFile`, `ag_multiReplaceInFile`, `ag_workspaceDigest`).
+- **Tool Registry (`src/tools/tool-registry.ts`)**: Coleção de ferramentas nativas de arquivos, terminal, workspace e edições substring de código (`ag_replaceInFile`, `ag_multiReplaceInFile`, `ag_workspaceDigest`, `ag_delegateTask`, `ag_delegateParallelTasks`).
 
 ### 4.4 Universal Domain & Rule Engine Layer
 - **Domain Rules Manager (`src/domains/domain-rules-manager.ts`)**: Motor centralizado de auto-descoberta e injeção de diretrizes de projeto para todos os ecossistemas líderes:
@@ -115,4 +116,4 @@ O AG Universal AI consome os principais servidores MCP da comunidade via `stdio`
 
 ---
 
-**Versão:** 0.10.0 | **Última Revisão:** 2026-09-09 07:05:00
+**Versão:** 0.11.0 | **Última Revisão:** 2026-09-09 07:16:00

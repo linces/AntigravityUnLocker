@@ -18,6 +18,7 @@ import { AgentEngine } from './agent/engine';
 import { AgentPlanner } from './agent/planner';
 import { PlanExecutor } from './agent/executor';
 import { DomainRulesManager } from './domains/domain-rules-manager';
+import { SubagentManager } from './agent/subagent-manager';
 import { AGStatusBar } from './ui/status-bar';
 import { AGTreeDataProvider } from './ui/tree-view';
 import { AGWebviewDashboard } from './ui/webview-dashboard';
@@ -93,12 +94,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   mcpServer.start();
   log('Embedded Model Context Protocol (MCP) server running');
 
-  // ─── 7. Agent Engine & Planner ─────────────────────────────────────────
+  // ─── 7. Agent Engine, Planner & Subagent Swarm Manager ─────────────────
   const agentEngine = new AgentEngine(providerManager, toolRegistry, outputChannel);
   const agentPlanner = new AgentPlanner(providerManager);
   const _planExecutor = new PlanExecutor(toolRegistry);
-  context.subscriptions.push(agentEngine);
-  log('Agent engine & planner activated');
+  const subagentManager = new SubagentManager(providerManager, toolRegistry, outputChannel);
+  toolRegistry.setSubagentManager(subagentManager);
+  context.subscriptions.push(agentEngine, subagentManager);
+  log('Agent engine, planner & subagent manager activated');
 
   // ─── 8. Chat Participant (@ag) ──────────────────────────────────────────
   const chatParticipant = new AGChatParticipant(lmProvider, providerManager, outputChannel, domainRulesManager);

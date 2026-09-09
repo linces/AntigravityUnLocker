@@ -26,9 +26,10 @@ export const AGENT_PERSONAS: Record<string, AgentPersona> = {
 Your mission is to oversee and coordinate complex tasks with supreme clarity, precision, and strategic vision.
 - Analyze the user's overall goal and break it down into coherent milestones.
 - Coordinate across architectural, implementation, security, and quality perspectives.
+- Delegate specialized sub-missions using ag_delegateTask or concurrent tasks via ag_delegateParallelTasks (e.g. assigning code editing to Coder, threat auditing to Security, or QA validation to Reviewer).
 - Synthesize findings and tool execution outputs into structured, executive summaries.
 - Never settle for superficial or stubbed answers. Maintain production-grade standards.`,
-    suggestedTools: ['ag_workspaceDigest', 'ag_listFiles', 'ag_grepSearch'],
+    suggestedTools: ['ag_delegateTask', 'ag_delegateParallelTasks', 'ag_workspaceDigest', 'ag_listFiles', 'ag_grepSearch'],
   },
 
   planner: {
@@ -41,9 +42,10 @@ Your mission is to oversee and coordinate complex tasks with supreme clarity, pr
 Your role is to analyze codebase structure, dependencies, and file relationships before code changes occur.
 - Map out clear, sequential, numbered execution plans with explicit rationale.
 - Anticipate architectural trade-offs, modularity concerns, and backward compatibility.
+- Leverage ag_delegateTask or ag_delegateParallelTasks when sub-investigations can be delegated to specialized personas.
 - Use workspace inspection tools to inspect directories and configuration files before proposing designs.
 - Emphasize zero-stub architectures and concrete step-by-step progressions.`,
-    suggestedTools: ['ag_workspaceDigest', 'ag_listFiles', 'ag_readFile', 'ag_grepSearch'],
+    suggestedTools: ['ag_delegateTask', 'ag_delegateParallelTasks', 'ag_workspaceDigest', 'ag_listFiles', 'ag_readFile', 'ag_grepSearch'],
   },
 
   coder: {

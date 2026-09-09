@@ -4,14 +4,14 @@
   <img src="https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Platform-VS%20Code%20%7C%20Antigravity%20IDE-blue?style=for-the-badge&logo=visualstudiocode" alt="Platform" />
   <img src="https://img.shields.io/badge/Providers-13-purple?style=for-the-badge&logo=openai" alt="Providers" />
-  <img src="https://img.shields.io/badge/Tests-47%20passing-brightgreen?style=for-the-badge&logo=mocha" alt="Tests" />
-  <img src="https://img.shields.io/badge/Version-0.10.0-green?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Tests-51%20passing-brightgreen?style=for-the-badge&logo=mocha" alt="Tests" />
+  <img src="https://img.shields.io/badge/Version-0.11.0-green?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-brightgreen?style=for-the-badge&logo=opensourceinitiative" alt="License" />
 </p>
 
 <p align="center">
   <b>A powerful, multi-provider AI coding assistant & agent engine for VS Code & Antigravity IDE.</b><br />
-  Human-in-the-Loop Diff Approval (Cline/Cursor style), Universal Rules (.agents, Cursor, Windsurf, Copilot, Claude), Direct MCP, multi-session chat, and agent swarm.
+  Parallel Subagents & Swarm Delegation, Human-in-the-Loop Diff Approval, Universal Rules (.agents, Cursor, Windsurf, Copilot, Claude), and Direct MCP.
 </p>
 
 > [!IMPORTANT]
@@ -150,6 +150,13 @@ Para consumo direto pelo AG Universal AI sem necessidade de daemons intermediár
 - **Políticas de Aprovação Configuráveis**: Opções `interactive` (padrão), `auto-edit` ou `always` via configuração `ag-universal-ai.agent.approvalPolicy`.
 - **Execução Automática de Somente Leitura**: Ferramentas de leitura (`ag_readFile`, `ag_listFiles`, `ag_searchWorkspace`, `ag_workspaceDigest`, `ag_getWorkspaceRules`, etc.) são executadas automaticamente sem interrupção.
 
+### 🤖 Sub-agentes Paralelos & Delegação de Tarefas no Swarm (`SubagentManager`)
+- **Delegação Hierárquica Especializada**: O agente orquestrador (Supervisor / Planner) pode delegar missões dedicadas para sub-agentes com personas isoladas (`coder`, `security`, `reviewer`, `planner`) via `ag_delegateTask`.
+- **Execução Concorrente em Paralelo (`ag_delegateParallelTasks`)**: Permite rodar múltiplas tarefas simultaneamente via `Promise.allSettled`, executando por exemplo auditoria de segurança (`security`) em paralelo com revisão de testes unitários (`reviewer`).
+- **Isolamento Total de Contexto**: Cada sub-agente instancia seu próprio histórico de diálogo e ferramentas sem poluir o histórico principal do orquestrador.
+- **Herança de Aprovação Human-in-the-Loop**: Sub-agentes herdam as mesmas políticas de segurança (`approvalPolicy`), exigindo confirmação com diff antes de gravar arquivos.
+- **Prevenção de Recursão Infinita**: Bloqueio rigoroso de profundidade configurável via `ag-universal-ai.agent.maxSubagentDepth` (padrão `2`).
+
 ### 📊 Telemetria & Dashboard Interativo
 - Métricas em tempo real (requisições, taxa de sucesso %, latência ms e uso de tokens).
 - Troca de provedor ativo com 1 clique diretamente no Dashboard (`AG AI: Show Dashboard`).
@@ -179,4 +186,4 @@ Abra a barra lateral de IA e digite `@ag` ou interaja diretamente pelo painel in
 
 ---
 
-**Versão:** 0.10.0 | **Última Revisão:** 2026-09-09 07:05:00
+**Versão:** 0.11.0 | **Última Revisão:** 2026-09-09 07:16:00

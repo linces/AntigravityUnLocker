@@ -159,7 +159,8 @@ graph TD
 - **v0.8.0**: Concluído (Remote MCP SSE, SynAI Multi-Persona Swarm, Workspace Digest, 36 testes).
 - **v0.9.0**: Concluído (Universal Domain & Rule Engine: `.agents`, `.cursor`, `.windsurf`, Copilot, Claude, repositório transversal, matching dinâmico de globs, precedência ponderada, ferramenta `ag_getWorkspaceRules`, slash `/rules`, 40 testes).
 - **v0.10.0**: Concluído (Human-in-the-Loop: cards de aprovação interativa, diff inline side-by-side antes de mutações de disco, botão `🔍 Ver Diff`, ações `Aprovar`/`Pular`/`Sempre nesta sessão`, feedback reflexivo de recusa ao LLM, 47 testes).
+- **v0.11.0**: Concluído (Sub-agentes Paralelos & Swarm Delegation: motor `SubagentManager`, delegação sequencial `ag_delegateTask`, execução concorrente paralela `ag_delegateParallelTasks`, isolamento de contexto, herança de aprovação com diff e bloqueio de recursão, 51 testes).
 
 ---
 
-**Versão:** 0.10.0 | **Última Revisão:** 2026-09-09 07:05:00
+**Versão:** 0.11.0 | **Última Revisão:** 2026-09-09 07:16:00

@@ -44,4 +44,14 @@ export interface AgentRunOptions {
    * Default is true.
    */
   alwaysApproveReadOnly?: boolean;
+
+  /**
+   * Current recursion depth in hierarchical subagent delegation (0 = top-level agent).
+   */
+  currentDepth?: number;
+
+  /**
+   * Maximum allowed recursion depth for subagent delegation.
+   */
+  maxDepth?: number;
 }
