@@ -80,8 +80,18 @@ export const workspace = {
       index: 0,
     },
   ],
-  asRelativePath: (p: any) => String(p).replace('/mock/workspace/', ''),
-  findFiles: async () => [],
+  asRelativePath: (p: any) => {
+    const raw = typeof p === 'string' ? p : (p?.fsPath || p?.path || String(p));
+    return raw.replace(/^\/mock\/workspace\//, '').replace(/^file:\/\/\/mock\/workspace\//, '');
+  },
+  findFiles: async () => {
+    return Array.from(mockFileStore.keys()).map((k) => ({
+      fsPath: k,
+      path: k,
+      scheme: 'file',
+      toString: () => `file://${k}`,
+    }));
+  },
   registerTextDocumentContentProvider: () => ({ dispose: () => {} }),
   fs: {
     writeFile: async (uri: any, data: Uint8Array) => {

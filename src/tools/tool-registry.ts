@@ -11,6 +11,7 @@ import { FileTools } from './file-tools';
 import { EditTools, ReplacementChunk } from './edit-tools';
 import { TerminalTools } from './terminal-tools';
 import { WorkspaceTools } from './workspace-tools';
+import { WorkspaceIndexer } from '../agent/workspace-indexer';
 
 export class ToolRegistry implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
@@ -309,6 +310,24 @@ export class ToolRegistry implements vscode.Disposable {
           },
         },
       },
+      {
+        type: 'function' as const,
+        function: {
+          name: 'ag_workspaceDigest',
+          description:
+            'Get a compact overview and categorized digest of all relevant files and folders in the workspace.',
+          parameters: {
+            type: 'object',
+            properties: {
+              maxFiles: {
+                type: 'number',
+                description: 'Maximum number of files to index (default: 60).',
+              },
+            },
+            required: [],
+          },
+        },
+      },
     ];
 
     const dynamic = [...this.dynamicTools.values()].map((d) => d.definition);
@@ -388,6 +407,13 @@ export class ToolRegistry implements vscode.Disposable {
 
         case 'ag_getDiagnostics':
           return this.workspaceTools.getDiagnostics(args.path as string | undefined);
+
+        case 'ag_workspaceDigest': {
+          const digest = await WorkspaceIndexer.getWorkspaceDigest(
+            (args.maxFiles as number) || 60
+          );
+          return digest.summaryText;
+        }
 
         default:
           return `Unknown tool: ${name}`;

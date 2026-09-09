@@ -5,6 +5,24 @@ All notable changes to the **AG Universal AI** extension will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-09-09
+
+### Added
+- **Remote MCP Transport (`transport: 'sse'`)**: Suporte a servidores MCP remotos via Server-Sent Events (SSE) e HTTP POST JSON-RPC 2.0 em `MCPClientManager`, permitindo conectar ferramentas MCP hospedadas em nuvem ou containers Docker remotos com cabeçalhos de autorização customizados (`headers`).
+- **SynAI Multi-Persona Swarm Engine (`src/agent/personas.ts`)**: Implementação de 5 personas especializadas:
+  - 👑 **Supervisor (`supervisor`)**: Orquestração executiva, decomposição de metas complexas e síntese de resultados.
+  - 📋 **Architect & Planner (`planner`)**: Mapeamento de estrutura de arquivos, diagrama de dependências e planos por passos.
+  - 💻 **Software Engineer (`coder`)**: Implementação de código pronto para produção, sem stubs e com edições cirúrgicas.
+  - 🛡️ **Zero Trust Auditor (`security`)**: Validação de segurança, contenção de path traversal e prevenção de vazamento de credenciais e PII.
+  - 🔍 **QA & Sentinel (`reviewer`)**: Análise de conformidade, integridade de testes unitários e prevenção de regressões.
+- **Workspace Context Indexer & Tool (`ag_workspaceDigest`)**: Varredura inteligente da topologia do workspace excluindo pastas ruído (`node_modules`, `.git`, `dist`, `.vsix`), com agrupamento de arquivos por categorias (código fonte, configurações, documentação) para enriquecer o contexto do agente.
+- **Persona Selector & Chips na Webview**: Seletor dropdown de Persona (`🎭 Persona`) no Input Card e chips rápidos (`👑 @supervisor`, `💻 @coder`, `🛡️ @security`) com sincronização automática e badge no stream do agente.
+
+### Tests
+- Adicionadas suítes de testes unitários `test/personas.test.ts`, `test/mcp-sse.test.ts` e `test/workspace-indexer.test.ts`, elevando a suíte para **36 testes automatizados 100% aprovados**.
+
+---
+
 ## [0.7.0] - 2026-09-09
 
 ### Added
@@ -187,4 +205,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-**Versão:** 0.7.0 | **Última Revisão:** 2026-09-09 01:16:00
+**Versão:** 0.8.0 | **Última Revisão:** 2026-09-09 01:48:00

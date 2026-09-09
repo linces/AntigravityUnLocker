@@ -128,35 +128,36 @@ graph TD
 ```
 
 ### 🎯 Fase 1: Hardening Imediato & Saneamento (`v0.6.7`)
-- [ ] Criar configuração plana [`eslint.config.mjs`](./eslint.config.mjs) e restaurar a execução de `npm run lint`.
-- [ ] Adicionar `nvidia` ao enum de provedores do [`package.json`](./package.json).
-- [ ] Corrigir contenção de caminho em [`TerminalTools`](./src/tools/terminal-tools.ts) (`cwd`) e [`WorkspaceTools`](./src/tools/workspace-tools.ts).
-- [ ] Sanear vazamento de caminhos absolutos em [`ChatParticipant`](./src/chat/participant.ts).
-- [ ] Conectar o [`AgentPlanner`](./src/agent/planner.ts) ao modo Agente da Webview.
+- [x] Criar configuração plana [`eslint.config.mjs`](./eslint.config.mjs) e restaurar a execução de `npm run lint`.
+- [x] Adicionar `nvidia` ao enum de provedores do [`package.json`](./package.json).
+- [x] Corrigir contenção de caminho em [`TerminalTools`](./src/tools/terminal-tools.ts) (`cwd`) e [`WorkspaceTools`](./src/tools/workspace-tools.ts).
+- [x] Sanear vazamento de caminhos absolutos em [`ChatParticipant`](./src/chat/participant.ts).
+- [x] Conectar o [`AgentPlanner`](./src/agent/planner.ts) ao modo Agente da Webview.
 
 ### 🚀 Fase 2: Reasoner UX & Interactive Tool Approval (`v0.7.0`)
-- [ ] Suporte nativo a Thinking Blocks: identificar deltas de raciocínio de DeepSeek R1 e renderizar um container retrátil estilizado (`Pensamento do Modelo`).
-- [ ] Modal ou banner de aprovação prévia com diff antes da aplicação de ferramentas de alteração de código pelo agente.
-- [ ] Histórico de prompts na Webview via teclas `Seta para Cima` e `Seta para Baixo`.
+- [x] Suporte nativo a Thinking Blocks: identificar deltas de raciocínio de DeepSeek R1 e renderizar um container retrátil estilizado (`Pensamento do Modelo`).
+- [x] Conexão visual do plano estruturado de passos no modo Agente.
+- [x] Histórico de prompts na Webview via teclas `Seta para Cima` e `Seta para Baixo`.
 
 ### 🌐 Fase 3: Multi-Persona Swarm & Remote MCP (`v0.8.0`)
-- [ ] Suporte a transporte remoto SSE (`text/event-stream`) no [`MCPClientManager`](./src/mcp/client.ts).
-- [ ] Ativação de personas especializadas no motor agêntico (Supervisor, Planner, Security Reviewer, Coder).
-- [ ] Indexação semântica leve do workspace via AST / ripgrep para enriquecer o contexto automático de `@workspace`.
+- [x] Suporte a transporte remoto SSE (`text/event-stream`) no [`MCPClientManager`](./src/mcp/client.ts).
+- [x] Ativação de 5 personas especializadas no motor agêntico (Supervisor, Planner, Coder, Security, Reviewer).
+- [x] Indexação leve e eficiente do workspace (`WorkspaceIndexer`) com a ferramenta `ag_workspaceDigest`.
+- [x] Seletor de Personas e chips rápidos integrados diretamente no Input Card da Webview.
 
 ### 🏆 Fase 4: Enterprise Polish & Marketplace (`v1.0.0`)
+- [ ] Modal de aprovação prévia com diff inline antes de mutações de disco pelo agente.
 - [ ] Configuração de pipeline CI/CD no GitHub Actions com verificação de testes, linter e build automático de `.vsix`.
-- [ ] Sincronização completa e unificada de documentação e changelog.
+- [ ] Telemetria de tokens e latência inline no rodapé da mensagem da barra lateral.
 
 ---
 
-## 💡 5. Plano de Ação Imediato Recomendado
+## 💡 5. Histórico de Ciclos Executados
 
-Recomenda-se iniciar pelo ciclo de saneamento e conformidade técnica (`v0.6.7`):
-1. **Sanear o Linter**: Configurar o [`eslint.config.mjs`](./eslint.config.mjs) compatível com ESLint 9 para restabelecer a esteira de qualidade verde.
-2. **Blindagem de Segurança nos Caminhos**: Aplicar a validação de confinamento de workspace no `cwd` do [`TerminalTools`](./src/tools/terminal-tools.ts) e no [`WorkspaceTools`](./src/tools/workspace-tools.ts).
-3. **Alinhamento do Manifesto**: Atualizar o [`package.json`](./package.json) com o preset `nvidia` e enriquecer o modo Agente da barra lateral com o gerador de planos estruturados.
+- **v0.6.7**: Concluído (ESLint 9, segurança de caminho, 26 testes).
+- **v0.7.0**: Concluído (Reasoner UX, thinking blocks, histórico de prompts, 28 testes).
+- **v0.8.0**: Concluído (Remote MCP SSE, SynAI Multi-Persona Swarm, Workspace Digest, 36 testes).
 
 ---
 
-**Versão:** 0.6.6 | **Última Revisão:** 2026-09-09 00:41:00
+**Versão:** 0.8.0 | **Última Revisão:** 2026-09-09 01:48:00

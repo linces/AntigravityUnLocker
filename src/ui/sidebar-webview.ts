@@ -11,6 +11,7 @@ import type { SessionManager } from '../chat/session-manager';
 import type { ToolRegistry } from '../tools/tool-registry';
 import type { AgentEngine } from '../agent/engine';
 import type { AgentPlanner } from '../agent/planner';
+import { PersonaRegistry } from '../agent/personas';
 import { getAllPresets, getPreset } from '../providers/provider-registry';
 import { buildSystemPrompt, buildSlashCommandPrompt } from '../chat/prompt-builder';
 import { AGDiffProvider } from './diff-provider';
@@ -81,10 +82,10 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
             await this.postStateUpdate();
             break;
           case 'chat':
-            await this.handleChat(msg.text, msg.slash, msg.images);
+            await this.handleChat(msg.text, msg.slash, msg.images, msg.personaId);
             break;
           case 'agent':
-            await this.handleAgent(msg.text);
+            await this.handleAgent(msg.text, msg.personaId);
             break;
           case 'pickFile': {
             const uris = await vscode.window.showOpenDialog({
@@ -227,7 +228,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
   // ── Chat Handler ──────────────────────────────────────────────────────────
 
-  private async handleChat(text: string, slash?: string, images?: string[]): Promise<void> {
+  private async handleChat(text: string, slash?: string, images?: string[], personaId?: string): Promise<void> {
     try {
       let userContent: any = text;
       if (images && images.length > 0) {
@@ -260,7 +261,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
       if (isCreateFileIntent) {
         this.log(`Auto-routing file creation request "${text}" to Agent Engine...`);
-        return this.handleAgent(text);
+        return this.handleAgent(text, personaId);
       }
 
       const provider = activeProvider;
@@ -278,7 +279,10 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         return;
       }
 
-    const sysPrompt = slash ? buildSlashCommandPrompt(slash) : buildSystemPrompt();
+    let sysPrompt = slash ? buildSlashCommandPrompt(slash) : buildSystemPrompt();
+    if (personaId) {
+      sysPrompt = PersonaRegistry.buildSystemPrompt(personaId, sysPrompt);
+    }
 
     // Add editor context
     let ctx = '';
@@ -477,14 +481,18 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     }
   }
 
-  private async handleAgent(goal: string): Promise<void> {
+  private async handleAgent(goal: string, personaId?: string): Promise<void> {
     const startTime = Date.now();
     const activeProvider = this.providerManager.getActiveProvider();
     const providerId = activeProvider ? activeProvider.id : 'agent';
     const model = activeProvider ? activeProvider.config.model : 'agent-loop';
+    const persona = PersonaRegistry.get(personaId || 'supervisor') || PersonaRegistry.getDefault();
 
     try {
-      this.post({ type: 'chunk', text: '🤖 *Formulating agent execution plan...*\n\n' });
+      this.post({
+        type: 'chunk',
+        text: `${persona.icon} **[${persona.name} — ${persona.title}]** *Formulating execution plan...*\n\n`,
+      });
       const plan = await this.agentPlanner.createPlan(goal);
 
       const planSummary = plan.steps
@@ -493,11 +501,11 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
 
       const planDisplay = `### 📋 Execution Plan (${plan.steps.length} steps)\n*Strategy: ${plan.rationale}*\n\n` +
         plan.steps.map((s) => `⏳ **Step ${s.id}:** ${s.description}`).join('\n') +
-        '\n\n---\n*Executing agent tasks...*\n\n';
+        `\n\n---\n*${persona.icon} Persona **${persona.name}** executing tasks...*\n\n`;
 
       this.post({ type: 'chunk', text: planDisplay });
 
-      const agentSystemPrompt = `You are AG Universal AI Autonomous Agent.
+      const agentSystemPrompt = `You are AG Universal AI Autonomous Agent operating under the ${persona.name} persona (${persona.title}).
 Goal: ${goal}
 High-level Strategy: ${plan.rationale}
 Planned Steps:
@@ -508,7 +516,9 @@ Execute the planned steps systematically using available tools. Be concise, veri
       const result = await this.agentEngine.run(
         goal,
         agentSystemPrompt,
-        (chunk: string) => this.post({ type: 'chunk', text: chunk })
+        (chunk: string) => this.post({ type: 'chunk', text: chunk }),
+        undefined,
+        persona.id
       );
       const latencyMs = Date.now() - startTime;
       const totalChars = result.response.length;
@@ -808,11 +818,11 @@ Execute the planned steps systematically using available tools. Be concise, veri
   <div class="input-card">
     <div class="chips" id="chips">
       <span class="chip" data-c="@workspace ">@workspace</span>
+      <span class="chip" data-c="@supervisor ">👑 @supervisor</span>
+      <span class="chip" data-c="@coder ">💻 @coder</span>
+      <span class="chip" data-c="@security ">🛡️ @security</span>
       <span class="chip" data-c="/explain ">/explain</span>
       <span class="chip" data-c="/refactor ">/refactor</span>
-      <span class="chip" data-c="/test ">/test</span>
-      <span class="chip" data-c="/fix ">/fix</span>
-      <span class="chip" data-c="/docs ">/docs</span>
       <span class="chip" data-c="/review ">/review</span>
     </div>
 
@@ -829,6 +839,15 @@ Execute the planned steps systematically using available tools. Be concise, veri
         <button type="button" class="ibtn" id="btnToggleKey" title="API Key Settings (🔑)">🔑</button>
         <div class="pill" id="pillAgent" title="Toggle Agent Mode (uses workspace tools)">
           <span>🤖 Agent</span>
+        </div>
+        <div class="pill-select" id="personaSelectWrap" title="Active Persona (SynAI Swarm)">
+          <select id="selPersona">
+            <option value="supervisor" selected>👑 Supervisor</option>
+            <option value="planner">📋 Planner</option>
+            <option value="coder">💻 Coder</option>
+            <option value="security">🛡️ Security</option>
+            <option value="reviewer">🔍 Reviewer</option>
+          </select>
         </div>
         <div class="pill-select" title="Active AI Provider">
           <span>⚡</span>
@@ -1141,6 +1160,12 @@ Execute the planned steps systematically using available tools. Be concise, veri
     if(chip){
       e.preventDefault();
       var c = chip.getAttribute('data-c');
+      var selPer = document.getElementById('selPersona');
+      if(c && c.indexOf('@supervisor') >= 0 && selPer) { selPer.value = 'supervisor'; }
+      else if(c && c.indexOf('@planner') >= 0 && selPer) { selPer.value = 'planner'; }
+      else if(c && c.indexOf('@coder') >= 0 && selPer) { selPer.value = 'coder'; }
+      else if(c && c.indexOf('@security') >= 0 && selPer) { selPer.value = 'security'; }
+      else if(c && c.indexOf('@reviewer') >= 0 && selPer) { selPer.value = 'reviewer'; }
       var inputEl = getInp();
       if(c && inputEl){
         inputEl.value = c;
@@ -1389,9 +1414,12 @@ Execute the planned steps systematically using available tools. Be concise, veri
     console.log('[AG Webview] doSend called:', fullText);
     addMsg('user', fullText);
     currentStreamText = '';
-    streamEl = addMsg('assistant', isAgentMode ? '🤖 Agent running tasks & tools...' : '⏳ Thinking...');
 
-    var payload = { text: fullText };
+    var selPersona = document.getElementById('selPersona');
+    var personaId = selPersona ? selPersona.value : 'supervisor';
+    streamEl = addMsg('assistant', isAgentMode ? ('🤖 [' + personaId.toUpperCase() + '] Running tasks & tools...') : '⏳ Thinking...');
+
+    var payload = { text: fullText, personaId: personaId };
     if(attachedImages.length > 0){
       payload.images = attachedImages.slice();
     }

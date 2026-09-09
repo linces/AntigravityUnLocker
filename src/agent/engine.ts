@@ -9,6 +9,7 @@ import * as vscode from 'vscode';
 import type { ProviderManager } from '../providers/provider-manager';
 import type { ToolRegistry } from '../tools/tool-registry';
 import type { ChatMessage } from '../providers/types';
+import { PersonaRegistry } from './personas';
 
 const MAX_ITERATIONS = 10;
 
@@ -37,12 +38,14 @@ export class AgentEngine implements vscode.Disposable {
    * @param systemPrompt The system prompt context
    * @param stream Optional stream to send intermediate progress to the chat UI
    * @param token Cancellation token
+   * @param personaId Optional persona ID to specialize agent behavior
    */
   public async run(
     userMessage: string,
     systemPrompt: string,
     stream?: vscode.ChatResponseStream | ((text: string) => void),
-    token?: vscode.CancellationToken
+    token?: vscode.CancellationToken,
+    personaId?: string
   ): Promise<AgentResult> {
     const provider = this.providerManager.getActiveProvider();
     if (!provider) {
@@ -58,8 +61,12 @@ export class AgentEngine implements vscode.Disposable {
       }
     };
 
+    const effectiveSystemPrompt = personaId
+      ? PersonaRegistry.buildSystemPrompt(personaId, systemPrompt)
+      : systemPrompt;
+
     const messages: ChatMessage[] = [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: effectiveSystemPrompt },
       { role: 'user', content: userMessage },
     ];
 

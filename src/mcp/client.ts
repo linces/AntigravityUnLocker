@@ -12,10 +12,13 @@ import * as path from 'path';
 import type { ToolRegistry } from '../tools/tool-registry';
 
 export interface MCPServerConfig {
-  command: string;
+  command?: string;
   args?: string[];
   env?: Record<string, string>;
   disabled?: boolean;
+  transport?: 'stdio' | 'sse';
+  url?: string;
+  headers?: Record<string, string>;
 }
 
 export interface MCPServerStatus {
@@ -25,13 +28,23 @@ export interface MCPServerStatus {
   error?: string;
 }
 
+export interface IMCPServerInstance {
+  id: string;
+  status: MCPServerStatus['status'];
+  tools: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }>;
+  lastError?: string;
+  start(): Promise<void>;
+  callTool(name: string, args: Record<string, unknown>): Promise<string>;
+  dispose(): void;
+}
+
 interface PendingRequest {
   resolve: (result: any) => void;
   reject: (error: Error) => void;
   timer: NodeJS.Timeout;
 }
 
-class MCPServerProcess {
+class MCPServerProcess implements IMCPServerInstance {
   private process: ChildProcess | undefined;
   private requestId = 0;
   private pendingRequests = new Map<number | string, PendingRequest>();
@@ -50,6 +63,10 @@ class MCPServerProcess {
     if (this.config.disabled) {
       this.status = 'disconnected';
       return;
+    }
+
+    if (!this.config.command) {
+      throw new Error(`MCP stdio server "${this.id}" requires "command" parameter`);
     }
 
     this.status = 'connecting';
@@ -244,8 +261,293 @@ class MCPServerProcess {
   }
 }
 
+class MCPSSEServerProcess implements IMCPServerInstance {
+  private requestId = 0;
+  private pendingRequests = new Map<number | string, PendingRequest>();
+  private abortController: AbortController | undefined;
+  private messageEndpoint: string | undefined;
+  public status: MCPServerStatus['status'] = 'disconnected';
+  public tools: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }> = [];
+  public lastError?: string;
+
+  constructor(
+    public readonly id: string,
+    public readonly config: MCPServerConfig,
+    private readonly outputChannel: vscode.OutputChannel
+  ) {}
+
+  public async start(): Promise<void> {
+    if (this.config.disabled) {
+      this.status = 'disconnected';
+      return;
+    }
+
+    this.status = 'connecting';
+
+    try {
+      if (!this.config.url) {
+        throw new Error(`Remote MCP SSE server "${this.id}" requires "url" in config`);
+      }
+
+      this.log(`Connecting to remote MCP SSE server "${this.id}" at ${this.config.url}`);
+
+      this.abortController = new AbortController();
+      this.messageEndpoint = this.config.url;
+
+      const headers: Record<string, string> = {
+        Accept: 'text/event-stream',
+        ...(this.config.headers || {}),
+      };
+
+      const response = await fetch(this.config.url, {
+        method: 'GET',
+        headers,
+        signal: this.abortController.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} ${response.statusText}`);
+      }
+
+      // Read SSE stream in background
+      this.listenSSE(response);
+
+      // 1. Initialize handshake
+      await this.sendRequest('initialize', {
+        protocolVersion: '2024-11-05',
+        capabilities: {
+          tools: {},
+          resources: {},
+        },
+        clientInfo: {
+          name: 'ag-universal-ai-client',
+          version: '0.8.0',
+        },
+      });
+
+      // 2. Notify initialized
+      await this.sendNotification('notifications/initialized', {});
+
+      // 3. Query tools
+      const toolsResponse = await this.sendRequest('tools/list', {});
+      if (toolsResponse && Array.isArray(toolsResponse.tools)) {
+        this.tools = toolsResponse.tools;
+      }
+
+      this.status = 'connected';
+      this.log(`Remote MCP server "${this.id}" connected via SSE! ${this.tools.length} tool(s) discovered.`);
+    } catch (err: unknown) {
+      this.status = 'error';
+      this.lastError = err instanceof Error ? err.message : String(err);
+      this.log(`Failed to connect to remote MCP server "${this.id}": ${this.lastError}`);
+      throw err;
+    }
+  }
+
+  private async listenSSE(response: Response): Promise<void> {
+    if (!response.body) {return;}
+    try {
+      let buffer = '';
+      const reader = response.body.getReader ? response.body.getReader() : null;
+
+      if (reader) {
+        const decoder = new TextDecoder();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {break;}
+          buffer += decoder.decode(value, { stream: true });
+          buffer = this.processSSEBuffer(buffer);
+        }
+      } else if (Symbol.asyncIterator in response.body) {
+        for await (const chunk of response.body as any) {
+          buffer += typeof chunk === 'string' ? chunk : chunk.toString('utf-8');
+          buffer = this.processSSEBuffer(buffer);
+        }
+      }
+    } catch (err: unknown) {
+      if (this.status !== 'disconnected') {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.log(`SSE stream error: ${msg}`);
+      }
+    }
+  }
+
+  private processSSEBuffer(buffer: string): string {
+    const lines = buffer.split('\n');
+    const remaining = lines.pop() || '';
+    let currentEvent = 'message';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        currentEvent = 'message';
+        continue;
+      }
+
+      if (trimmed.startsWith('event:')) {
+        currentEvent = trimmed.slice(6).trim();
+      } else if (trimmed.startsWith('data:')) {
+        const data = trimmed.slice(5).trim();
+        if (currentEvent === 'endpoint') {
+          try {
+            this.messageEndpoint = new URL(data, this.config.url).toString();
+            this.log(`Endpoint updated to: ${this.messageEndpoint}`);
+          } catch {
+            this.messageEndpoint = data;
+          }
+        } else {
+          this.handleJsonRpcMessage(data);
+        }
+      }
+    }
+
+    return remaining;
+  }
+
+  private handleJsonRpcMessage(raw: string): void {
+    try {
+      const msg = JSON.parse(raw);
+      if (msg.id !== undefined && this.pendingRequests.has(msg.id)) {
+        const pending = this.pendingRequests.get(msg.id)!;
+        clearTimeout(pending.timer);
+        this.pendingRequests.delete(msg.id);
+
+        if (msg.error) {
+          pending.reject(new Error(msg.error.message || `JSON-RPC Error ${msg.error.code}`));
+        } else {
+          pending.resolve(msg.result);
+        }
+      }
+    } catch {
+      // ignore non-json messages
+    }
+  }
+
+  public async callTool(name: string, args: Record<string, unknown>): Promise<string> {
+    const response = await this.sendRequest('tools/call', {
+      name,
+      arguments: args,
+    });
+
+    if (response && Array.isArray(response.content)) {
+      return response.content
+        .map((c: any) => (typeof c === 'string' ? c : c.text || JSON.stringify(c)))
+        .join('\n');
+    }
+
+    if (typeof response === 'string') {
+      return response;
+    }
+
+    return JSON.stringify(response);
+  }
+
+  public async sendRequest(method: string, params: Record<string, unknown>): Promise<any> {
+    const targetUrl = this.messageEndpoint || this.config.url!;
+    const id = ++this.requestId;
+    const body = {
+      jsonrpc: '2.0',
+      id,
+      method,
+      params,
+    };
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pendingRequests.delete(id);
+        reject(new Error(`Remote MCP request "${method}" (id: ${id}) timed out after 30s`));
+      }, 30000);
+
+      this.pendingRequests.set(id, { resolve, reject, timer });
+
+      fetch(targetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this.config.headers || {}),
+        },
+        body: JSON.stringify(body),
+        signal: this.abortController?.signal,
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            clearTimeout(timer);
+            this.pendingRequests.delete(id);
+            return reject(new Error(`HTTP POST ${res.status}: ${res.statusText}`));
+          }
+          const text = await res.text();
+          if (text.trim()) {
+            try {
+              const parsed = JSON.parse(text);
+              if (parsed.id === id) {
+                clearTimeout(timer);
+                this.pendingRequests.delete(id);
+                if (parsed.error) {
+                  return reject(new Error(parsed.error.message || `JSON-RPC Error ${parsed.error.code}`));
+                }
+                return resolve(parsed.result);
+              }
+            } catch {
+              // Wait for SSE notification if response is not direct JSON-RPC
+            }
+          }
+        })
+        .catch((err) => {
+          clearTimeout(timer);
+          this.pendingRequests.delete(id);
+          reject(err instanceof Error ? err : new Error(String(err)));
+        });
+    });
+  }
+
+  public async sendNotification(method: string, params: Record<string, unknown>): Promise<void> {
+    const targetUrl = this.messageEndpoint || this.config.url!;
+    const body = {
+      jsonrpc: '2.0',
+      method,
+      params,
+    };
+
+    try {
+      await fetch(targetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this.config.headers || {}),
+        },
+        body: JSON.stringify(body),
+        signal: this.abortController?.signal,
+      });
+    } catch (e) {
+      this.log(`Failed to send notification ${method}: ${e}`);
+    }
+  }
+
+  private cleanupPending(error: Error): void {
+    for (const pending of this.pendingRequests.values()) {
+      clearTimeout(pending.timer);
+      pending.reject(error);
+    }
+    this.pendingRequests.clear();
+  }
+
+  public dispose(): void {
+    this.cleanupPending(new Error('Server disposing'));
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = undefined;
+    }
+    this.status = 'disconnected';
+  }
+
+  private log(message: string): void {
+    const timestamp = new Date().toISOString();
+    this.outputChannel.appendLine(`[${timestamp}] [MCPClientSSE:${this.id}] ${message}`);
+  }
+}
+
 export class MCPClientManager implements vscode.Disposable {
-  private servers = new Map<string, MCPServerProcess>();
+  private servers = new Map<string, IMCPServerInstance>();
   private disposables: vscode.Disposable[] = [];
   private outputChannel: vscode.OutputChannel;
 
@@ -278,7 +580,10 @@ export class MCPClientManager implements vscode.Disposable {
     for (const [id, config] of serverEntries) {
       if (config.disabled) {continue;}
 
-      const server = new MCPServerProcess(id, config, this.outputChannel);
+      const isSSE = config.transport === 'sse' || (Boolean(config.url) && !config.command);
+      const server: IMCPServerInstance = isSSE
+        ? new MCPSSEServerProcess(id, config, this.outputChannel)
+        : new MCPServerProcess(id, config, this.outputChannel);
       this.servers.set(id, server);
 
       try {

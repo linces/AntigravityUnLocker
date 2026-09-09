@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Platform-VS%20Code%20%7C%20Antigravity%20IDE-blue?style=for-the-badge&logo=visualstudiocode" alt="Platform" />
   <img src="https://img.shields.io/badge/Providers-13-purple?style=for-the-badge&logo=openai" alt="Providers" />
-  <img src="https://img.shields.io/badge/Version-0.7.0-green?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-0.8.0-green?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-brightgreen?style=for-the-badge" alt="License" />
 </p>
 
@@ -106,18 +106,23 @@ Para consumo direto pelo AG Universal AI sem necessidade de daemons intermediár
 - Slash commands: `/explain`, `/refactor`, `/test`, `/fix`, `/docs`, `/review`.
 
 ### ⚡ Direct MCP Client Engine (`MCPClientManager`)
-- Conexão nativa JSON-RPC 2.0 (`stdio`) a servidores MCP externos (Postgres, Git, Filesystem, Playwright).
+- Conexão nativa JSON-RPC 2.0 (`stdio` e `sse` remoto) a servidores MCP locais e em nuvem (Postgres, Git, Filesystem, Playwright).
+- Suporte a cabeçalhos de autenticação customizados (`headers`) para MCPs remotos.
 - Descoberta automática de ferramentas e injeção dinâmica no `ToolRegistry`.
 - Configuração simplificada via `.vscode/mcp.json` ou `ag-universal-ai.mcpServers`.
 
 ### 🔍 Visualização Interativa de Diff (`AGDiffProvider`)
 - Pré-visualização side-by-side com `vscode.diff` e esquema virtual `ag-diff://` antes de aplicar modificações em arquivos.
 
-### ⚡ Agent Engine & Multi-Agent Personas (SynAI Embedded)
-- **Plan-Then-Act Integrado**: Visualização estruturada de planos de execução (`### 📋 Execution Plan`) antes e durante os passos agênticos.
-- Motor autônomo com ciclos de planejamento, execução de ferramentas e reflexão com autocorreção.
-- Edição de código por substituição precisa (`ag_replaceInFile`, `ag_multiReplaceInFile`).
-- Suporte a personas especializadas (Supervisor, Planner, Code, Review, Security, Docs, Database).
+### ⚡ Agent Engine & SynAI Multi-Persona Swarm
+- **5 Personas Especializadas**:
+  - 👑 **Supervisor**: Orquestração executiva, síntese e coordenação de metas.
+  - 📋 **Planner**: Decomposição em passos estruturados (`### 📋 Execution Plan`) e arquitetura.
+  - 💻 **Coder**: Implementação cirúrgica com `ag_replaceInFile` e `ag_multiReplaceInFile`.
+  - 🛡️ **Security**: Auditoria de segurança Zero Trust, contenção de path traversal e proteção contra vazamento de PII.
+  - 🔍 **Reviewer**: Validação de qualidade, prevenção de regressões e testes unitários.
+- **Seletor de Personas na UI**: Alternância com 1 clique no Input Card ou chips rápidos (`👑 @supervisor`, `💻 @coder`, `🛡️ @security`).
+- **Workspace Context Indexer (`ag_workspaceDigest`)**: Mapeamento inteligente da topologia do workspace excluindo ruído (`node_modules`, `.git`, `.vsix`).
 
 ### 📊 Telemetria & Dashboard Interativo
 - Métricas em tempo real (requisições, taxa de sucesso %, latência ms e uso de tokens).
@@ -148,4 +153,4 @@ Abra a barra lateral de IA e digite `@ag` ou interaja diretamente pelo painel in
 
 ---
 
-**Versão:** 0.7.0 | **Última Revisão:** 2026-09-09 01:17:00
+**Versão:** 0.8.0 | **Última Revisão:** 2026-09-09 01:48:00

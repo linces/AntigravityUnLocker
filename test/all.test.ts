@@ -9,3 +9,6 @@ import './diff-provider.test';
 import './mcp-client.test';
 import './security-containment.test';
 import './reasoner-stream.test';
+import './personas.test';
+import './mcp-sse.test';
+import './workspace-indexer.test';
