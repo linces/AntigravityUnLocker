@@ -48,6 +48,19 @@ const ENV_KEY_MAP: Record<string, string> = {
   'custom': 'CUSTOM_API_KEY',
 };
 
+/**
+ * Obsolete or discontinued model IDs mapped to active drop-in replacements
+ * to prevent 404 Model Not Found errors from stale workspace settings.
+ */
+const OBSOLETE_MODEL_MIGRATIONS: Record<string, string> = {
+  'nemotron-4-340b-instruct': 'meta/llama-3.3-70b-instruct',
+  'llama-3.1-nemotron-70b-instruct': 'meta/llama-3.3-70b-instruct',
+  'meta/llama-3.1-nemotron-70b-instruct': 'meta/llama-3.3-70b-instruct',
+  'mistral-large-2-instruct': 'meta/llama-3.3-70b-instruct',
+  'mistralai/mistral-large-2-instruct': 'meta/llama-3.3-70b-instruct',
+};
+
+
 export class ProviderManager implements vscode.Disposable {
   private providers = new Map<string, ILLMProvider>();
   private activeProviderId: string | undefined;
@@ -166,10 +179,13 @@ export class ProviderManager implements vscode.Disposable {
      const previousId = this.activeProviderId;
      this.activeProviderId = id;
 
-     // Check for saved model preference for this provider or fallback to preset default
-     const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
-     const userOverrides = config.get<Record<string, { model?: string }>>('providers', {});
-     const savedModel = userOverrides[id]?.model;
+      // Check for saved model preference for this provider or fallback to preset default
+      const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
+      const userOverrides = config.get<Record<string, { model?: string }>>('providers', {});
+      let savedModel = userOverrides[id]?.model;
+      if (savedModel && OBSOLETE_MODEL_MIGRATIONS[savedModel]) {
+        savedModel = OBSOLETE_MODEL_MIGRATIONS[savedModel];
+      }
      if (savedModel) {
        if (provider instanceof OpenAIAdapter) {
          provider.updateModel(savedModel);
@@ -499,7 +515,9 @@ export class ProviderManager implements vscode.Disposable {
     const override = userOverrides[preset.id];
     if (override) {
       if (override.baseUrl) {providerConfig.baseUrl = override.baseUrl;}
-      if (override.model) {providerConfig.model = override.model;}
+      if (override.model) {
+        providerConfig.model = OBSOLETE_MODEL_MIGRATIONS[override.model] || override.model;
+      }
       if (override.timeoutMs) {providerConfig.timeoutMs = override.timeoutMs;}
     }
 
@@ -552,7 +570,10 @@ export class ProviderManager implements vscode.Disposable {
 
     // 1. Sync provider model overrides
     for (const [pId, p] of this.providers.entries()) {
-      const overrideModel = userOverrides[pId]?.model;
+      let overrideModel = userOverrides[pId]?.model;
+      if (overrideModel && OBSOLETE_MODEL_MIGRATIONS[overrideModel]) {
+        overrideModel = OBSOLETE_MODEL_MIGRATIONS[overrideModel];
+      }
       if (overrideModel && overrideModel !== p.config.model) {
         if (p instanceof OpenAIAdapter) {
           p.updateModel(overrideModel);

@@ -977,6 +977,7 @@ Execute the planned steps systematically using available tools. Be concise, veri
         </div>
         <div class="pill-select" id="modelSelectWrap" style="${activeModel ? 'display: inline-flex;' : 'display: none;'}" title="Active Model">
           <select id="selModel">${modelOpts}</select>
+          <button type="button" class="ibtn" id="btnRefreshModels" title="Auto-discover models from provider API (🔄)" style="padding: 1px 4px; font-size: 10px; margin-left: 2px; border: none; background: transparent; cursor: pointer;">🔄</button>
         </div>
         <div class="keybar" id="keybar">
           <input type="password" id="keyIn" placeholder="API Key..." />
@@ -1493,6 +1494,19 @@ Execute the planned steps systematically using available tools. Be concise, veri
     if (val) window.__agPost('switchModel', { model: val });
   });
 
+  var btnRefresh = document.getElementById('btnRefreshModels');
+  if(btnRefresh){
+    btnRefresh.addEventListener('click', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      btnRefresh.textContent = '⏳';
+      window.__agPost('refreshModels', {});
+      setTimeout(function(){
+        if(btnRefresh) btnRefresh.textContent = '🔄';
+      }, 4000);
+    });
+  }
+
   bindSelectChange('selSession', function(val) {
     if (val) window.__agPost('switchSession', { id: val });
   });
@@ -1695,6 +1709,12 @@ Execute the planned steps systematically using available tools. Be concise, veri
 
           var sModel = getSelModel();
           var modelSelectWrap = document.getElementById('modelSelectWrap');
+          var btnRefresh = document.getElementById('btnRefreshModels');
+          if(btnRefresh) btnRefresh.textContent = '🔄';
+          if(modelSelectWrap && m.modelSource){
+            var srcLabel = m.modelSource === 'live' ? '✓ Live' : (m.modelSource === 'memory-cache' || m.modelSource === 'persistent-cache' ? '⚡ Cached' : '📋 Preset');
+            modelSelectWrap.title = 'Active Model (' + srcLabel + ')';
+          }
           if(sModel){
             sModel.innerHTML = '';
             var curModel = m.active ? m.active.model : '';

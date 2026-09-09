@@ -4,14 +4,14 @@
   <img src="https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Platform-VS%20Code%20%7C%20Antigravity%20IDE-blue?style=for-the-badge&logo=visualstudiocode" alt="Platform" />
   <img src="https://img.shields.io/badge/Providers-13-purple?style=for-the-badge&logo=openai" alt="Providers" />
-  <img src="https://img.shields.io/badge/Tests-51%20passing-brightgreen?style=for-the-badge&logo=mocha" alt="Tests" />
-  <img src="https://img.shields.io/badge/Version-0.11.0-green?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Tests-68%20passing-brightgreen?style=for-the-badge&logo=mocha" alt="Tests" />
+  <img src="https://img.shields.io/badge/Version-0.12.0-green?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-brightgreen?style=for-the-badge&logo=opensourceinitiative" alt="License" />
 </p>
 
 <p align="center">
   <b>A powerful, multi-provider AI coding assistant & agent engine for VS Code & Antigravity IDE.</b><br />
-  Parallel Subagents & Swarm Delegation, Human-in-the-Loop Diff Approval, Universal Rules (.agents, Cursor, Windsurf, Copilot, Claude), and Direct MCP.
+  Runtime Model Auto-Discovery, Parallel Subagents & Swarm Delegation, Human-in-the-Loop Diff Approval, Universal Rules (.agents, Cursor, Windsurf, Copilot, Claude), and Direct MCP.
 </p>
 
 > [!IMPORTANT]
@@ -157,6 +157,17 @@ Para consumo direto pelo AG Universal AI sem necessidade de daemons intermediár
 - **Herança de Aprovação Human-in-the-Loop**: Sub-agentes herdam as mesmas políticas de segurança (`approvalPolicy`), exigindo confirmação com diff antes de gravar arquivos.
 - **Prevenção de Recursão Infinita**: Bloqueio rigoroso de profundidade configurável via `ag-universal-ai.agent.maxSubagentDepth` (padrão `2`).
 
+### 🔍 Auto-Discovery de Modelos em Tempo Real (`ModelDiscoveryService`)
+- **Consulta Dinâmica às APIs**: Varredura direta dos catálogos dos provedores via endpoints `/models` e `/v1/models`, eliminando o problema de modelos descontinuados ou 404 Model Not Found.
+- **Hierarquia de Cache em 3 Níveis**:
+  - *L1 Memória*: Cache RAM de 30 minutos com invalidação por refresh.
+  - *L2 Persistência*: Salvo em `globalState` do VS Code para inicialização instantânea entre sessões.
+  - *L3 Fallback Chain de 5 Camadas*: Live Query ➔ Inflight Coalescing ➔ Memory Cache ➔ Persistent Storage ➔ Preset Seguro.
+- **Inflight Request Coalescing**: Requisições simultâneas para o mesmo provedor compartilham uma única promessa ativa, prevenindo excesso de tráfego.
+- **Heurísticas Automáticas de Capacidades**: Detecção inteligente de suporte a chamadas de ferramentas (`🛠️ Tools`) e visão (`👁️ Vision`).
+- **Higienização de Modelos Obsoletos**: Sanitização automática de modelos obsoletos herdados de configurações anteriores (como `nemotron-4-340b-instruct` e `llama-3.1-nemotron-70b-instruct` na NVIDIA NIM), migrando-os automaticamente para modelos atuais válidos (`meta/llama-3.3-70b-instruct`).
+- **Transparência na UI**: Rótulos claros no QuickPick e Sidebar Webview identificando a origem (`✓ Live`, `⚡ Cached`, `💾 Saved`, `📋 Preset`) e botão de atualização manual (`🔄 Refresh Models`).
+
 ### 📊 Telemetria & Dashboard Interativo
 - Métricas em tempo real (requisições, taxa de sucesso %, latência ms e uso de tokens).
 - Troca de provedor ativo com 1 clique diretamente no Dashboard (`AG AI: Show Dashboard`).
@@ -186,4 +197,4 @@ Abra a barra lateral de IA e digite `@ag` ou interaja diretamente pelo painel in
 
 ---
 
-**Versão:** 0.11.0 | **Última Revisão:** 2026-09-09 07:16:00
+**Versão:** 0.12.0 | **Última Revisão:** 2026-09-09 07:51:00

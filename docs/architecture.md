@@ -106,6 +106,18 @@ O AG Universal AI consome os principais servidores MCP da comunidade via `stdio`
 - **Webview Approval Bridge**: Interface de cards com botões `✅ Aprovar`, `⏭️ Pular` e opção de auto-aprovação persistente na sessão (`Sempre nesta sessão`), destravando o loop assíncrono do agente via IPC (`toolApprovalResponse`).
 - **Adaptive LLM Reflection**: Injeção da justificativa de recusa como observação no diálogo para replanejamento dinâmico pelo modelo.
 
+### 4.6 Runtime Model Auto-Discovery & Dynamic Capabilities Layer
+- **Model Discovery Service (`src/providers/model-discovery.ts`)**: Consulta dinâmica de catálogos de modelos diretamente das APIs dos provedores em tempo real, eliminando listas estáticas obsoletas e erros 404 Model Not Found.
+- **Hierarquia de Cache em 3 Níveis**:
+  1. *L1 Memória (RAM)*: TTL de 30 minutos com invalidação programática.
+  2. *L2 Persistência (`globalState`)*: Preserva listas conhecidas entre reinicializações do VS Code.
+  3. *L3 Preset Estático Fallback*: Catálogo seguro embutido ativado apenas se a rede/API estiver offline.
+- **Inflight Request Coalescing**: Deduplica requisições concorrentes de descoberta ao mesmo provedor em uma única promessa compartilhada.
+- **Multi-Endpoint Adapter Fetching (`src/providers/openai-adapter.ts`)**: Varredura sequencial resiliente de endpoints comuns (`/models` e `/v1/models`).
+- **Auto-Detecção de Capacidades**: Heurísticas semânticas para classificação automática de suporte a Function Calling (`looksLikeToolCapable`) e Visão Multimodal (`looksLikeVisionCapable`).
+- **Higienização de Modelos Obsoletos (`OBSOLETE_MODEL_MIGRATIONS`)**: Migração automática e transparente de configurações herdadas com IDs descontinuados para substitutos válidos.
+- **Transparência de Origem na UI**: Badges visuais e tooltips no QuickPick e Sidebar Webview identificando a procedência (`✓ Live`, `⚡ Cached`, `💾 Saved`, `📋 Preset`) e botão de disparo manual `🔄 Refresh Models`.
+
 ---
 
 ## 5. Diretrizes de Segurança & Telemetria
@@ -116,4 +128,4 @@ O AG Universal AI consome os principais servidores MCP da comunidade via `stdio`
 
 ---
 
-**Versão:** 0.11.0 | **Última Revisão:** 2026-09-09 07:16:00
+**Versão:** 0.12.0 | **Última Revisão:** 2026-09-09 07:49:00

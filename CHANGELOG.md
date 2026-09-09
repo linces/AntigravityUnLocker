@@ -5,6 +5,31 @@ All notable changes to the **AG Universal AI** extension will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-09-09
+
+### Added
+- **Model Auto-Discovery System (`src/providers/model-discovery.ts`)**: Sistema de busca e sincronização dinâmica de catálogos de modelos direto das APIs dos provedores em tempo de execução:
+  - **Cache Multi-Nível Resiliente**:
+    - *L1 Cache em Memória*: TTL de 30 minutos com invalidação por refresh manual.
+    - *L2 Cache Persistente (`globalState`)*: Preserva o último catálogo funcional entre sessões e reinicializações do VS Code.
+    - *L3 Fallback Chain de 5 Camadas*: Live Query ➔ Inflight Coalescing ➔ Memory Cache ➔ Persistent Storage ➔ Preset Estático.
+  - **Inflight Request Coalescing**: Prevenção de tempestades de requisições simultâneas para o mesmo provedor através de promessa compartilhada única.
+  - **Multi-Endpoint Adapter Resilient Fetching (`src/providers/openai-adapter.ts`)**: Varredura automática e sequencial dos padrões `/models` e `/v1/models` com parsing enriquecido (`owned_by`, heurísticas de capacidades).
+  - **Heurísticas Automáticas de Capacidades**: Detecção de suporte a Function Calling (`looksLikeToolCapable`) e Visão Multimodal (`looksLikeVisionCapable`) baseada em metadados semânticos do modelo.
+  - **Transparência e Rastreabilidade na UI**:
+    - QuickPick com rótulos visuais de procedência (`✓ Live`, `⚡ Cached`, `💾 Saved`, `📋 Preset`) e indicadores de capacidades (`🛠️ Tools`, `👁️ Vision`).
+    - Sidebar Webview com tooltip dinâmico de procedência e botão dedicado de atualização rápida (`🔄 Refresh Models`).
+  - **Comando Nativo no VS Code**: `ag-universal-ai.refreshModels` registrado na Command Palette para sincronização forçada sob demanda.
+- **Higienização de Modelos Obsoletos (`OBSOLETE_MODEL_MIGRATIONS`)**: Sanitização automática de modelos descontinuados (`nemotron-4-340b-instruct`, `llama-3.1-nemotron-70b-instruct`, `mistral-large-2-instruct`) substituídos de forma transparente por `meta/llama-3.3-70b-instruct`, eliminando permanentemente erros 404 Model Not Found.
+
+### Removed
+- Removidos modelos obsoletos do catálogo estático da NVIDIA NIM no `provider-registry.ts`.
+
+### Tests
+- Adicionada suíte de testes unitários `test/model-discovery.test.ts` com 16 novos testes cobrindo live fetch, hierarquia de cache, request coalescing, offline fallback e ordenação inteligente, elevando a suíte para **68 testes automatizados 100% aprovados**.
+
+---
+
 ## [0.11.0] - 2026-09-09
 
 ### Added
@@ -267,4 +292,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-**Versão:** 0.11.0 | **Última Revisão:** 2026-09-09 07:16:00
+**Versão:** 0.12.0 | **Última Revisão:** 2026-09-09 07:50:00
