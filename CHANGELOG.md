@@ -5,6 +5,18 @@ All notable changes to the **AG Universal AI** extension will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-09-09
+
+### Added
+- **Reasoner UX & Thinking Blocks (`<details class="think-box">`)**: Native collapsible thinking blocks for reasoning models (DeepSeek R1, Kimi K1.5). Streaming parser in `OpenAIAdapter` automatically wraps `reasoning_content` in `<think>...</think>`, and the Sidebar Webview renders them dynamically into interactive collapsible details panels with dedicated styling and badge.
+- **Prompt Navigation History**: Terminal-style input history in the sidebar chat textarea using `ArrowUp` (at start of input) and `ArrowDown`, preserving draft inputs and accelerating iterative prompt workflows.
+- **Agent Planner Visual Integration**: Integrated `AgentPlanner` into `🤖 Agent` mode in `AGSidebarWebviewProvider`. Goals are structured into step-by-step execution plans (`### 📋 Execution Plan`) before tool execution starts, giving complete visibility over autonomous agent actions.
+
+### Tests
+- Added `test/reasoner-stream.test.ts` for reasoner stream demarcation testing, raising the test suite to 28 passing tests.
+
+---
+
 ## [0.6.7] - 2026-09-09
 
 ### Added & Fixed
@@ -175,4 +187,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-**Versão:** 0.6.1 | **Última Revisão:** 2026-08-30 18:22:00
+**Versão:** 0.7.0 | **Última Revisão:** 2026-09-09 01:16:00

@@ -10,6 +10,7 @@ import type { ProviderManager } from '../providers/provider-manager';
 import type { SessionManager } from '../chat/session-manager';
 import type { ToolRegistry } from '../tools/tool-registry';
 import type { AgentEngine } from '../agent/engine';
+import type { AgentPlanner } from '../agent/planner';
 import { getAllPresets, getPreset } from '../providers/provider-registry';
 import { buildSystemPrompt, buildSlashCommandPrompt } from '../chat/prompt-builder';
 import { AGDiffProvider } from './diff-provider';
@@ -24,6 +25,7 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     private readonly sessionManager: SessionManager,
     private readonly toolRegistry: ToolRegistry,
     private readonly agentEngine: AgentEngine,
+    private readonly agentPlanner: AgentPlanner,
     private readonly outputChannel: vscode.OutputChannel
   ) {
     this.disposables.push(
@@ -482,9 +484,30 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     const model = activeProvider ? activeProvider.config.model : 'agent-loop';
 
     try {
+      this.post({ type: 'chunk', text: '🤖 *Formulating agent execution plan...*\n\n' });
+      const plan = await this.agentPlanner.createPlan(goal);
+
+      const planSummary = plan.steps
+        .map((s) => `• Step ${s.id}: ${s.description}`)
+        .join('\n');
+
+      const planDisplay = `### 📋 Execution Plan (${plan.steps.length} steps)\n*Strategy: ${plan.rationale}*\n\n` +
+        plan.steps.map((s) => `⏳ **Step ${s.id}:** ${s.description}`).join('\n') +
+        '\n\n---\n*Executing agent tasks...*\n\n';
+
+      this.post({ type: 'chunk', text: planDisplay });
+
+      const agentSystemPrompt = `You are AG Universal AI Autonomous Agent.
+Goal: ${goal}
+High-level Strategy: ${plan.rationale}
+Planned Steps:
+${planSummary}
+
+Execute the planned steps systematically using available tools. Be concise, verify edits, and output a clear summary when finished.`;
+
       const result = await this.agentEngine.run(
         goal,
-        'Use tools to accomplish the goal.',
+        agentSystemPrompt,
         (chunk: string) => this.post({ type: 'chunk', text: chunk })
       );
       const latencyMs = Date.now() - startTime;
@@ -751,6 +774,11 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       .emoji-btn { background: transparent; border: none; font-size: 16px; cursor: pointer; border-radius: 4px; padding: 2px; text-align: center; }
       .emoji-btn:hover { background: rgba(255,255,255,0.1); }
       a.file-link { color: var(--accent); text-decoration: underline; cursor: pointer; }
+
+      .think-box { background: rgba(139, 92, 246, 0.06); border: 1px solid rgba(139, 92, 246, 0.25); border-left: 3px solid #8b5cf6; border-radius: 6px; padding: 6px 10px; margin: 6px 0; font-size: 11px; }
+      .think-summary { cursor: pointer; color: #a78bfa; font-weight: 600; user-select: none; outline: none; display: flex; align-items: center; gap: 4px; }
+      .think-summary:hover { color: #c4b5fd; }
+      .think-content { margin-top: 6px; color: #94a3b8; font-style: italic; white-space: pre-wrap; line-height: 1.4; max-height: 220px; overflow-y: auto; padding-top: 4px; border-top: 1px dashed rgba(139, 92, 246, 0.2); }
     `;
   }
 
@@ -866,9 +894,22 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         s = String(s);
       }
     }
+
+    var thinkBlocks = [];
+    var thinkRegex = new RegExp('<think>([\\\\s\\\\S]*?)(?:<\\/think>|$)', 'g');
+    var sClean = s.replace(thinkRegex, function(fullMatch, thinkBody){
+      var id = '___THINK_BLOCK_' + thinkBlocks.length + '___';
+      var isClosed = fullMatch.indexOf('</think>') >= 0;
+      var cleanThink = esc(thinkBody.trim());
+      var summaryTitle = isClosed ? '🧠 Model Reasoning' : '🧠 Model Reasoning (thinking...)';
+      var blockHtml = '<details class="think-box"' + (isClosed ? '' : ' open') + '><summary class="think-summary">' + summaryTitle + '</summary><div class="think-content">' + cleanThink.split(String.fromCharCode(10)).join('<br>') + '</div></details>';
+      thinkBlocks.push(blockHtml);
+      return id;
+    });
+
     var codeBlocks = [];
     var codeBlockRegex = new RegExp(String.fromCharCode(96,96,96) + '([\\\\s\\\\S]*?)' + String.fromCharCode(96,96,96), 'g');
-    var text = s.replace(codeBlockRegex, function(_, block){
+    var text = sClean.replace(codeBlockRegex, function(_, block){
       var id = '___CODE_BLOCK_' + codeBlocks.length + '___';
       var firstNewline = block.indexOf(String.fromCharCode(10));
       var lang = '';
@@ -914,6 +955,12 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
       (function(blockContent) {
         text = text.replace('___CODE_BLOCK_' + i + '___', function() { return blockContent; });
       })(codeBlocks[i]);
+    }
+
+    for (var j = 0; j < thinkBlocks.length; j++) {
+      (function(blockContent) {
+        text = text.replace('___THINK_BLOCK_' + j + '___', function() { return blockContent; });
+      })(thinkBlocks[j]);
     }
 
     return text;
@@ -979,6 +1026,10 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
   var isAgentMode = false;
   var isHydrated = false;
   var isUpdatingUI = false;
+
+  var promptHistory = [];
+  var promptHistoryIndex = -1;
+  var tempDraft = '';
 
   var attachedFiles = [];
   var attachedImages = [];
@@ -1247,6 +1298,34 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
         e.preventDefault();
         e.stopPropagation();
         doSend();
+      } else if(e.key === 'ArrowUp'){
+        if(inpEl.selectionStart === 0 && inpEl.selectionEnd === 0 && promptHistory.length > 0){
+          e.preventDefault();
+          if(promptHistoryIndex === -1){
+            tempDraft = inpEl.value;
+            promptHistoryIndex = promptHistory.length - 1;
+          } else if(promptHistoryIndex > 0){
+            promptHistoryIndex--;
+          }
+          inpEl.value = promptHistory[promptHistoryIndex] || '';
+          inpEl.style.height = 'auto';
+          inpEl.style.height = Math.min(inpEl.scrollHeight, 140) + 'px';
+          inpEl.selectionStart = inpEl.selectionEnd = inpEl.value.length;
+        }
+      } else if(e.key === 'ArrowDown'){
+        if(promptHistoryIndex !== -1){
+          e.preventDefault();
+          if(promptHistoryIndex < promptHistory.length - 1){
+            promptHistoryIndex++;
+            inpEl.value = promptHistory[promptHistoryIndex];
+          } else {
+            promptHistoryIndex = -1;
+            inpEl.value = tempDraft || '';
+          }
+          inpEl.style.height = 'auto';
+          inpEl.style.height = Math.min(inpEl.scrollHeight, 140) + 'px';
+          inpEl.selectionStart = inpEl.selectionEnd = inpEl.value.length;
+        }
       }
     });
     inpEl.addEventListener('input', function(e){
@@ -1325,6 +1404,15 @@ export class AGSidebarWebviewProvider implements vscode.WebviewViewProvider, vsc
     }
 
     window.__agPost(isAgentMode ? 'agent' : 'chat', payload);
+
+    if(text){
+      if(promptHistory.length === 0 || promptHistory[promptHistory.length - 1] !== text){
+        promptHistory.push(text);
+        if(promptHistory.length > 50) promptHistory.shift();
+      }
+      promptHistoryIndex = -1;
+      tempDraft = '';
+    }
 
     attachedFiles = [];
     attachedImages = [];

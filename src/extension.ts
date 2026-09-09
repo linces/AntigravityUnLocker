@@ -107,6 +107,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     sessionManager,
     toolRegistry,
     agentEngine,
+    agentPlanner,
     outputChannel
   );
   context.subscriptions.push(

@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge&logo=github" alt="Status" />
   <img src="https://img.shields.io/badge/Platform-VS%20Code%20%7C%20Antigravity%20IDE-blue?style=for-the-badge&logo=visualstudiocode" alt="Platform" />
   <img src="https://img.shields.io/badge/Providers-13-purple?style=for-the-badge&logo=openai" alt="Providers" />
-  <img src="https://img.shields.io/badge/Version-0.6.7-green?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-0.7.0-green?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-brightgreen?style=for-the-badge" alt="License" />
 </p>
 
@@ -99,6 +99,8 @@ Para consumo direto pelo AG Universal AI sem necessidade de daemons intermediár
 
 ### 🤖 Multi-Provider Chat & Sessões Persistentes (`@ag` Sidebar)
 - Persistência de sessões no `workspaceState` (criar `➕`, alternar `📜`, excluir `🗑️`, limpar `🧹`).
+- **Reasoner UX & Thinking Blocks**: Renderização dinâmica de blocos de raciocínio expansíveis/retráteis (`<details class="think-box">`) para modelos como DeepSeek R1 e Kimi K1.5.
+- **Histórico de Prompts no Terminal-Style**: Navegação de histórico de comandos e prompts no `<textarea>` com `ArrowUp` e `ArrowDown`.
 - Nomeação automática de sessões baseada na mensagem inicial.
 - Qodo & Cursor Style Input Card com seletor de modelos/provedores em tempo real.
 - Slash commands: `/explain`, `/refactor`, `/test`, `/fix`, `/docs`, `/review`.
@@ -112,6 +114,7 @@ Para consumo direto pelo AG Universal AI sem necessidade de daemons intermediár
 - Pré-visualização side-by-side com `vscode.diff` e esquema virtual `ag-diff://` antes de aplicar modificações em arquivos.
 
 ### ⚡ Agent Engine & Multi-Agent Personas (SynAI Embedded)
+- **Plan-Then-Act Integrado**: Visualização estruturada de planos de execução (`### 📋 Execution Plan`) antes e durante os passos agênticos.
 - Motor autônomo com ciclos de planejamento, execução de ferramentas e reflexão com autocorreção.
 - Edição de código por substituição precisa (`ag_replaceInFile`, `ag_multiReplaceInFile`).
 - Suporte a personas especializadas (Supervisor, Planner, Code, Review, Security, Docs, Database).
@@ -145,4 +148,4 @@ Abra a barra lateral de IA e digite `@ag` ou interaja diretamente pelo painel in
 
 ---
 
-**Versão:** 0.6.7 | **Última Revisão:** 2026-09-09 00:48:00
+**Versão:** 0.7.0 | **Última Revisão:** 2026-09-09 01:17:00

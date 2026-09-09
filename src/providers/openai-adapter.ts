@@ -189,6 +189,8 @@ export class OpenAIAdapter implements ILLMProvider {
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
 
+      let inReasoning = false;
+
       for await (const chunk of asyncChunks) {
         // Clear connection timeout once data starts streaming
         clearTimeout(timer);
@@ -201,7 +203,13 @@ export class OpenAIAdapter implements ILLMProvider {
           const trimmed = line.trim();
           if (trimmed.startsWith('data:')) {
             const dataStr = trimmed.slice(5).trim();
-            if (dataStr === '[DONE]') { return; }
+            if (dataStr === '[DONE]') {
+              if (inReasoning) {
+                yield '\n</think>\n\n';
+                inReasoning = false;
+              }
+              return;
+            }
             try {
               const parsed = JSON.parse(dataStr);
               const choice = parsed.choices?.[0];
@@ -211,11 +219,23 @@ export class OpenAIAdapter implements ILLMProvider {
                 const reasoning = delta?.reasoning_content || delta?.reasoning;
                 const text = choice.text;
 
-                if (typeof content === 'string' && content.length > 0) {
-                  yield content;
-                } else if (typeof reasoning === 'string' && reasoning.length > 0) {
+                if (typeof reasoning === 'string' && reasoning.length > 0) {
+                  if (!inReasoning) {
+                    yield '<think>\n';
+                    inReasoning = true;
+                  }
                   yield reasoning;
+                } else if (typeof content === 'string' && content.length > 0) {
+                  if (inReasoning) {
+                    yield '\n</think>\n\n';
+                    inReasoning = false;
+                  }
+                  yield content;
                 } else if (typeof text === 'string' && text.length > 0) {
+                  if (inReasoning) {
+                    yield '\n</think>\n\n';
+                    inReasoning = false;
+                  }
                   yield text;
                 }
               }
@@ -224,6 +244,11 @@ export class OpenAIAdapter implements ILLMProvider {
             }
           }
         }
+      }
+
+      if (inReasoning) {
+        yield '\n</think>\n\n';
+        inReasoning = false;
       }
     } finally {
       clearTimeout(timer);

@@ -8,3 +8,4 @@ import './agent-engine.test';
 import './diff-provider.test';
 import './mcp-client.test';
 import './security-containment.test';
+import './reasoner-stream.test';
